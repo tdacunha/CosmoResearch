@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.12.4)  15 JUN 2021 10:55
+This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.12.4)  15 JUN 2021 11:38
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -365,33 +365,33 @@ Package: multirow 2019/01/01 v2.4 Span multiple rows of a table
 \multirow@dima=\skip57
 \bigstrutjot=\dimen119
 )
-Class revtex4-1 Info: Patching LaTeX tabular. on input line 17.
+Class revtex4-1 Info: Patching LaTeX tabular. on input line 16.
 
 
 Class revtex4-1 Warning: Repair the float package.
 
-Class revtex4-1 Info: Robustifying \LaTeX's \boldmath command on input line 17.
+Class revtex4-1 Info: Robustifying \LaTeX's \boldmath command on input line 16.
 
-Class revtex4-1 Info: cite was not loaded (OK!) on input line 17.
-Class revtex4-1 Info: mcite was not loaded (OK!) on input line 17.
-Class revtex4-1 Info: multicol was not loaded (OK!) on input line 17.
+Class revtex4-1 Info: cite was not loaded (OK!) on input line 16.
+Class revtex4-1 Info: mcite was not loaded (OK!) on input line 16.
+Class revtex4-1 Info: multicol was not loaded (OK!) on input line 16.
 (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
 
 (/usr/local/texlive/2019/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
@@ -424,7 +424,7 @@ File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
 \AtBeginShipoutBox=\box47
-Package hyperref Info: Link coloring OFF on input line 17.
+Package hyperref Info: Link coloring OFF on input line 16.
 
 (/usr/local/texlive/2019/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
@@ -434,52 +434,77 @@ Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
 )
 \c@section@level=\count130
 )
-LaTeX Info: Redefining \ref on input line 17.
-LaTeX Info: Redefining \pageref on input line 17.
-LaTeX Info: Redefining \nameref on input line 17.
+LaTeX Info: Redefining \ref on input line 16.
+LaTeX Info: Redefining \pageref on input line 16.
+LaTeX Info: Redefining \nameref on input line 16.
 
 (./main.out) (./main.out)
 \@outlinefile=\write5
 \openout5 = `main.out'.
 
-Class revtex4-1 Info: Taking \maketitle back from hyperref on input line 17.
+Class revtex4-1 Info: Taking \maketitle back from hyperref on input line 16.
 \openout3 = `mainNotes.bib'.
 
+LaTeX Font Info:    Try loading font information for U+msa on input line 32.
 
-Underfull \hbox (badness 3780) in paragraph at lines 39--47
+(/usr/local/texlive/2019/texmf-dist/tex/latex/amsfonts/umsa.fd
+File: umsa.fd 2013/01/14 v3.01 AMS symbols A
+)
+LaTeX Font Info:    Try loading font information for U+msb on input line 32.
+
+(/usr/local/texlive/2019/texmf-dist/tex/latex/amsfonts/umsb.fd
+File: umsb.fd 2013/01/14 v3.01 AMS symbols B
+)
+LaTeX Font Info:    Try loading font information for U+rsfs on input line 32.
+
+(/usr/local/texlive/2019/texmf-dist/tex/latex/jknapltx/ursfs.fd
+File: ursfs.fd 1998/03/24 rsfs font definition file (jk)
+)
+
+Package hyperref Warning: Difference (2) between bookmark levels is greater 
+(hyperref)                than one, level fixed on input line 64.
+
+
+Underfull \hbox (badness 3780) in paragraph at lines 110--118
 []\OT1/cmr/m/n/10 We thank XXX for help-ful dis-cus-sions. MR
  []
 
 
-Underfull \hbox (badness 3058) in paragraph at lines 39--47
+Underfull \hbox (badness 3058) in paragraph at lines 110--118
 \OT1/cmr/m/n/10 is sup-ported in part by NASA ATP Grant No.
  []
 
-(./main.bbl) [1{/usr/local/texlive/2019/texmf-var/fonts/map/pdftex/updmap/pdfte
-x.map}]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 52.
+(./main.bbl [1{/usr/local/texlive/2019/texmf-var/fonts/map/pdftex/updmap/pdftex
+.map}]) [2]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 123.
  (./main.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 52.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 52.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 123.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 123.
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: AFDAF76C3E6AFE333B2F93A3C3495353;239.
+(rerunfilecheck)             Checksum: 94A6969CCDC9649E541550C1F671694F;350.
  ) 
 Here is how much of TeX's memory you used:
- 8522 strings out of 492616
- 119249 string characters out of 6129481
- 231555 words of memory out of 5000000
- 12353 multiletter control sequences out of 15000+600000
- 4852 words of font info for 18 fonts, out of 8000000 for 9000
+ 8578 strings out of 492616
+ 120172 string characters out of 6129481
+ 257543 words of memory out of 5000000
+ 12377 multiletter control sequences out of 15000+600000
+ 7214 words of font info for 30 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 28i,5n,35p,221b,397s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 28i,8n,35p,224b,473s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb
 ></usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx9.pfb><
-/usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></u
-sr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb>
-Output written on main.pdf (1 page, 59372 bytes).
+/usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></
+usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></us
+r/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/
+local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/loc
+al/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/local/
+texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/t
+exlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/tex
+live/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb>
+Output written on main.pdf (2 pages, 119627 bytes).
 PDF statistics:
- 60 PDF objects out of 1000 (max. 8388607)
- 51 compressed objects within 1 object stream
- 8 named destinations out of 1000 (max. 500000)
- 33 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 109 PDF objects out of 1000 (max. 8388607)
+ 93 compressed objects within 1 object stream
+ 20 named destinations out of 1000 (max. 500000)
+ 49 words of extra memory for PDF output out of 10000 (max. 10000000)
 
