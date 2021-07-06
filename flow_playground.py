@@ -55,14 +55,9 @@ g = plots.get_subplot_plotter()
 g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
 
 # slice two dimensions:
-x = np.linspace(0.0, 4.0, 100)
-
-dir_1 = np.array(flow_callback.Z2X_bijector(np.vstack((x, np.zeros(len(x)))).T))
-dir_2 = np.array(flow_callback.Z2X_bijector(np.vstack((np.zeros(len(x)), x)).T))
-
+x = np.linspace(0.0, 2.0, 100)
 dir_1 = flow_callback.Z2X_bijector(np.vstack((x, np.zeros(len(x)))).T.astype(np.float32))
 dir_2 = flow_callback.Z2X_bijector(np.vstack((np.zeros(len(x)), x)).T.astype(np.float32))
-
 g = plots.get_subplot_plotter()
 g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
 ax = g.subplots[1, 0]
