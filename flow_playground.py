@@ -3,6 +3,8 @@
 import sys, os
 here = './'
 temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
+sys.path.insert(0, temp_path)
+
 from getdist import plots, MCSamples
 from getdist.gaussian_mixtures import GaussianND
 import getdist
@@ -14,9 +16,9 @@ from IPython.display import Markdown
 import numpy as np
 import seaborn as sns
 # import the tensiometer tools that we need:
-from tensiometer import utilities
-from tensiometer import gaussian_tension
-from tensiometer import mcmc_tension
+from tensiometer.tensiometer import utilities
+from tensiometer.tensiometer import gaussian_tension
+from tensiometer.tensiometer import mcmc_tension
 
 
 # load the chains (remove no burn in since the example chains have already been cleaned):
@@ -40,7 +42,7 @@ callbacks = [ReduceLROnPlateau()]
 
 batch_size = 8192
 epochs = 40
-steps_per_epoch = 2*128
+steps_per_epoch = 128
 
 flow_callback.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
 
@@ -66,8 +68,3 @@ g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
 ax = g.subplots[1, 0]
 ax.plot(dir_1[:, 0], dir_1[:, 1])
 ax.plot(dir_2[:, 0], dir_2[:, 1])
-
-
-
-
-pass
