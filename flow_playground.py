@@ -16,12 +16,14 @@ from IPython.display import Markdown
 import numpy as np
 import seaborn as sns
 # import the tensiometer tools that we need:
-from tensiometer.tensiometer import utilities
-from tensiometer.tensiometer import gaussian_tension
-from tensiometer.tensiometer import mcmc_tension
+from tensiometer import utilities
+from tensiometer import gaussian_tension
+from tensiometer import mcmc_tension
 import tensorflow_probability as tfp
 tfb = tfp.bijectors
 tfd = tfp.distributions
+
+#import flow_nonunit
 
 
 # load the chains (remove no burn in since the example chains have already been cleaned):
@@ -38,13 +40,15 @@ param_names = ['omegam', 'sigma8']
 
 # define the flow:
 flow_callback = mcmc_tension.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
+#flow_callback = flow_nonunit.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
+
 
 # train:
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 callbacks = [ReduceLROnPlateau()]
 
 batch_size = 8192
-epochs = 40
+epochs = 200 #40
 steps_per_epoch = 128
 
 flow_callback.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
@@ -65,14 +69,12 @@ x = np.linspace(0.0, 2.0, 100)
 
 dir_1 = flow_callback.Z2X_bijector(np.vstack((x, np.zeros(len(x)))).T.astype(np.float32))
 dir_2 = flow_callback.Z2X_bijector(np.vstack((np.zeros(len(x)), x)).T.astype(np.float32))
-#dir_3 = flow_callback.Z2X_bijector(np.vstack((-x, np.zeros(len(x)))).T.astype(np.float32))
 
 g = plots.get_subplot_plotter()
 g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
 ax = g.subplots[1, 0]
 ax.plot(dir_1[:, 0], dir_1[:, 1])
 ax.plot(dir_2[:, 0], dir_2[:, 1])
-#ax.plot(dir_3[:, 0], dir_3[:, 1])
 
 # Inverted plot in abstract space:
 
@@ -80,8 +82,9 @@ X2Z_bijector = tfb.Invert(flow_callback.Z2X_bijector)
 num_params = flow_callback.num_params
 dist_learned_inverted = tfd.TransformedDistribution(distribution=flow_callback.dist_learned, bijector=X2Z_bijector)
 
-#X_sample1 = np.array(flow_callback.dist_transformed.sample(N))
-Z_sample = np.array(dist_learned_inverted.sample(N))
+Z_sample = np.array(flow_callback.dist_gaussian_approx.sample(N)) #Using Y2Xbijector
+#Z_sample = np.array(flow_callback.dist_transformed.sample(N)) #Using Z2Ybijector
+#Z_sample = np.array(dist_learned_inverted.sample(N))
 
 flow_chain1 = MCSamples(samples=Z_sample, names=['Z1', 'Z2'], label='Transformed distribution')
 
