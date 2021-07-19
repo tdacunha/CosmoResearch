@@ -48,7 +48,7 @@ from tensorflow.keras.callbacks import ReduceLROnPlateau
 callbacks = [ReduceLROnPlateau()]
 
 batch_size = 8192
-epochs = 200 #40
+epochs = 40
 steps_per_epoch = 128
 
 flow_callback.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
