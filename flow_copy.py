@@ -22,8 +22,10 @@ import pickle
 from collections.abc import Iterable
 from matplotlib import pyplot as plt
 
-from .. import utilities as utils
-from .. import gaussian_tension
+#from .. import utilities as utils
+#from .. import gaussian_tension
+from tensiometer import utilities as utils #edited by tara
+from tensiometer import gaussian_tension #edited by tara
 
 try:
     import tensorflow as tf
@@ -316,6 +318,7 @@ class DiffFlowCallback(Callback):
         :return: A :class:`~tf.keras.callbacks.History` object. Its `history` attribute is a dictionary of training and validation loss values and metrics values at successive epochs: `"shift0_chi2"` is the squared norm of the zero-shift point in the gaussianized space, with the probability-to-exceed and corresponding tension in `"shift0_pval"` and `"shift0_nsigma"`; `"chi2Z_ks"` and `"chi2Z_ks_p"` contain the :math:`D_n` statistic and probability-to-exceed of the Kolmogorov-Smironov test that squared norms of the transformed samples `Z` are :math:`\\chi^2` distributed (with a number of degrees of freedom equal to the number of parameters).
         """
         # We're trying to loop through the full sample each epoch
+        tf.random.set_seed(1)
         if batch_size is None:
             if steps_per_epoch is None:
                 steps_per_epoch = 100
