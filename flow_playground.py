@@ -110,6 +110,42 @@ density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
 
+###############################################################################
+# find maximum posterior:
+###############################################################################
+
+from scipy.optimize import differential_evolution
+
+bounds = [[.1, .5], [.6, 1.2]]
+
+result = differential_evolution(lambda x: -flow_callback.dist_learned.log_prob(np.array(x, dtype=np.float32)), bounds, disp=True)
+
+print(result)
+
+maximum_posterior = result.x
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+plt.scatter(maximum_posterior[0], maximum_posterior[1])
+
+
+###############################################################################
+# get covariance from samples and from flow:
+###############################################################################
+
+chain.cov(pars=['omegam', 'sigma8'])
+
+
+
+
+###############################################################################
+# trace geodesics passing from the maximum posterior
+###############################################################################
+
+
+
+
 # slice two dimensions:
 x = np.linspace(0.0, 2.0, 100)
 
@@ -122,22 +158,38 @@ ax = g.subplots[1, 0]
 ax.plot(dir_1[:, 0], dir_1[:, 1])
 ax.plot(dir_2[:, 0], dir_2[:, 1])
 
+###############################################################################
+# MR arrived here
+###############################################################################
+
+
+
 # Experimenting with metric field plot:
 #from tensorflow_probability.python.math import gradient
 import tensorflow as tf
 #tf.function(experimental_relax_shapes=True)
 #@tf.function(experimental_relax_shapes=True)
-X2Z_bijector = tfb.Invert(flow_callback.Z2X_bijector)
-Y2Z_bijector = tfb.Invert(flow_callback.Z2Y_bijector)
+#X2Z_bijector = tfb.Invert(flow_callback.Z2X_bijector)
+#Y2Z_bijector = tfb.Invert(flow_callback.Z2Y_bijector)
 
 p = plots.get_subplot_plotter(subplot_size = 5)
 p.plot_2d([chain, flow_chain], param1=param_names[0], param2 = param_names[1], filled=False)
 ax = p.subplots[0,0]
 
-for om in np.linspace(.1,.5,10):
-    for sig in np.linspace(.6,1.2,10):
-        P1 = np.array([om,sig])
-        P1_prime = np.array(X2Z_bijector(P1.astype(np.float32)))
+omegam = np.linspace(.1, .5, 10)
+sigma8 = np.linspace(.6, 1.2, 10)
+
+x, y = omegam, sigma8
+X, Y = np.meshgrid(x, y)
+
+#abs_X = flow_callback.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
+#abs_X = np.array(abs_X)
+
+for om in omegam:
+    for sig in sigma8:
+        P1 = np.array([om, sig])
+        P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))
+
         #P1_primeprime = np.array(flow_callback.Z2Y_bijector(P1_prime.astype(np.float32)))
         #print(P1,P1_primeprime)
         #_,grads = gradient.value_and_gradient(flow_callback.Z2X_bijector, P1_prime)
@@ -145,24 +197,29 @@ for om in np.linspace(.1,.5,10):
 
         x = tf.constant(P1_prime.astype(np.float32)) # or tf.constant, Variable but Variable doesn;t work with tf.function
         #delta = tf.Variable([0.0,0.0])
-        with tf.GradientTape() as g: #persistent true doesn't seem to affect rn
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
         #g = tf.GradientTape(persistent=True)
-
             g.watch(x)
-
             y = flow_callback.Z2X_bijector(x)
-        jac = g.jacobian(y,x)
+        jac = g.jacobian(y, x)
+
         #print(np.array(jac))
         #print(type(jac))
         mu = np.identity(2)
-        metric = np.matmul((np.array(jac)).T,np.matmul(mu,(np.array(jac))))
+        #metric = np.matmul((np.array(jac)).T,np.matmul(mu,(np.array(jac))))
+        metric = np.dot((np.array(jac)),np.dot(mu,(np.array(jac).T)))
         #print(metric)
-        PCA_eig,PCA_eigv = np.linalg.eig(metric)
-        print(PCA_eigv)
+        PCA_eig, PCA_eigv = np.linalg.eigh(metric)
+        # sort:
+        idx = np.argsort(PCA_eig)[::-1]
+        PCA_eig = PCA_eig[idx]
+        PCA_eigv = PCA_eigv[:, idx]
+        #print(PCA_eigv)
         #print(PCA_eigv)
         #print(PCA_eig) #second value is first mode?
-        ax.quiver(P1[0],P1[1],PCA_eigv[0,1],PCA_eigv[1,1], color = 'cadetblue')
-plt.show()
+        mode = 0
+        ax.quiver(P1[0],P1[1],PCA_eigv[0,mode],PCA_eigv[1,mode], color = 'cadetblue')
+plt.savefig('test.pdf')
 
 
 
