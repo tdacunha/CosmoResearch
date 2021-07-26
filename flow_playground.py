@@ -1,4 +1,3 @@
-# Show plots inline, and load main getdist plot module and samples class
 # import libraries:
 import sys, os
 here = './'
@@ -22,9 +21,9 @@ from tensiometer import mcmc_tension
 import tensorflow_probability as tfp
 tfb = tfp.bijectors
 tfd = tfp.distributions
-
-#import flow_nonunit
 import flow_copy
+from scipy import optimize
+from scipy.integrate import simps
 
 # load the chains (remove no burn in since the example chains have already been cleaned):
 chains_dir = here+'/tensiometer/test_chains/'
@@ -53,16 +52,63 @@ steps_per_epoch = 128
 
 flow_callback.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
 
-# plot learned distribution:
+# plot learned distribution from samples:
 N = 10000
 X_sample = np.array(flow_callback.dist_learned.sample(N))
 Y_sample = np.array(flow_callback.dist_gaussian_approx.sample(N))
 flow_chain = MCSamples(samples=X_sample, names=param_names, label='Learned distribution')
 Y_chain = MCSamples(samples=Y_sample, names=param_names, label='Transformed distribution')
 
-
 g = plots.get_subplot_plotter()
 g.triangle_plot([chain, flow_chain, Y_chain], params=param_names, filled=False)
+###############################################################################
+# plot learned distribution from value in different ways:
+###############################################################################
+
+
+def get_levels(P, x, y, conf=[0.95, 0.68]):
+    """
+    Get levels from a 2D grid
+    """
+    def _helper(alpha):
+        _P = P.copy()
+        _P[_P < alpha] = 0.
+        return simps(simps(_P, y), x)
+    levs = []
+    for c in conf:
+        res = optimize.brentq(lambda x: _helper(x)-c, np.amin(P), np.amax(P))
+        levs.append(res)
+    #
+    return levs
+
+
+omegam = np.linspace(.1, .5, 100)
+sigma8 = np.linspace(.6, 1.2, 100)
+
+x, y = omegam, sigma8
+X, Y = np.meshgrid(x, y)
+
+# using the method implemented in dist_learned:
+log_P = flow_callback.dist_learned.log_prob(np.array([X, Y], dtype=np.float32).T)
+log_P = np.array(log_P).T
+P = np.exp(log_P)
+P = P / simps(simps(P, y), x)
+
+# doing the calculation directly:
+abs_X = flow_callback.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
+gaussian = tfd.MultivariateNormalDiag(np.zeros(2, dtype=np.float32), np.ones(2, dtype=np.float32))
+log_P_2 = gaussian.log_prob(abs_X) - flow_callback.Z2X_bijector.forward_log_det_jacobian(abs_X, event_ndims=1)
+log_P_2 = np.array(log_P_2).T
+P2 = np.exp(log_P_2)
+P2 = P2 / simps(simps(P2, y), x)
+
+# plot:
+levels = [0.95, 0.68]
+plt.contour(X, Y, P, get_levels(P, x, y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels])
+plt.contour(X, Y, P2, get_levels(P2, x, y, levels), linewidths=1., linestyles='-', colors=['green' for i in levels])
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
 
 # slice two dimensions:
 x = np.linspace(0.0, 2.0, 100)
