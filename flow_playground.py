@@ -164,7 +164,7 @@ import matplotlib
 map_image = flow_callback.Z2X_bijector.inverse(np.array(maximum_posterior, dtype=np.float32))
 print(maximum_posterior, map_image)
 
-r = np.linspace(0.0, 20.0, 100)
+r = np.linspace(0.0, 20.0, 1000)
 theta = np.linspace(0.0, 2.0*np.pi, 30)
 
 # compute geodesics:
@@ -175,7 +175,7 @@ for t in theta:
     geodesics.append(flow_callback.Z2X_bijector(geo.T))
 
 # geodesics aligned with abstract coordinate axes:
-r = np.linspace(-20.0, 20.0, 100)
+r = np.linspace(-20.0, 20.0, 1000)
 
 t = 0.0
 geo = np.array([map_image[0] + r*np.cos(t),
@@ -202,6 +202,60 @@ plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 plt.xlim([0.15, 0.4])
 plt.ylim([0.6, 1.2])
 plt.legend()
+
+
+###############################################################################
+# asyntotic structure:
+###############################################################################
+
+r = np.linspace(0.0, 1000.0, 1000)
+theta = np.linspace(0.0, 2.0*np.pi, 100)
+
+# copmpute PCA:
+eig, eigv = np.linalg.eigh(covariance)
+
+# compute geodesics:
+geodesics = []
+for t in theta:
+    geo = np.array([map_image[0] + r*np.cos(t),
+                    map_image[1] + r*np.sin(t)], dtype=np.float32)
+    geodesics.append(flow_callback.Z2X_bijector(geo.T))
+
+# geodesics aligned with abstract coordinate axes:
+r = np.linspace(-1000.0, 1000.0, 1000)
+
+t = 0.0
+geo = np.array([map_image[0] + r*np.cos(t),
+                map_image[1] + r*np.sin(t)], dtype=np.float32)
+geo_1 = flow_callback.Z2X_bijector(geo.T)
+
+t = np.pi/2.
+geo = np.array([map_image[0] + r*np.cos(t),
+                map_image[1] + r*np.sin(t)], dtype=np.float32)
+geo_2 = flow_callback.Z2X_bijector(geo.T)
+
+# plot:
+cmap = matplotlib.cm.get_cmap('Spectral')
+for ind, geo in enumerate(geodesics):
+    plt.plot(*np.array(geo).T, color=cmap(ind/len(geodesics)), zorder=-10)
+
+plt.plot(*np.array(geo_1).T, color='k', ls='--', zorder=-10, label='$\\theta=0$')
+plt.plot(*np.array(geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
+
+mode = 0
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+mode = 1
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+
+plt.xlim([-10, 10.0])
+plt.ylim([-10, 10.0])
+plt.legend()
+
 
 ###############################################################################
 # MR arrived here
