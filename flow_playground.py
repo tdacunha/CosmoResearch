@@ -373,165 +373,50 @@ plt.ylim([-10, 10.0])
 plt.legend()
 
 ###############################################################################
-# MR arrived here
+# Metric:
 ###############################################################################
 
 
-
-# Experimenting with metric field plot:
-#from tensorflow_probability.python.math import gradient
-#tf.function(experimental_relax_shapes=True)
-#@tf.function(experimental_relax_shapes=True)
-#X2Z_bijector = tfb.Invert(flow_callback.Z2X_bijector)
-#Y2Z_bijector = tfb.Invert(flow_callback.Z2Y_bijector)
-
-p = plots.get_subplot_plotter(subplot_size = 5)
-p.plot_2d([chain, flow_chain], param1=param_names[0], param2 = param_names[1], filled=False)
-ax = p.subplots[0,0]
-
-omegam = np.linspace(.1, .5, 10)
-sigma8 = np.linspace(.6, 1.2, 10)
+omegam = np.linspace(.15, .4, 20)
+sigma8 = np.linspace(.6, 1.2, 20)
 
 x, y = omegam, sigma8
 X, Y = np.meshgrid(x, y)
 
-#abs_X = flow_callback.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
-#abs_X = np.array(abs_X)
-
 for om in omegam:
     for sig in sigma8:
+
         P1 = np.array([om, sig])
-
         P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))
-
-        #P1_primeprime = np.array(flow_callback.Z2Y_bijector(P1_prime.astype(np.float32)))
-        #print(P1,P1_primeprime)
-        #_,grads = gradient.value_and_gradient(flow_callback.Z2X_bijector, P1_prime)
-        #_1,jac = gradient.value_and_batch_jacobian(flow_callback.Z2X_bijector(x), x)
-
-        x = tf.constant(P1_prime.astype(np.float32)) # or tf.constant, Variable but Variable doesn;t work with tf.function
-        #delta = tf.Variable([0.0,0.0])
-        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
-        #g = tf.GradientTape(persistent=True)
+        x = tf.constant(P1_prime.astype(np.float32))
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g:
             g.watch(x)
             y = flow_callback.Z2X_bijector(x)
         jac = g.jacobian(y, x)
-
-        #print(np.array(jac))
-        #print(type(jac))
         mu = np.identity(2)
-        #metric = np.matmul((np.array(jac)),np.matmul(mu,(np.array(jac)).T))
-        metric = np.dot((np.array(jac)),np.dot(mu,(np.array(jac).T)))
-        #print(metric)
+        metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
         PCA_eig, PCA_eigv = np.linalg.eigh(metric)
         # sort:
         idx = np.argsort(PCA_eig)[::-1]
         PCA_eig = PCA_eig[idx]
         PCA_eigv = PCA_eigv[:, idx]
-        #print(PCA_eigv)
-        #print(PCA_eig) #second value is first mode?
         mode = 0
-        ax.quiver(P1[0],P1[1],PCA_eigv[0,mode],PCA_eigv[1,mode], color = 'cadetblue')
+        plt.quiver(P1[0], P1[1], PCA_eigv[0, mode], PCA_eigv[1, mode], color = 'red')
+        mode = 1
+        plt.quiver(P1[0], P1[1], PCA_eigv[0, mode], PCA_eigv[1, mode], color = 'cadetblue')
 
-plt.savefig('test.png')
-plt.show()
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
+eig, eigv = np.linalg.eigh(cov_samples)
+mode = 0
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+mode = 1
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
 
+plt.xlim([np.amin(omegam), np.amax(omegam)])
+plt.ylim([np.amin(sigma8), np.amax(sigma8)])
 
-
-
-
-]
-# Inverted plot in abstract space:
-
-X2Z_bijector = tfb.Invert(flow_callback.Z2X_bijector)
-num_params = flow_callback.num_params
-dist_learned_inverted = tfd.TransformedDistribution(distribution=flow_callback.dist_learned, bijector=X2Z_bijector)
-
-#Z_sample = np.array(flow_callback.dist_gaussian_approx.sample(N)) #Using Y2Xbijector
-#Z_sample = np.array(flow_callback.dist_transformed.sample(N)) #Using Z2Ybijector
-Z_sample = np.array(dist_learned_inverted.sample(N))
-
-flow_chain1 = MCSamples(samples=Z_sample, names=['Z1', 'Z2'], label='Transformed distribution')
-
-g = plots.get_subplot_plotter()
-g.triangle_plot([flow_chain1], params=['Z1', 'Z2'], filled=False)
-
-# slice two dimensions:
-#x = np.linspace(0.0, 2.0, 100)
-dir_1 = (np.vstack((x, np.zeros(len(x)))).T.astype(np.float32))
-dir_2 = (np.vstack((np.zeros(len(x)), x)).T.astype(np.float32))
-ax = g.subplots[1, 0]
-ax.plot(dir_1[:, 0], dir_1[:, 1])
-ax.plot(dir_2[:, 0], dir_2[:, 1])
-
-# Making gif
-# Inverted plot in abstract space:
-X2Z_bijector = tfb.Invert(flow_callback.Z2X_bijector)
-num_params = flow_callback.num_params
-dist_learned_inverted = tfd.TransformedDistribution(distribution=flow_callback.dist_learned, bijector=X2Z_bijector)
-
-#X_sample1 = np.array(flow_callback.dist_transformed.sample(N))
-Z_sample = np.array(dist_learned_inverted.sample(N))
-
-flow_chain1 = MCSamples(samples=Z_sample, names=['Z1', 'Z2'], label='Transformed distribution')
-
-
-
-# Plot in original space:
-
-
-
-x = np.linspace(0.0, 100.0, 500) #100
-#print(np.linspace(0,2*np.pi,8, endpoint = True))
-for n,theta in enumerate(np.linspace(0,2*np.pi,24, endpoint = True)):
-
-    vec_1 = np.vstack((x*np.cos(theta), -x*np.sin(theta))).T
-    vec_2 = np.vstack((x*np.sin(theta), x*np.cos(theta))).T
-
-    dir_1 = vec_1.astype(np.float32)
-    dir_2 = vec_2.astype(np.float32)
-    g1 = plots.get_subplot_plotter(subplot_size = 5)
-    g1.plot_2d([flow_chain1], param1='Z1', param2 = 'Z2', filled=False)
-
-    ax1 = g1.subplots[0,0]
-    ax1.plot(dir_1[:, 0], dir_1[:, 1])
-    ax1.plot(dir_2[:, 0], dir_2[:, 1])
-    #g1.export('/Users/TaraD/Desktop/ParameterGif/ZPlot_%s' % (n))
-
-
-    dir_1 = flow_callback.Z2X_bijector(vec_1.astype(np.float32))
-    dir_2 = flow_callback.Z2X_bijector(vec_2.astype(np.float32))
-    #dir_3 = flow_callback.Z2X_bijector(np.vstack((-x, np.zeros(len(x)))).T.astype(np.float32))
-    g = plots.get_subplot_plotter(subplot_size = 5)
-    g.plot_2d([chain, flow_chain], param1=param_names[0], param2 = param_names[1], filled=False)
-    ax = g.subplots[0,0]
-    ax.plot(dir_1[:, 0], dir_1[:, 1])
-    ax.plot(dir_2[:, 0], dir_2[:, 1])
-
-    g1.export('/Users/TaraD/Desktop/ParameterGif/ZPlot_%s.png' % (n))
-
-    g.export('/Users/TaraD/Desktop/ParameterGif/XPlot_%s.png' % (n))
-
-
-
-
-
-#g = plots.get_subplot_plotter()
-#g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
-# plt.figure()
-# plt.plot(dir_1[:, 0], dir_1[:, 1])
-# plt.plot(dir_2[:, 0], dir_2[:, 1])
-
-# dir_1 = flow_callback.Y2X_bijector(np.vstack((x, np.zeros(len(x)))).T.astype(np.float32))
-# dir_2 = flow_callback.Y2X_bijector(np.vstack((np.zeros(len(x)), x)).T.astype(np.float32))
-# #dir_3 = flow_callback.Z2X_bijector(np.vstack((np.zeros(len(x)), -x)).T.astype(np.float32))
-#
-# g = plots.get_subplot_plotter()
-# g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
-# ax = g.subplots[1, 0]
-# ax.plot(dir_1[:, 0], dir_1[:, 1])
-# ax.plot(dir_2[:, 0], dir_2[:, 1])
-# plt.figure()
-# plt.plot(dir_1[:, 0], dir_1[:, 1])
-# plt.plot(dir_2[:, 0], dir_2[:, 1])
+plt.savefig('test.pdf')
