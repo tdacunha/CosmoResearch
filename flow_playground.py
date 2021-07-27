@@ -139,6 +139,7 @@ chain.cov(pars=['omegam', 'sigma8'])
 
 
 
+
 ###############################################################################
 # trace geodesics passing from the maximum posterior
 ###############################################################################
@@ -147,6 +148,7 @@ import matplotlib
 
 # find where the MAP goes:
 map_image = flow_callback.Z2X_bijector.inverse(np.array(maximum_posterior, dtype=np.float32))
+print(maximum_posterior, map_image)
 
 r = np.linspace(0.0, 20.0, 100)
 theta = np.linspace(0.0, 2.0*np.pi, 30)
@@ -217,6 +219,7 @@ X, Y = np.meshgrid(x, y)
 for om in omegam:
     for sig in sigma8:
         P1 = np.array([om, sig])
+        P1_alt = np.array([om-.2, sig-.3])
         P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))
 
         #P1_primeprime = np.array(flow_callback.Z2Y_bijector(P1_prime.astype(np.float32)))
@@ -244,11 +247,11 @@ for om in omegam:
         PCA_eig = PCA_eig[idx]
         PCA_eigv = PCA_eigv[:, idx]
         #print(PCA_eigv)
-        #print(PCA_eigv)
         #print(PCA_eig) #second value is first mode?
         mode = 0
         ax.quiver(P1[0],P1[1],PCA_eigv[0,mode],PCA_eigv[1,mode], color = 'cadetblue')
-plt.savefig('test.pdf')
+plt.show()
+plt.savefig('test.png',ax)
 
 
 
@@ -256,7 +259,7 @@ plt.savefig('test.pdf')
 
 
 
-
+]
 # Inverted plot in abstract space:
 
 X2Z_bijector = tfb.Invert(flow_callback.Z2X_bijector)
