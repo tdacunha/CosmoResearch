@@ -133,9 +133,23 @@ plt.scatter(maximum_posterior[0], maximum_posterior[1])
 ###############################################################################
 # get covariance from samples and from flow:
 ###############################################################################
+# covariance from samples
+cov_samples = chain.cov(pars=['omegam', 'sigma8'])
+print(cov_samples)
 
-chain.cov(pars=['omegam', 'sigma8'])
+# covariance from flow
+P1 = chain.mean(['omegam', 'sigma8'])
+print(P1)
+P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))#np.array([0,0])#np.array(map_image)
+x = tf.constant(P1_prime.astype(np.float32)) # or tf.constant, Variable but Variable doesn;t work with tf.function
 
+with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
+    g.watch(x)
+    y = flow_callback.Z2X_bijector(x)
+jac = g.jacobian(y, x)
+mu = np.identity(2)
+metric = np.dot((np.array(jac)),np.dot(mu,(np.array(jac).T)))
+print(metric)
 
 
 
@@ -219,7 +233,7 @@ X, Y = np.meshgrid(x, y)
 for om in omegam:
     for sig in sigma8:
         P1 = np.array([om, sig])
-        P1_alt = np.array([om-.2, sig-.3])
+
         P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))
 
         #P1_primeprime = np.array(flow_callback.Z2Y_bijector(P1_prime.astype(np.float32)))
@@ -238,7 +252,7 @@ for om in omegam:
         #print(np.array(jac))
         #print(type(jac))
         mu = np.identity(2)
-        #metric = np.matmul((np.array(jac)).T,np.matmul(mu,(np.array(jac))))
+        #metric = np.matmul((np.array(jac)),np.matmul(mu,(np.array(jac)).T))
         metric = np.dot((np.array(jac)),np.dot(mu,(np.array(jac).T)))
         #print(metric)
         PCA_eig, PCA_eigv = np.linalg.eigh(metric)
@@ -250,9 +264,9 @@ for om in omegam:
         #print(PCA_eig) #second value is first mode?
         mode = 0
         ax.quiver(P1[0],P1[1],PCA_eigv[0,mode],PCA_eigv[1,mode], color = 'cadetblue')
-plt.show()
-plt.savefig('test.png',ax)
 
+plt.savefig('test.png')
+plt.show()
 
 
 
