@@ -63,6 +63,7 @@ Y_chain = MCSamples(samples=Y_sample, names=param_names, label='Transformed dist
 
 g = plots.get_subplot_plotter()
 g.triangle_plot([chain, flow_chain, Y_chain], params=param_names, filled=False)
+
 ###############################################################################
 # plot learned distribution from value in different ways:
 ###############################################################################
@@ -111,6 +112,29 @@ plt.contour(X, Y, P2, get_levels(P2, x, y, levels), linewidths=1., linestyles='-
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+
+###############################################################################
+# determinant of the Jacobian:
+###############################################################################
+
+omegam = np.linspace(.1, .5, 100)
+sigma8 = np.linspace(.6, 1.2, 100)
+
+x, y = omegam, sigma8
+X, Y = np.meshgrid(x, y)
+
+# compute log det Jacobian:
+abs_X = flow_callback.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
+log_det = -flow_callback.Z2X_bijector.forward_log_det_jacobian(abs_X, event_ndims=1)
+log_det = np.array(log_det).T
+
+pc = plt.pcolormesh(X, Y, log_det, linewidth=0, rasterized=True, shading='auto', cmap='RdBu')
+colorbar = plt.colorbar(pc)
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+plt.xlim([np.amin(omegam), np.amax(omegam)])
+plt.ylim([np.amin(sigma8), np.amax(sigma8)])
 
 ###############################################################################
 # find maximum posterior:
@@ -304,7 +328,7 @@ r = np.linspace(0.0, 1000.0, 1000)
 theta = np.linspace(0.0, 2.0*np.pi, 100)
 
 # copmpute PCA:
-eig, eigv = np.linalg.eigh(covariance)
+eig, eigv = np.linalg.eigh(cov_samples)
 
 # compute geodesics:
 geodesics = []
@@ -347,7 +371,6 @@ plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 plt.xlim([-10, 10.0])
 plt.ylim([-10, 10.0])
 plt.legend()
-
 
 ###############################################################################
 # MR arrived here
