@@ -18,6 +18,8 @@ import seaborn as sns
 from tensiometer import utilities
 from tensiometer import gaussian_tension
 from tensiometer import mcmc_tension
+
+import tensorflow as tf
 import tensorflow_probability as tfp
 tfb = tfp.bijectors
 tfd = tfp.distributions
@@ -116,43 +118,136 @@ plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, level
 
 from scipy.optimize import differential_evolution
 
+# MAP:
 bounds = [[.1, .5], [.6, 1.2]]
-
 result = differential_evolution(lambda x: -flow_callback.dist_learned.log_prob(np.array(x, dtype=np.float32)), bounds, disp=True)
-
 print(result)
-
 maximum_posterior = result.x
+# find where the MAP goes:
+map_image = flow_callback.Z2X_bijector.inverse(np.array(maximum_posterior, dtype=np.float32))
+print(maximum_posterior, np.array(map_image))
 
+# mean:
+mean = chain.getMeans([chain.index[name] for name in ['omegam', 'sigma8']])
+mean_image = flow_callback.Z2X_bijector.inverse(np.array(mean, dtype=np.float32))
+print(mean, np.array(mean_image))
+
+# plot:
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
-plt.scatter(maximum_posterior[0], maximum_posterior[1])
-
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='red', label='MAP')
+plt.scatter(mean[0], mean[1], color='green', label='mean')
+plt.legend()
 
 ###############################################################################
 # get covariance from samples and from flow:
 ###############################################################################
+
 # covariance from samples
 cov_samples = chain.cov(pars=['omegam', 'sigma8'])
-print(cov_samples)
+print('Covariance', cov_samples)
+fisher_samples = np.linalg.inv(cov_samples)
+print('Fisher', fisher_samples)
 
-# covariance from flow
-P1 = chain.mean(['omegam', 'sigma8'])
-print(P1)
-P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))#np.array([0,0])#np.array(map_image)
-x = tf.constant(P1_prime.astype(np.float32)) # or tf.constant, Variable but Variable doesn;t work with tf.function
-
+# covariance from flow around mean:
+x = tf.constant(np.array(mean_image)) # or tf.constant, Variable but Variable doesn;t work with tf.function
 with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
     g.watch(x)
     y = flow_callback.Z2X_bijector(x)
 jac = g.jacobian(y, x)
 mu = np.identity(2)
-metric = np.dot((np.array(jac)),np.dot(mu,(np.array(jac).T)))
-print(metric)
+covariance_metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
+
+x = tf.constant(np.array(mean).astype(np.float32))
+with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
+    g.watch(x)
+    y = flow_callback.Z2X_bijector.inverse(x)
+jac = g.jacobian(y, x)
+mu = np.identity(2)
+fisher_metric = np.dot(np.dot(np.array(jac).T, mu), np.array(jac))
+
+# compare:
+alpha = np.linspace(-1, 1, 1000)
+_, eigv = np.linalg.eigh(covariance_metric)
+mode = 0
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='k', ls='--', label='flow covariance')
+mode = 1
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='k', ls='--')
+
+alpha = np.linspace(-1, 1, 1000)
+_, eigv = np.linalg.eigh(fisher_metric)
+mode = 0
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='green', ls='-.', label='flow fisher')
+mode = 1
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='green', ls='-.')
+
+alpha = np.linspace(-1, 1, 1000)
+_, eigv = np.linalg.eigh(cov_samples)
+mode = 0
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-', label='samples')
+mode = 1
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-')
 
 
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+plt.scatter(mean[0], mean[1], color='k')
 
+plt.xlim([0.15, 0.4])
+plt.ylim([0.6, 1.2])
+plt.legend()
+
+# covariance from flow around map:
+x = tf.constant(np.array(map_image))
+with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
+    g.watch(x)
+    y = flow_callback.Z2X_bijector(x)
+jac = g.jacobian(y, x)
+mu = np.identity(2)
+covariance_metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
+
+x = tf.constant(np.array(maximum_posterior).astype(np.float32))
+with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
+    g.watch(x)
+    y = flow_callback.Z2X_bijector.inverse(x)
+jac = g.jacobian(y, x)
+mu = np.identity(2)
+fisher_metric = np.dot(np.dot(np.array(jac).T, mu), np.array(jac))
+
+# compare:
+alpha = np.linspace(-1, 1, 1000)
+_, eigv = np.linalg.eigh(covariance_metric)
+mode = 0
+plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], color='k', ls='--', label='flow covariance')
+mode = 1
+plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], color='k', ls='--')
+
+alpha = np.linspace(-1, 1, 1000)
+_, eigv = np.linalg.eigh(fisher_metric)
+mode = 0
+plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], color='green', ls='-.', label='flow fisher')
+mode = 1
+plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], color='green', ls='-.')
+
+alpha = np.linspace(-1, 1, 1000)
+_, eigv = np.linalg.eigh(cov_samples)
+mode = 0
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-', label='samples')
+mode = 1
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-')
+
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+plt.scatter(mean[0], mean[1], color='k')
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='red')
+
+plt.xlim([0.15, 0.4])
+plt.ylim([0.6, 1.2])
+plt.legend()
 
 ###############################################################################
 # trace geodesics passing from the maximum posterior
@@ -160,9 +255,6 @@ print(metric)
 
 import matplotlib
 
-# find where the MAP goes:
-map_image = flow_callback.Z2X_bijector.inverse(np.array(maximum_posterior, dtype=np.float32))
-print(maximum_posterior, map_image)
 
 r = np.linspace(0.0, 20.0, 1000)
 theta = np.linspace(0.0, 2.0*np.pi, 30)
@@ -265,7 +357,6 @@ plt.legend()
 
 # Experimenting with metric field plot:
 #from tensorflow_probability.python.math import gradient
-import tensorflow as tf
 #tf.function(experimental_relax_shapes=True)
 #@tf.function(experimental_relax_shapes=True)
 #X2Z_bijector = tfb.Invert(flow_callback.Z2X_bijector)
