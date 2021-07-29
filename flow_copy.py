@@ -219,7 +219,7 @@ class DiffFlowCallback(Callback):
             # The idea is to introduce yet another step of deterministic gaussianization, eg using the prior CDF
             # or double prior (convolved with itself, eg a triangular distribution)
             raise NotImplementedError
-
+        self.is_trained = False
     def _init_diff_chain(self, diff_chain, param_names=None, validation_split=0.1):
         # initialize param names:
         if param_names is None:
@@ -336,8 +336,68 @@ class DiffFlowCallback(Callback):
                               verbose=verbose,
                               callbacks=[tf.keras.callbacks.TerminateOnNaN(), self]+callbacks,
                               **kwargs)
-
+        self.is_trained = True
         return hist
+###############################################################################
+# GR Metric related methods:
+
+    def coords_transformed(self, x_array, y_array, bijector_inv):
+        X, Y = np.meshgrid(x_array, y_array)
+        grid = np.array([X,Y])
+        coords0 = grid.reshape(2,-1).T
+        coords = np.array((bijector_inv)(coords0.astype(np.float32)))
+
+        return coords
+
+    def GradTape(self, coords, bijector):
+        delta = tf.Variable([0.0,0.0])
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad:
+            grad.watch(delta)
+            f = bijector(coords+delta)
+        self.grad = grad
+        self.f = f
+        self.delta = delta
+        return grad
+
+    def jacobian(self, coords, bijector):
+        grad = self.GradTape(coords, bijector)
+        f = self.f
+        delta = self.delta
+        jac = np.array(grad.jacobian(f,delta))
+        self.jac = jac
+        return jac
+
+    def jacobian_T(self, coords, bijector):
+        jac = self.jacobian(coords, bijector)
+        if np.shape(coords) == (2,):
+            jac_T = jac.T
+        else:
+            jac_T = np.transpose(jac, (0,2,1))
+        self.jac_T = jac_T
+        return jac_T
+
+    def metric(self, x_array, y_array, bijector):
+        coords = self.coords_transformed(x_array, y_array, bijector.inverse)
+        jac = self.jacobian(coords, bijector)
+        jac_T = self.jacobian_T(coords, bijector)
+        metric = np.matmul(jac, jac_T)
+        self.metric = metric
+        return metric
+
+    def det_metric(self, x_array, y_array, bijector):
+        coords = self.coords_transformed(x_array, y_array, bijector.inverse)
+        met = self.metric(x_array, y_array, bijector)
+        det_met = np.linalg.det(met)
+
+        log_det = -bijector.forward_log_det_jacobian(coords, event_ndims=1)
+        log_det = np.array(log_det).T
+        det = (np.exp(log_det))**2
+        return det, det_met
+
+
+###############################################################################
+
+
 
     def estimate_shift(self, tol=0.05, max_iter=1000, step=100000):
         """
