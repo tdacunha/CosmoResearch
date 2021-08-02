@@ -394,7 +394,17 @@ class DiffFlowCallback(Callback):
         det = (np.exp(log_det))**2
         return det, det_met
 
-
+    def Hessian(self, coords, bijector):
+        delta = tf.Variable([0.0,0.0])
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
+            t2.watch(delta)
+            with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
+                t1.watch(delta)
+                f = bijector(coords+delta)
+            g = t1.jacobian(f,delta)
+        h = t2.jacobian(g,delta)
+        self.hessian = h
+        return h
 ###############################################################################
 
 

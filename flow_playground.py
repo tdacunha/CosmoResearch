@@ -380,6 +380,137 @@ plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 plt.xlim([-10, 10.0])
 plt.ylim([-10, 10.0])
 plt.legend()
+###############################################################################
+# Hession playground: function method
+###############################################################################
+omegam = np.linspace(.15, .4, 5)
+sigma8 = np.linspace(.6, 1.2, 5)
+coords = flow_callback.coords_transformed(omegam, sigma8, flow_callback.Z2X_bijector.inverse)
+
+np.__version__ # needs to be 1.19.2 or earlier
+import time as time
+T1 = time.time()
+h = flow_callback.Hessian(coords, flow_callback.Z2X_bijector)
+T2 = time.time() - T1
+print(h)
+print(T2)
+
+###############################################################################
+# Hession playground: jacobian method
+###############################################################################
+omegam = np.linspace(.15, .4, 5)
+sigma8 = np.linspace(.6, 1.2, 5)
+coords = flow_callback.coords_transformed(omegam, sigma8, flow_callback.Z2X_bijector.inverse)
+
+np.__version__ # needs to be 1.19.2 or earlier
+import time as time
+T1 = time.time()
+coords_tf = tf.constant(coords.astype(np.float32))
+#coords_tf2 = tf.Variable(coords.astype(np.float32))
+delta = tf.Variable([0.0,0.0])
+with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
+    t2.watch(delta)
+    with  tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
+        t1.watch(delta)
+        f = flow_callback.Z2X_bijector(coords_tf+delta)
+    g = t1.jacobian(f,delta)
+print(g)
+h = t2.jacobian(g,delta)
+T2 = time.time() - T1
+print(h)
+print(np.shape(coords_tf),'g', np.shape(g),'h',(np.shape(h)))
+print(T2)
+
+###############################################################################
+# Hession playground: batch jacobian method (around the same time)
+###############################################################################
+
+T1 = time.time()
+coords_tf = tf.constant(coords.astype(np.float32))
+coords_tf2 = tf.Variable(coords.astype(np.float32))
+
+delta = tf.Variable([0.0,0.0])
+with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
+    t2.watch(coords_tf)
+    with  tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
+        t1.watch(delta)
+        f = flow_callback.Z2X_bijector(coords_tf+delta)
+
+    g = t1.jacobian(f,delta)
+
+print(g)
+h = t2.batch_jacobian(g,coords_tf)
+T2 = time.time() - T1
+print(h)
+print(np.shape(coords_tf),'g', np.shape(g),'h',(np.shape(h)))
+print(T2)
+
+###############################################################################
+# Hession playground: for loop jacobian method to check
+###############################################################################
+
+omegam = np.linspace(.15, .4, 5)
+sigma8 = np.linspace(.6, 1.2, 5)
+
+
+for om in omegam:
+    for sig in sigma8:
+
+        P1 = np.array([om, sig])
+        P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))
+        x = tf.constant(P1_prime.astype(np.float32))
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
+            t2.watch(x)
+            with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
+                t1.watch(x)
+                y = flow_callback.Z2X_bijector(x)
+            grad = t1.jacobian(y, x)
+        hess = t2.jacobian(grad, x)
+        print(hess)
+
+
+
+###############################################################################
+# Determinant (2 methods):
+###############################################################################
+
+det, det_met = flow_callback.det_metric(omegam, sigma8, flow_callback.Z2X_bijector)
+
+###############################################################################
+# Metric (class functions method):
+###############################################################################
+omegam = np.linspace(.15, .4, 20)
+sigma8 = np.linspace(.6, 1.2, 20)
+#importlib.reload(flow_copy)
+
+#coords = flow_callback.coords_transformed(omegam, sigma8, flow_callback.Z2X_bijector.inverse)
+metric_method = flow_callback.metric(omegam, sigma8, flow_callback.Z2X_bijector)
+PCA_eig, PCA_eigv = np.linalg.eigh(metric_method)
+
+idx = np.argsort(PCA_eig, axis = 1)[0][::-1]
+PCA_eig = PCA_eig[:,idx]
+PCA_eigv = PCA_eigv[:,:,idx]
+
+# Plot
+plt.figure(figsize = (10,10))
+mode = 0
+plt.quiver(P1[:,0], P1[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
+mode = 1
+plt.quiver(P1[:,0], P1[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+
+eig, eigv = np.linalg.eigh(cov_samples)
+mode = 0
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+mode = 1
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+
+plt.xlim([np.amin(omegam), np.amax(omegam)])
+plt.ylim([np.amin(sigma8), np.amax(sigma8)])
 
 ###############################################################################
 # Metric (faster method):
@@ -402,6 +533,8 @@ with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g:
     g.watch(delta)
     y = flow_callback.Z2X_bijector(x+delta)
 jac = g.jacobian(y, delta)
+print(jac)
+
 jac = np.array(jac)
 jac_T = np.transpose(jac, (0,2,1))
 
@@ -413,33 +546,20 @@ met = np.matmul(jac,jac_T)
 # metric[-1] from loop method:
 #[[0.06253086 0.07325337]
 #[0.07325337 0.0869604 ]]
-#importlib.reload(flow_copy)
-flow_callback.det_metric(omegam, sigma8, flow_callback.Z2X_bijector)
-#coords = flow_callback.coords_transformed(omegam, sigma8, flow_callback.Z2X_bijector.inverse)
-metric_method = flow_callback.metric(omegam, sigma8, flow_callback.Z2X_bijector)
-print(P1_prime[:5])
-print((coords[:5]))
+
+
+
 print(met[:5])
 print(metric_method[:5])
-PCA_eig, PCA_eigv = np.linalg.eigh(metric_method)
+PCA_eig, PCA_eigv = np.linalg.eigh(met)
 
 # sort:
-#idx = np.flip(np.argsort(PCA_eig, axis = 1), axis = 1)[0]
 idx = np.argsort(PCA_eig, axis = 1)[0][::-1]
-#print(PCA_eig[0])
-#print(np.shape(PCA_eig))
 PCA_eig = PCA_eig[:,idx]
-#print(np.shape(PCA_eig))
-#print(PCA_eig[0])
-#print(PCA_eigv[0])
 PCA_eigv = PCA_eigv[:,:,idx]
-#print(PCA_eigv[0])
 
-#print(PCA_eig[-1])
-#print(PCA_eigv[-1])
-#[0.14901041 0.00048086]
-#[[ 0.64634512 -0.76304521]
-# [ 0.76304521  0.64634512]]
+
+
 # Plot
 plt.figure(figsize = (10,10))
 mode = 0
