@@ -332,7 +332,7 @@ plt.legend()
 ###############################################################################
 # asyntotic structure:
 ###############################################################################
-
+import matplotlib.pyplot as plt
 r = np.linspace(0.0, 1000.0, 1000)
 theta = np.linspace(0.0, 2.0*np.pi, 100)
 
@@ -413,7 +413,7 @@ with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
     with  tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
         t1.watch(delta)
         #f = flow_callback.Z2X_bijector(coords_tf+delta)
-        f = (coords_tf+delta)**2 # Checking that Hessian gives expected 
+        f = (coords_tf+delta)**2 # Checking that Hessian gives expected
     g = t1.jacobian(f,delta)
 print(coords_tf[0])
 print(g[0,:])
@@ -484,9 +484,13 @@ det, det_met = flow_callback.det_metric(omegam, sigma8, flow_callback.Z2X_biject
 omegam = np.linspace(.15, .4, 20)
 sigma8 = np.linspace(.6, 1.2, 20)
 #importlib.reload(flow_copy)
-
+x, y = omegam, sigma8
+X, Y = np.meshgrid(x, y)
+grid = np.array([X,Y])
+points = grid.reshape(2,-1).T
+P1 = points
 #coords = flow_callback.coords_transformed(omegam, sigma8, flow_callback.Z2X_bijector.inverse)
-metric_method = flow_callback.metric(omegam, sigma8, flow_callback.Z2X_bijector)
+metric_method = flow_callback.Metric(omegam, sigma8, flow_callback.Z2X_bijector)
 PCA_eig, PCA_eigv = np.linalg.eigh(metric_method)
 
 idx = np.argsort(PCA_eig, axis = 1)[0][::-1]

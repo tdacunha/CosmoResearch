@@ -376,7 +376,7 @@ class DiffFlowCallback(Callback):
         self.jac_T = jac_T
         return jac_T
 
-    def metric(self, x_array, y_array, bijector):
+    def Metric(self, x_array, y_array, bijector):
         coords = self.coords_transformed(x_array, y_array, bijector.inverse)
         jac = self.jacobian(coords, bijector)
         jac_T = self.jacobian_T(coords, bijector)
