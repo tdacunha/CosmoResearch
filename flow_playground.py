@@ -412,12 +412,14 @@ with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
     t2.watch(delta)
     with  tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
         t1.watch(delta)
-        f = flow_callback.Z2X_bijector(coords_tf+delta)
+        #f = flow_callback.Z2X_bijector(coords_tf+delta)
+        f = (coords_tf+delta)**2 # Checking that Hessian gives expected 
     g = t1.jacobian(f,delta)
-print(g)
+print(coords_tf[0])
+print(g[0,:])
 h = t2.jacobian(g,delta)
 T2 = time.time() - T1
-print(h)
+print(h[0])
 print(np.shape(coords_tf),'g', np.shape(g),'h',(np.shape(h)))
 print(T2)
 
