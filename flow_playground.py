@@ -44,8 +44,8 @@ prior_chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'prior', no_c
 param_names = ['omegam', 'sigma8']
 
 # define the flow:
-#flow_callback = mcmc_tension.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
-flow_callback = synthetic_probability.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
+#flow_P = mcmc_tension.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
+flow_P = synthetic_probability.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
 
 
 # train:
@@ -56,12 +56,12 @@ batch_size = 8192
 epochs = 40
 steps_per_epoch = 128
 
-flow_callback.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
+flow_P.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
 
 # plot learned distribution from samples:
 N = 10000
-X_sample = np.array(flow_callback.dist_learned.sample(N))
-Y_sample = np.array(flow_callback.dist_gaussian_approx.sample(N))
+X_sample = np.array(flow_P.sample(N))
+Y_sample = np.array(flow_P.dist_gaussian_approx.sample(N))
 flow_chain = MCSamples(samples=X_sample, names=param_names, label='Learned distribution')
 Y_chain = MCSamples(samples=Y_sample, names=param_names, label='Transformed distribution')
 
@@ -71,16 +71,6 @@ g.triangle_plot([chain, flow_chain, Y_chain], params=param_names, filled=False)
 ###############################################################################
 # plot learned distribution from value in different ways:
 ###############################################################################
-
-    def grid_coords_transformed(self, x_array, y_array, bijector_inv):
-        """
-        """
-        X, Y = np.meshgrid(x_array, y_array)
-        grid = np.array([X, Y])
-        coords0 = grid.reshape(2, -1).T
-        coords = np.array((bijector_inv)(coords0.astype(np.float32)))
-        #
-        return coords
 
 def get_levels(P, x, y, conf=[0.95, 0.68]):
     """
@@ -105,15 +95,15 @@ x, y = omegam, sigma8
 X, Y = np.meshgrid(x, y)
 
 # using the method implemented in dist_learned:
-log_P = flow_callback.dist_learned.log_prob(np.array([X, Y], dtype=np.float32).T)
+log_P = flow_P.log_probability(np.array([X, Y], dtype=np.float32).T)
 log_P = np.array(log_P).T
 P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
 # doing the calculation directly:
-abs_X = flow_callback.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
+abs_X = flow_P.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
 gaussian = tfd.MultivariateNormalDiag(np.zeros(2, dtype=np.float32), np.ones(2, dtype=np.float32))
-log_P_2 = gaussian.log_prob(abs_X) - flow_callback.Z2X_bijector.forward_log_det_jacobian(abs_X, event_ndims=1)
+log_P_2 = gaussian.log_prob(abs_X) - flow_P.Z2X_bijector.forward_log_det_jacobian(abs_X, event_ndims=1)
 log_P_2 = np.array(log_P_2).T
 P2 = np.exp(log_P_2)
 P2 = P2 / simps(simps(P2, y), x)
@@ -137,8 +127,8 @@ x, y = omegam, sigma8
 X, Y = np.meshgrid(x, y)
 
 # compute log det Jacobian:
-abs_X = flow_callback.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
-log_det = -flow_callback.Z2X_bijector.forward_log_det_jacobian(abs_X, event_ndims=1)
+abs_X = flow_P.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
+log_det = -flow_P.Z2X_bijector.forward_log_det_jacobian(abs_X, event_ndims=1)
 log_det = np.array(log_det).T
 
 pc = plt.pcolormesh(X, Y, log_det, linewidth=0, rasterized=True, shading='auto', cmap='RdBu')
@@ -153,20 +143,17 @@ plt.ylim([np.amin(sigma8), np.amax(sigma8)])
 # find maximum posterior:
 ###############################################################################
 
-from scipy.optimize import differential_evolution
-
 # MAP:
-bounds = [[.1, .5], [.6, 1.2]]
-result = differential_evolution(lambda x: -flow_callback.dist_learned.log_prob(np.array(x, dtype=np.float32)), bounds, disp=True)
+result = flow_P.MAP_finder(disp=True)
 print(result)
 maximum_posterior = result.x
 # find where the MAP goes:
-map_image = flow_callback.Z2X_bijector.inverse(np.array(maximum_posterior, dtype=np.float32))
+map_image = flow_P.Z2X_bijector.inverse(np.array(maximum_posterior, dtype=np.float32))
 print(maximum_posterior, np.array(map_image))
 
 # mean:
 mean = chain.getMeans([chain.index[name] for name in ['omegam', 'sigma8']])
-mean_image = flow_callback.Z2X_bijector.inverse(np.array(mean, dtype=np.float32))
+mean_image = flow_P.Z2X_bijector.inverse(np.array(mean, dtype=np.float32))
 print(mean, np.array(mean_image))
 
 # plot:
@@ -192,7 +179,7 @@ print('Fisher', fisher_samples)
 x = tf.constant(np.array(mean_image)) # or tf.constant, Variable but Variable doesn;t work with tf.function
 with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
     g.watch(x)
-    y = flow_callback.Z2X_bijector(x)
+    y = flow_P.Z2X_bijector(x)
 jac = g.jacobian(y, x)
 mu = np.identity(2)
 covariance_metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
@@ -200,7 +187,7 @@ covariance_metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
 x = tf.constant(np.array(mean).astype(np.float32))
 with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
     g.watch(x)
-    y = flow_callback.Z2X_bijector.inverse(x)
+    y = flow_P.Z2X_bijector.inverse(x)
 jac = g.jacobian(y, x)
 mu = np.identity(2)
 fisher_metric = np.dot(np.dot(np.array(jac).T, mu), np.array(jac))
@@ -245,7 +232,7 @@ plt.legend()
 x = tf.constant(np.array(map_image))
 with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
     g.watch(x)
-    y = flow_callback.Z2X_bijector(x)
+    y = flow_P.Z2X_bijector(x)
 jac = g.jacobian(y, x)
 mu = np.identity(2)
 covariance_metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
@@ -253,7 +240,7 @@ covariance_metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
 x = tf.constant(np.array(maximum_posterior).astype(np.float32))
 with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
     g.watch(x)
-    y = flow_callback.Z2X_bijector.inverse(x)
+    y = flow_P.Z2X_bijector.inverse(x)
 jac = g.jacobian(y, x)
 mu = np.identity(2)
 fisher_metric = np.dot(np.dot(np.array(jac).T, mu), np.array(jac))
@@ -307,7 +294,7 @@ geodesics = []
 for t in theta:
     geo = np.array([map_image[0] + r*np.cos(t),
                     map_image[1] + r*np.sin(t)], dtype=np.float32)
-    geodesics.append(flow_callback.Z2X_bijector(geo.T))
+    geodesics.append(flow_P.Z2X_bijector(geo.T))
 
 # geodesics aligned with abstract coordinate axes:
 r = np.linspace(-20.0, 20.0, 1000)
@@ -315,12 +302,12 @@ r = np.linspace(-20.0, 20.0, 1000)
 t = 0.0
 geo = np.array([map_image[0] + r*np.cos(t),
                 map_image[1] + r*np.sin(t)], dtype=np.float32)
-geo_1 = flow_callback.Z2X_bijector(geo.T)
+geo_1 = flow_P.Z2X_bijector(geo.T)
 
 t = np.pi/2.
 geo = np.array([map_image[0] + r*np.cos(t),
                 map_image[1] + r*np.sin(t)], dtype=np.float32)
-geo_2 = flow_callback.Z2X_bijector(geo.T)
+geo_2 = flow_P.Z2X_bijector(geo.T)
 
 # plot:
 cmap = matplotlib.cm.get_cmap('Spectral')
@@ -354,7 +341,7 @@ geodesics = []
 for t in theta:
     geo = np.array([map_image[0] + r*np.cos(t),
                     map_image[1] + r*np.sin(t)], dtype=np.float32)
-    geodesics.append(flow_callback.Z2X_bijector(geo.T))
+    geodesics.append(flow_P.Z2X_bijector(geo.T))
 
 # geodesics aligned with abstract coordinate axes:
 r = np.linspace(-1000.0, 1000.0, 1000)
@@ -362,12 +349,12 @@ r = np.linspace(-1000.0, 1000.0, 1000)
 t = 0.0
 geo = np.array([map_image[0] + r*np.cos(t),
                 map_image[1] + r*np.sin(t)], dtype=np.float32)
-geo_1 = flow_callback.Z2X_bijector(geo.T)
+geo_1 = flow_P.Z2X_bijector(geo.T)
 
 t = np.pi/2.
 geo = np.array([map_image[0] + r*np.cos(t),
                 map_image[1] + r*np.sin(t)], dtype=np.float32)
-geo_2 = flow_callback.Z2X_bijector(geo.T)
+geo_2 = flow_P.Z2X_bijector(geo.T)
 
 # plot:
 cmap = matplotlib.cm.get_cmap('Spectral')
@@ -395,12 +382,12 @@ plt.legend()
 ###############################################################################
 omegam = np.linspace(.15, .4, 5)
 sigma8 = np.linspace(.6, 1.2, 5)
-coords = flow_callback.coords_transformed(omegam, sigma8, flow_callback.Z2X_bijector.inverse)
+coords = flow_P.coords_transformed(omegam, sigma8, flow_P.Z2X_bijector.inverse)
 
 np.__version__ # needs to be 1.19.2 or earlier
 import time as time
 T1 = time.time()
-h = flow_callback.Hessian(coords, flow_callback.Z2X_bijector)
+h = flow_P.Hessian(coords, flow_P.Z2X_bijector)
 T2 = time.time() - T1
 print(h)
 print(T2)
@@ -410,7 +397,7 @@ print(T2)
 ###############################################################################
 omegam = np.linspace(.15, .4, 5)
 sigma8 = np.linspace(.6, 1.2, 5)
-coords = flow_callback.coords_transformed(omegam, sigma8, flow_callback.Z2X_bijector.inverse)
+coords = flow_P.coords_transformed(omegam, sigma8, flow_P.Z2X_bijector.inverse)
 
 np.__version__ # needs to be 1.19.2 or earlier
 import time as time
@@ -422,7 +409,7 @@ with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
     t2.watch(delta)
     with  tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
         t1.watch(delta)
-        #f = flow_callback.Z2X_bijector(coords_tf+delta)
+        #f = flow_P.Z2X_bijector(coords_tf+delta)
         f = (coords_tf+delta)**2 # Checking that Hessian gives expected
     g = t1.jacobian(f,delta)
 print(coords_tf[0])
@@ -446,7 +433,7 @@ with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
     t2.watch(coords_tf)
     with  tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
         t1.watch(delta)
-        f = flow_callback.Z2X_bijector(coords_tf+delta)
+        f = flow_P.Z2X_bijector(coords_tf+delta)
 
     g = t1.jacobian(f,delta)
 
@@ -469,13 +456,13 @@ for om in omegam:
     for sig in sigma8:
 
         P1 = np.array([om, sig])
-        P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))
+        P1_prime = np.array(flow_P.Z2X_bijector.inverse(P1.astype(np.float32)))
         x = tf.constant(P1_prime.astype(np.float32))
         with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
             t2.watch(x)
             with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
                 t1.watch(x)
-                y = flow_callback.Z2X_bijector(x)
+                y = flow_P.Z2X_bijector(x)
             grad = t1.jacobian(y, x)
         hess = t2.jacobian(grad, x)
         print(hess)
@@ -486,7 +473,7 @@ for om in omegam:
 # Determinant (2 methods):
 ###############################################################################
 
-det, det_met = flow_callback.det_metric(omegam, sigma8, flow_callback.Z2X_bijector)
+det, det_met = flow_P.det_metric(omegam, sigma8, flow_P.Z2X_bijector)
 
 ###############################################################################
 # Metric (class functions method):
@@ -499,8 +486,8 @@ X, Y = np.meshgrid(x, y)
 grid = np.array([X,Y])
 points = grid.reshape(2,-1).T
 P1 = points
-#coords = flow_callback.coords_transformed(omegam, sigma8, flow_callback.Z2X_bijector.inverse)
-metric_method = flow_callback.Metric(omegam, sigma8, flow_callback.Z2X_bijector)
+#coords = flow_P.coords_transformed(omegam, sigma8, flow_P.Z2X_bijector.inverse)
+metric_method = flow_P.Metric(omegam, sigma8, flow_P.Z2X_bijector)
 PCA_eig, PCA_eigv = np.linalg.eigh(metric_method)
 
 idx = np.argsort(PCA_eig, axis = 1)[0][::-1]
@@ -539,7 +526,7 @@ X, Y = np.meshgrid(x, y)
 grid = np.array([X,Y])
 points = grid.reshape(2,-1).T
 P1 = points
-P1_prime = np.array((flow_callback.Z2X_bijector.inverse)(P1.astype(np.float32)))
+P1_prime = np.array((flow_P.Z2X_bijector.inverse)(P1.astype(np.float32)))
 #P1_prime = np.array((X2Z_bijector(P1.astype(np.float32))))
 
 #x = tf.Variable(P1_prime.astype(np.float32)) #variable or constant doesn't seem to matter
@@ -547,7 +534,7 @@ x = (P1_prime)
 delta = tf.Variable([0.0,0.0])
 with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g:
     g.watch(delta)
-    y = flow_callback.Z2X_bijector(x+delta)
+    y = flow_P.Z2X_bijector(x+delta)
 jac = g.jacobian(y, delta)
 print(jac)
 
@@ -612,11 +599,11 @@ for om in omegam:
     for sig in sigma8:
 
         P1 = np.array([om, sig])
-        P1_prime = np.array(flow_callback.Z2X_bijector.inverse(P1.astype(np.float32)))
+        P1_prime = np.array(flow_P.Z2X_bijector.inverse(P1.astype(np.float32)))
         x = tf.constant(P1_prime.astype(np.float32))
         with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g:
             g.watch(x)
-            y = flow_callback.Z2X_bijector(x)
+            y = flow_P.Z2X_bijector(x)
         jac = g.jacobian(y, x)
         mu = np.identity(2)
         metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
@@ -650,3 +637,13 @@ print(PCA_eig)
 print(PCA_eigv)
 
 plt.savefig('test.pdf')
+
+    def grid_coords_transformed(self, x_array, y_array, bijector_inv):
+        """
+        """
+        X, Y = np.meshgrid(x_array, y_array)
+        grid = np.array([X, Y])
+        coords0 = grid.reshape(2, -1).T
+        coords = np.array((bijector_inv)(coords0.astype(np.float32)))
+        #
+        return coords

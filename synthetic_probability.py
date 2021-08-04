@@ -422,18 +422,19 @@ class DiffFlowCallback(Callback):
 
     def sample(self, N):
         """
+        Return samples from the syntetic probablity.
         """
         return self.dist_learned.sample(N)
 
     def log_probability(self, coord):
         """
-        Returns learned log probability
+        Returns learned log probability.
         """
         return self.dist_learned.log_prob(coord)
 
     def MAP_finder(self, **kwargs):
         """
-        Function that uses scipy differential evolution to find the global maximum of the synthetic posterior
+        Function that uses scipy differential evolution to find the global maximum of the synthetic posterior.
         """
         # main call to differential evolution:
         result = differential_evolution(lambda x: -self.dist_learned.log_prob(np.array(x, dtype=np.float32)),
