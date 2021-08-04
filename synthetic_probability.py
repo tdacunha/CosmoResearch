@@ -2,9 +2,18 @@
 
 TODO:
 
-- save ranges from MCSamples
 - implement MAP finder
+- implement base geometry methods
 
+For testing purposes:
+
+import getdist
+chains_dir = './tensiometer/test_chains/'
+settings = {'ignore_rows':0, 'smooth_scale_1D':0.3, 'smooth_scale_2D':0.3}
+chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'DES', no_cache=True, settings=settings)
+param_names = ['omegam', 'sigma8']
+from tensorflow.keras.callbacks import Callback
+self = Callback()
 """
 
 ###############################################################################
@@ -13,6 +22,7 @@ TODO:
 import os
 import time
 import gc
+import copy
 from numba import jit
 import numpy as np
 import getdist.chains as gchains
@@ -194,8 +204,15 @@ class DiffFlowCallback(Callback):
     :reference: George Papamakarios, Theo Pavlakou, Iain Murray (2017). Masked Autoregressive Flow for Density Estimation. `arXiv:1705.07057 <https://arxiv.org/abs/1705.07057>`_
     """
 
+    """
+    For testing purposes:
+    feedback = 1
+    validation_split=0.1
+    """
+
     def __init__(self, chain, param_names=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, early_stop_nsigma=0., early_stop_patience=10, **kwargs):
 
+        # read in varaiables:
         self.feedback = feedback
 
         # Chain
@@ -227,16 +244,46 @@ class DiffFlowCallback(Callback):
         # internal variables:
         self.is_trained = False
 
-    def _init_chain(self, chain, param_names=None, validation_split=0.1):
+    def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1):
+        """
+        Add documentation
+        """
         # initialize param names:
         if param_names is None:
             param_names = chain.getParamNames().getRunningNames()
         else:
             chain_params = chain.getParamNames().list()
             if not np.all([name in chain_params for name in param_names]):
-                raise ValueError('Input parameter is not in the diff chain.\n',
+                raise ValueError('Input parameter is not in the chain.\n',
                                  'Input parameters ', param_names, '\n'
                                  'Possible parameters', chain_params)
+
+        # initialize ranges:
+        self.parameter_ranges = {}
+        for name in param_names:
+            # get ranges from user:
+            if param_ranges is not None:
+                if name not in param_ranges.keys():
+                    raise ValueError('Range for parameter ', name, ' is not specified.\n',
+                                     'When passing ranges explicitly all parameters have to be included.')
+                else:
+                    self.parameter_ranges[name] = copy.deepcopy(param_ranges[name])
+            # get ranges from MCSamples:
+            else:
+                temp_range = []
+                # lower:
+                if name in chain.ranges.lower.keys():
+                    temp_range.append(chain.ranges.lower[name])
+                else:
+                    temp_range.append(np.amin(chain.samples[:, chain.index[name]]))
+                # upper:
+                if name in chain.ranges.upper.keys():
+                    temp_range.append(chain.ranges.upper[name])
+                else:
+                    temp_range.append(np.amax(chain.samples[:, chain.index[name]]))
+                # save:
+                self.parameter_ranges[name] = copy.deepcopy(temp_range)
+
         # indexes:
         ind = [chain.index[name] for name in param_names]
         self.num_params = len(ind)
