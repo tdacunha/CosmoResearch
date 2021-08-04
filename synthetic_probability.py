@@ -375,12 +375,12 @@ class DiffFlowCallback(Callback):
     def grad_tape_inv(self, coords_z):
         bijector_inv = self.Z2X_bijector.inverse
         delta_inv = tf.Variable([0.0, 0.0])
-        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad:
-            grad.watch(delta_inv)
-            f_inv = bijector_inv(coords_z+delta)
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad_inv:
+            grad_inv.watch(delta_inv)
+            f_inv = bijector_inv(coords_z+delta_inv)
         self.grad_inv = grad_inv
 
-        return grad_inv, f, delta_inv
+        return grad_inv, f_inv, delta_inv
 
     def jacobian(self, coords_z):
         bijector = self.Z2X_bijector
