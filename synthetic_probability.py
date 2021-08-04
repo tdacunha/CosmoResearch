@@ -142,9 +142,9 @@ class SimpleMAF(object):
 
 class DiffFlowCallback(Callback):
     """
-    A class to compute the normalizing flow estimate of the probability of a parameter shift given an input parameter difference chain.
+    A class to compute the normalizing flow interpolation of a probability density given the samples.
 
-    A normalizing flow is trained to approximate the difference distribution and then used to numerically evaluate the probablity of a parameter shift (see REF). To do so, it defines a bijective mapping that is optimized to gaussianize the difference chain samples. This mapping is performed in two steps, using the gaussian approximation as pre-whitening. The notations used in the code are:
+    A normalizing flow is trained to approximate the distribution and then used to numerically evaluate the probablity of a parameter shift (see REF). To do so, it defines a bijective mapping that is optimized to gaussianize the difference chain samples. This mapping is performed in two steps, using the gaussian approximation as pre-whitening. The notations used in the code are:
 
     * `X` designates samples in the original parameter difference space;
     * `Y` designates samples in the gaussian approximation space, `Y` is obtained by shifting and scaling `X` by its mean and covariance (like a PCA);
@@ -159,14 +159,14 @@ class DiffFlowCallback(Callback):
     .. code-block:: python
 
         # Initialize the flow and model
-        diff_flow_callback = DiffFlowCallback(diff_chain, Z2Y_bijector='MAF')
+        diff_flow_callback = DiffFlowCallback(chain, Z2Y_bijector='MAF')
         # Train the model
         diff_flow_callback.train()
         # Compute the shift probability and confidence interval
         p, p_low, p_high = diff_flow_callback.estimate_shift_significance()
 
-    :param diff_chain: input parameter difference chain.
-    :type diff_chain: :class:`~getdist.mcsamples.MCSamples`
+    :param chain: input parameter difference chain.
+    :type chain: :class:`~getdist.mcsamples.MCSamples`
     :param param_names: parameter names of the parameters to be used
         in the calculation. By default all running parameters.
     :type param_names: list, optional
@@ -190,12 +190,12 @@ class DiffFlowCallback(Callback):
     :reference: George Papamakarios, Theo Pavlakou, Iain Murray (2017). Masked Autoregressive Flow for Density Estimation. `arXiv:1705.07057 <https://arxiv.org/abs/1705.07057>`_
     """
 
-    def __init__(self, diff_chain, param_names=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, early_stop_nsigma=0., early_stop_patience=10, **kwargs):
+    def __init__(self, chain, param_names=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, early_stop_nsigma=0., early_stop_patience=10, **kwargs):
 
         self.feedback = feedback
 
         # Chain
-        self._init_diff_chain(diff_chain, param_names=param_names, validation_split=validation_split)
+        self._init_chain(chain, param_names=param_names, validation_split=validation_split)
 
         # Transformed distribution
         self._init_transf_dist(Z2Y_bijector, learning_rate=learning_rate, **kwargs)
@@ -219,36 +219,39 @@ class DiffFlowCallback(Callback):
             # The idea is to introduce yet another step of deterministic gaussianization, eg using the prior CDF
             # or double prior (convolved with itself, eg a triangular distribution)
             raise NotImplementedError
+
+        # internal variables:
         self.is_trained = False
-    def _init_diff_chain(self, diff_chain, param_names=None, validation_split=0.1):
+
+    def _init_chain(self, chain, param_names=None, validation_split=0.1):
         # initialize param names:
         if param_names is None:
-            param_names = diff_chain.getParamNames().getRunningNames()
+            param_names = chain.getParamNames().getRunningNames()
         else:
-            chain_params = diff_chain.getParamNames().list()
+            chain_params = chain.getParamNames().list()
             if not np.all([name in chain_params for name in param_names]):
                 raise ValueError('Input parameter is not in the diff chain.\n',
                                  'Input parameters ', param_names, '\n'
                                  'Possible parameters', chain_params)
         # indexes:
-        ind = [diff_chain.index[name] for name in param_names]
+        ind = [chain.index[name] for name in param_names]
         self.num_params = len(ind)
 
         # Gaussian approximation (full chain)
-        mcsamples_gaussian_approx = gaussian_tension.gaussian_approximation(diff_chain, param_names=param_names)
+        mcsamples_gaussian_approx = gaussian_tension.gaussian_approximation(chain, param_names=param_names)
         self.dist_gaussian_approx = tfd.MultivariateNormalTriL(loc=mcsamples_gaussian_approx.means[0].astype(np.float32), scale_tril=tf.linalg.cholesky(mcsamples_gaussian_approx.covs[0].astype(np.float32)))
         self.Y2X_bijector = self.dist_gaussian_approx.bijector
 
         # Samples
         # Split training/test
-        n = diff_chain.samples.shape[0]
+        n = chain.samples.shape[0]
         indices = np.random.permutation(n)
         n_split = int(validation_split*n)
         test_idx, training_idx = indices[:n_split], indices[n_split:]
 
         # Training
-        self.X = diff_chain.samples[training_idx, :][:, ind]
-        self.weights = diff_chain.weights[training_idx]
+        self.X = chain.samples[training_idx, :][:, ind]
+        self.weights = chain.weights[training_idx]
         self.weights *= len(self.weights) / np.sum(self.weights)  # weights normalized to number of samples
         self.has_weights = np.any(self.weights != self.weights[0])
         self.Y = np.array(self.Y2X_bijector.inverse(self.X.astype(np.float32)))
@@ -256,9 +259,9 @@ class DiffFlowCallback(Callback):
         self.num_samples = len(self.X)
 
         # Test
-        self.X_test = diff_chain.samples[test_idx, :][:, ind]
+        self.X_test = chain.samples[test_idx, :][:, ind]
         self.Y_test = np.array(self.Y2X_bijector.inverse(self.X_test.astype(np.float32)))
-        self.weights_test = diff_chain.weights[test_idx]
+        self.weights_test = chain.weights[test_idx]
         self.weights_test *= len(self.weights_test) / np.sum(self.weights_test)  # weights normalized to number of samples
 
         # Training sample generator
@@ -338,19 +341,22 @@ class DiffFlowCallback(Callback):
                               **kwargs)
         self.is_trained = True
         return hist
-###############################################################################
-# GR Metric related methods:
 
-    def coords_transformed(self, x_array, y_array, bijector_inv):
+    ###############################################################################
+    # Information geometry methods:
+
+    def grid_coords_transformed(self, x_array, y_array, bijector_inv):
+        """
+        """
         X, Y = np.meshgrid(x_array, y_array)
-        grid = np.array([X,Y])
-        coords0 = grid.reshape(2,-1).T
+        grid = np.array([X, Y])
+        coords0 = grid.reshape(2, -1).T
         coords = np.array((bijector_inv)(coords0.astype(np.float32)))
-
+        #
         return coords
 
     def GradTape(self, coords, bijector):
-        delta = tf.Variable([0.0,0.0])
+        delta = tf.Variable([0.0, 0.0])
         with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad:
             grad.watch(delta)
             f = bijector(coords+delta)
@@ -376,13 +382,19 @@ class DiffFlowCallback(Callback):
         self.jac_T = jac_T
         return jac_T
 
-    def Metric(self, x_array, y_array, bijector):
+    def metric(self, x_array, y_array, bijector):
         coords = self.coords_transformed(x_array, y_array, bijector.inverse)
         jac = self.jacobian(coords, bijector)
         jac_T = self.jacobian_T(coords, bijector)
         metric = np.matmul(jac, jac_T)
         self.metric = metric
         return metric
+
+    def inverse_metric():
+        """
+        Fill in
+        """
+        pass
 
     def det_metric(self, x_array, y_array, bijector):
         coords = self.coords_transformed(x_array, y_array, bijector.inverse)
@@ -405,45 +417,6 @@ class DiffFlowCallback(Callback):
         h = t2.jacobian(g,delta)
         self.hessian = h
         return h
-###############################################################################
-
-
-
-    def estimate_shift(self, tol=0.05, max_iter=1000, step=100000):
-        """
-        Compute the normalizing flow estimate of the probability of a parameter shift given the input parameter difference chain. This is done with a Monte Carlo estimate by comparing the probability density at the zero-shift point to that at samples drawn from the normalizing flow approximation of the distribution.
-
-        :param tol: absolute tolerance on the shift significance, defaults to 0.05.
-        :type tol: float, optional
-        :param max_iter: maximum number of sampling steps, defaults to 1000.
-        :type max_iter: int, optional
-        :param step: number of samples per step, defaults to 100000.
-        :type step: int, optional
-        :return: probability value and error estimate.
-        """
-        err = np.inf
-        counter = max_iter
-
-        _thres = self.dist_learned.log_prob(np.zeros(self.num_params, dtype=np.float32))
-
-        _num_filtered = 0
-        _num_samples = 0
-        while err > tol and counter >= 0:
-            counter -= 1
-            _s = self.dist_learned.sample(step)
-            _s_prob = self.dist_learned.log_prob(_s)
-            _t = np.array(_s_prob > _thres)
-
-            _num_filtered += np.sum(_t)
-            _num_samples += step
-            _P = float(_num_filtered)/float(_num_samples)
-            _low, _upper = utils.clopper_pearson_binomial_trial(float(_num_filtered),
-                                                                float(_num_samples),
-                                                                alpha=0.32)
-
-            err = np.abs(utils.from_confidence_to_sigma(_upper)-utils.from_confidence_to_sigma(_low))
-
-        return _P, _low, _upper
 
     def _compute_shift_proba(self):
         zero = np.array(self.Z2X_bijector.inverse(np.zeros(self.num_params, dtype=np.float32)))
@@ -554,42 +527,3 @@ class DiffFlowCallback(Callback):
             plt.tight_layout()
             plt.show()
             return fig
-
-###############################################################################
-# helper function to compute tension with default MAF:
-
-
-def flow_parameter_shift(diff_chain, param_names=None, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, tol=0.05, max_iter=1000, step=100000, **kwargs):
-    """
-    Wrapper function to compute a normalizing flow estimate of the probability of a parameter shift given the input parameter difference chain with a standard MAF. It creates a :class:`~.DiffFlowCallback` object with a :class:`~.SimpleMAF` model (to which kwargs are passed), trains the model and returns the estimated shift probability.
-
-    :param diff_chain: input parameter difference chain.
-    :type diff_chain: :class:`~getdist.mcsamples.MCSamples`
-    :param param_names: parameter names of the parameters to be used
-        in the calculation. By default all running parameters.
-    :type param_names: list, optional
-    :param epochs: number of training epochs, defaults to 100.
-    :type epochs: int, optional
-    :param batch_size: number of samples per batch, defaults to None. If None, the training sample is divided into `steps_per_epoch` batches.
-    :type batch_size: int, optional
-    :param steps_per_epoch: number of steps per epoch, defaults to None. If None and `batch_size` is also None, then `steps_per_epoch` is set to 100.
-    :type steps_per_epoch: int, optional
-    :param callbacks: a list of additional Keras callbacks, such as :class:`~tf.keras.callbacks.ReduceLROnPlateau`, defaults to [].
-    :type callbacks: list, optional
-    :param verbose: verbosity level, defaults to 1.
-    :type verbose: int, optional
-    :param tol: absolute tolerance on the shift significance, defaults to 0.05.
-    :type tol: float, optional
-    :param max_iter: maximum number of sampling steps, defaults to 1000.
-    :type max_iter: int, optional
-    :param step: number of samples per step, defaults to 100000.
-    :type step: int, optional
-    :return: probability value and error estimate.
-    """
-
-    # Callback/model handler
-    diff_flow_callback = DiffFlowCallback(diff_chain, param_names=param_names, **kwargs)
-    # Train model
-    diff_flow_callback.train(epochs=epochs, batch_size=batch_size, steps_per_epoch=steps_per_epoch, callbacks=callbacks, verbose=verbose)
-    # Compute tension
-    return diff_flow_callback.estimate_shift(tol=tol, max_iter=max_iter, step=step)

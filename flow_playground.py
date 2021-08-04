@@ -23,13 +23,13 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 tfb = tfp.bijectors
 tfd = tfp.distributions
-import flow_copy
+import synthetic_probability
 #flow.cop
 from scipy import optimize
 from scipy.integrate import simps
 
 import importlib
-importlib.reload(flow_copy)
+importlib.reload(synthetic_probability)
 
 # load the chains (remove no burn in since the example chains have already been cleaned):
 chains_dir = here+'/tensiometer/test_chains/'
@@ -45,7 +45,7 @@ param_names = ['omegam', 'sigma8']
 
 # define the flow:
 #flow_callback = mcmc_tension.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
-flow_callback = flow_copy.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
+flow_callback = synthetic_probability.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
 
 
 # train:
@@ -89,8 +89,8 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
     return levs
 
 
-omegam = np.linspace(.1, .5, 100)
-sigma8 = np.linspace(.6, 1.2, 100)
+omegam = np.linspace(.0, .8, 200)
+sigma8 = np.linspace(.2, 1.8, 200)
 
 x, y = omegam, sigma8
 X, Y = np.meshgrid(x, y)
@@ -110,14 +110,14 @@ P2 = np.exp(log_P_2)
 P2 = P2 / simps(simps(P2, y), x)
 
 # plot:
-levels = [0.95, 0.68]
+levels = [utilities.from_sigma_to_confidence(i) for i in range(5, 1, -1)]
 plt.contour(X, Y, P, get_levels(P, x, y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels])
 plt.contour(X, Y, P2, get_levels(P2, x, y, levels), linewidths=1., linestyles='-', colors=['green' for i in levels])
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
 
-###############################################################################
+ ###############################################################################
 # determinant of the Jacobian:
 ###############################################################################
 
@@ -161,6 +161,7 @@ mean_image = flow_callback.Z2X_bijector.inverse(np.array(mean, dtype=np.float32)
 print(mean, np.array(mean_image))
 
 # plot:
+levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 1, -1)]
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
