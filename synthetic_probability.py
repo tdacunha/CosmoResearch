@@ -1,5 +1,10 @@
 """
 
+TODO:
+
+- save ranges from MCSamples
+- implement MAP finder
+
 """
 
 ###############################################################################
@@ -138,7 +143,6 @@ class SimpleMAF(object):
 
 ###############################################################################
 # main class to compute NF-based tension:
-
 
 class DiffFlowCallback(Callback):
     """
@@ -342,81 +346,118 @@ class DiffFlowCallback(Callback):
         self.is_trained = True
         return hist
 
+    def MAP_finder():
+        """
+        """
+        pass
+
     ###############################################################################
     # Information geometry methods:
 
-    def grid_coords_transformed(self, x_array, y_array, bijector_inv):
+    def log_probability():
         """
         """
-        X, Y = np.meshgrid(x_array, y_array)
-        grid = np.array([X, Y])
-        coords0 = grid.reshape(2, -1).T
-        coords = np.array((bijector_inv)(coords0.astype(np.float32)))
-        #
-        return coords
+        pass
 
-    def GradTape(self, coords, bijector):
+    def grad_tape(self, coords_z):
+        """
+        Make this a class property for the two bijectors
+        """
+        bijector = self.Z2X_bijector
         delta = tf.Variable([0.0, 0.0])
         with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad:
             grad.watch(delta)
-            f = bijector(coords+delta)
+            f = bijector(coords_z+delta)
         self.grad = grad
-        self.f = f
-        self.delta = delta
-        return grad
 
-    def jacobian(self, coords, bijector):
-        grad = self.GradTape(coords, bijector)
-        f = self.f
-        delta = self.delta
-        jac = np.array(grad.jacobian(f,delta))
+        return grad, f, delta
+
+    def grad_tape_inv(self, coords_z):
+        bijector_inv = self.Z2X_bijector.inverse
+        delta_inv = tf.Variable([0.0, 0.0])
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad:
+            grad.watch(delta_inv)
+            f_inv = bijector_inv(coords_z+delta)
+        self.grad_inv = grad_inv
+
+        return grad_inv, f, delta_inv
+
+    def jacobian(self, coords_z):
+        bijector = self.Z2X_bijector
+        grad, f, delta = self.grad_tape(coords_z)
+        jac = grad.jacobian(f,delta)
         self.jac = jac
         return jac
 
-    def jacobian_T(self, coords, bijector):
-        jac = self.jacobian(coords, bijector)
-        if np.shape(coords) == (2,):
-            jac_T = jac.T
-        else:
-            jac_T = np.transpose(jac, (0,2,1))
+
+    def jacobian_inverse(self, coords):
+        """
+        """
+        bijector = self.Z2X_bijector
+        bijector_inv = bijector.inverse
+
+        pass
+
+    def jacobian_T(self, coords_z):
+        """
+        Remove?
+        """
+        bijector = self.Z2X_bijector
+        jac = self.jacobian(coords_z)
+        jac_T = tf.transpose(jac, (0,2,1))
         self.jac_T = jac_T
         return jac_T
 
-    def metric(self, x_array, y_array, bijector):
-        coords = self.coords_transformed(x_array, y_array, bijector.inverse)
-        jac = self.jacobian(coords, bijector)
-        jac_T = self.jacobian_T(coords, bijector)
-        metric = np.matmul(jac, jac_T)
+    def metric(self, coords):
+        bijector = self.Z2X_bijector
+        coords_z = np.array((bijector.inverse)(coords.astype(np.float32)))
+        jac = self.jacobian(coords_z)
+        jac_T = self.jacobian_T(coords_z)
+        metric = tf.linalg.matmul(jac, jac_T)
         self.metric = metric
         return metric
 
-    def inverse_metric():
+    def inverse_metric(coords_x):
         """
         Fill in
         """
         pass
 
-    def det_metric(self, x_array, y_array, bijector):
-        coords = self.coords_transformed(x_array, y_array, bijector.inverse)
-        met = self.metric(x_array, y_array, bijector)
-        det_met = np.linalg.det(met)
+    def det_metric(self, x_array, y_array):
+        """
+        """
+        bijector = self.Z2X_bijector
 
-        log_det = -bijector.forward_log_det_jacobian(coords, event_ndims=1)
+        log_det = -bijector.forward_log_det_jacobian(coords_z, event_ndims=1)
         log_det = np.array(log_det).T
         det = (np.exp(log_det))**2
-        return det, det_met
+        return det
 
-    def Hessian(self, coords, bijector):
+    def hessian(self, coords_z):
+        """
+        Make this a class method?
+        """
+        bijector = self.Z2X_bijector
         delta = tf.Variable([0.0,0.0])
         with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
             t2.watch(delta)
             with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
                 t1.watch(delta)
-                f = bijector(coords+delta)
+                f = bijector(coords_z+delta)
             g = t1.jacobian(f,delta)
         h = t2.jacobian(g,delta)
         self.hessian = h
         return h
+
+    def coord_metric_derivative():
+        """
+        \partial_\mu g_\\alpha\\beta
+        """
+        pass
+
+
+    ###############################################################################
+    # Training statistics:
 
     def _compute_shift_proba(self):
         zero = np.array(self.Z2X_bijector.inverse(np.zeros(self.num_params, dtype=np.float32)))
