@@ -4,6 +4,8 @@ TODO:
 
 - implement MAP finder
 - implement base geometry methods
+- clean up used modules
+- add method to save to file (and cache) the learned distributrion
 
 For testing purposes:
 
@@ -32,6 +34,7 @@ import scipy
 from scipy.linalg import sqrtm
 from scipy.integrate import simps
 from scipy.spatial import cKDTree
+from scipy.optimize import differential_evolution
 import scipy.stats
 import pickle
 from collections.abc import Iterable
@@ -208,15 +211,23 @@ class DiffFlowCallback(Callback):
     For testing purposes:
     feedback = 1
     validation_split=0.1
+    Z2Y_bijector='MAF'
+    pregauss_bijector=None
+    learning_rate=1e-3
+    feedback=1
+    validation_split=0.1
+    early_stop_nsigma=0.
+    early_stop_patience=10
+    kwargs={}
     """
 
-    def __init__(self, chain, param_names=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, early_stop_nsigma=0., early_stop_patience=10, **kwargs):
+    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, early_stop_nsigma=0., early_stop_patience=10, **kwargs):
 
         # read in varaiables:
         self.feedback = feedback
 
         # Chain
-        self._init_chain(chain, param_names=param_names, validation_split=validation_split)
+        self._init_chain(chain, param_names=param_names, param_ranges=param_ranges, validation_split=validation_split)
 
         # Transformed distribution
         self._init_transf_dist(Z2Y_bijector, learning_rate=learning_rate, **kwargs)
@@ -330,6 +341,9 @@ class DiffFlowCallback(Callback):
                 print("    - {}/{} training/test samples and uniform weights.".format(self.num_samples, self.X_test.shape[0]))
 
     def _init_transf_dist(self, Z2Y_bijector, learning_rate=1e-4, **kwargs):
+        """
+        Add documentation
+        """
         # Model
         if Z2Y_bijector == 'MAF':
             self.MAF = SimpleMAF(self.num_params, feedback=self.feedback, **kwargs)
@@ -371,8 +385,16 @@ class DiffFlowCallback(Callback):
         :type verbose: int, optional
         :return: A :class:`~tf.keras.callbacks.History` object. Its `history` attribute is a dictionary of training and validation loss values and metrics values at successive epochs: `"shift0_chi2"` is the squared norm of the zero-shift point in the gaussianized space, with the probability-to-exceed and corresponding tension in `"shift0_pval"` and `"shift0_nsigma"`; `"chi2Z_ks"` and `"chi2Z_ks_p"` contain the :math:`D_n` statistic and probability-to-exceed of the Kolmogorov-Smironov test that squared norms of the transformed samples `Z` are :math:`\\chi^2` distributed (with a number of degrees of freedom equal to the number of parameters).
         """
+        """
+        For testing purposes:
+        epochs=100
+        batch_size=None
+        steps_per_epoch=None
+        callbacks=[]
+        verbose=1
+        kwargs = {}
+        """
         # We're trying to loop through the full sample each epoch
-        tf.random.set_seed(1)
         if batch_size is None:
             if steps_per_epoch is None:
                 steps_per_epoch = 100
@@ -390,21 +412,34 @@ class DiffFlowCallback(Callback):
                               verbose=verbose,
                               callbacks=[tf.keras.callbacks.TerminateOnNaN(), self]+callbacks,
                               **kwargs)
+        # model is now trained:
         self.is_trained = True
+        #
         return hist
 
-    def MAP_finder():
+    def log_probability(self, coord):
         """
+        Returns learned log probability
         """
-        pass
+        return self.dist_learned.log_prob(coord)
+
+    def MAP_finder(self, **kwargs):
+        """
+        Function that uses scipy differential evolution to find the global maximum of the synthetic posterior
+        """
+        # main call to differential evolution:
+        result = differential_evolution(lambda x: -self.dist_learned.log_prob(np.array(x, dtype=np.float32)),
+                                        bounds=list(self.parameter_ranges.values()),
+                                        **kwargs)
+        # cache MAP value:
+        if result.success:
+            self.MAP = result.x
+            self.MAP_logP = -result.fun
+        #
+        return result
 
     ###############################################################################
     # Information geometry methods:
-
-    def log_probability():
-        """
-        """
-        pass
 
     def grad_tape(self, coords_z):
         """
