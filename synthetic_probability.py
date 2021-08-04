@@ -417,6 +417,14 @@ class DiffFlowCallback(Callback):
         #
         return hist
 
+    ###############################################################################
+    # Utility functions:
+
+    def sample(self, N):
+        """
+        """
+        return self.dist_learned.sample(N)
+
     def log_probability(self, coord):
         """
         Returns learned log probability

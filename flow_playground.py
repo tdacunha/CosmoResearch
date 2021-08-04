@@ -1,16 +1,3 @@
-
-    def grid_coords_transformed(self, x_array, y_array, bijector_inv):
-        """
-        """
-        X, Y = np.meshgrid(x_array, y_array)
-        grid = np.array([X, Y])
-        coords0 = grid.reshape(2, -1).T
-        coords = np.array((bijector_inv)(coords0.astype(np.float32)))
-        #
-        return coords
-
-
-
 # import libraries:
 import sys, os
 here = './'
@@ -36,11 +23,11 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 tfb = tfp.bijectors
 tfd = tfp.distributions
-import synthetic_probability
 #flow.cop
 from scipy import optimize
 from scipy.integrate import simps
 
+import synthetic_probability
 import importlib
 importlib.reload(synthetic_probability)
 
@@ -85,6 +72,15 @@ g.triangle_plot([chain, flow_chain, Y_chain], params=param_names, filled=False)
 # plot learned distribution from value in different ways:
 ###############################################################################
 
+    def grid_coords_transformed(self, x_array, y_array, bijector_inv):
+        """
+        """
+        X, Y = np.meshgrid(x_array, y_array)
+        grid = np.array([X, Y])
+        coords0 = grid.reshape(2, -1).T
+        coords = np.array((bijector_inv)(coords0.astype(np.float32)))
+        #
+        return coords
 
 def get_levels(P, x, y, conf=[0.95, 0.68]):
     """
