@@ -255,6 +255,9 @@ class DiffFlowCallback(Callback):
         # internal variables:
         self.is_trained = False
 
+        # initialize geometry:
+        self._init_geometry()
+
     def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1):
         """
         Add documentation
@@ -368,6 +371,12 @@ class DiffFlowCallback(Callback):
         loss = lambda _, log_prob: -log_prob
 
         self.model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate), loss=loss)
+
+    def _init_geometry(self):
+        """
+        Initialize geometry calculations
+        """
+        pass
 
     def train(self, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, **kwargs):
         """
