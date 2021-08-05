@@ -377,12 +377,23 @@ class DiffFlowCallback(Callback):
         Initialize geometry calculations
         """
         # initialize the tensorflow tape for the gradient:
+        self._coord_x = tf.Variable(np.zeros(self.num_params, dtype=np.float32)) # need to change this
         self._coord_z = tf.Variable(np.zeros(self.num_params, dtype=np.float32)) # need to change this
+
         self.gradient_tape = tf.GradientTape(watch_accessed_variables=False, persistent=True)
         self.delta = tf.Variable(np.zeros(self.num_params, dtype=np.float32))
         with self.gradient_tape:
             self.gradient_tape.watch(self.delta)
             f = self.Z2X_bijector(self._coord_z + self.delta)
+        self.f = f
+
+        # initialize tape for inverse bijector (X2Z):
+        self.gradient_tape_inv = tf.GradientTape(watch_accessed_variables=False, persistent=True)
+        self.delta_inv = tf.Variable(np.zeros(self.num_params, dtype=np.float32))
+        with self.gradient_tape_inv:
+            self.gradient_tape_inv.watch(self.delta_inv)
+            f_inv = self.Z2X_bijector.inverse(self._coord_x + self.delta_inv)
+        self.f_inv = f_inv
 
     def train(self, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, **kwargs):
         """
@@ -472,24 +483,33 @@ class DiffFlowCallback(Callback):
         log_det = self.Z2X_bijector.inverse_log_det_jacobian(coords, event_ndims=1)
         return 2.*log_det
 
-    def jacobian(self):
+    def Jacobian(self):
         """
         TD can work on this!
         """
-        if hasattr(self, 'jacobian'):
-            return self.jacobian
+        if hasattr(self, 'jac'):
+            return self.jac
         else:
-            jac = self.tape.jacobian(self.Z2X_bijector, self.delta)
-            self.jacobian = jac
+            jac = self.gradient_tape.jacobian(self.f, self.delta)
+            self.jac = jac
             return jac
 
     def metric(self):
-        jac = self.jacobian()
-        jac_T = tf.transpose(jac, (0,2,1)) # need to make this generalized to more dimensions
+        jac = self.Jacobian()
+        jac_T = tf.transpose(jac)#, (0,2,1)) # need to make this generalized to more dimensions, more coords
         metric = tf.linalg.matmul(jac, jac_T)
-        self.metric = metric
+        self.met = metric
         return metric
 
+    def Jacobian_inv(self):
+        """
+        TD can work on this!
+        """
+        if hasattr(self, 'jacobian_inv'):
+            return self.jac_inv
+        else:
+            jac_inv = self.gradient_tape.jacobian(self.f_inv, self.delta_inv)
+            self.jac_inv = jac_inv
     #
     # def grad_tape(self, coords_z):
     #     """
@@ -503,16 +523,16 @@ class DiffFlowCallback(Callback):
     #     self.grad = grad
     #
     #     return grad, f, delta
-
-    def grad_tape_inv(self, coords_z):
-        bijector_inv = self.Z2X_bijector.inverse
-        delta_inv = tf.Variable([0.0, 0.0])
-        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad_inv:
-            grad_inv.watch(delta_inv)
-            f_inv = bijector_inv(coords_z+delta_inv)
-        self.grad_inv = grad_inv
-
-        return grad_inv, f_inv, delta_inv
+    #
+    # def grad_tape_inv(self, coords_z):
+    #     bijector_inv = self.Z2X_bijector.inverse
+    #     delta_inv = tf.Variable([0.0, 0.0])
+    #     with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad_inv:
+    #         grad_inv.watch(delta_inv)
+    #         f_inv = bijector_inv(coords_z+delta_inv)
+    #     self.grad_inv = grad_inv
+    #
+    #     return grad_inv, f_inv, delta_inv
     #
     # def jacobian(self, coords_z):
     #     bijector = self.Z2X_bijector

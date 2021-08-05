@@ -475,6 +475,16 @@ for om in omegam:
 det, det_met = flow_P.det_metric(omegam, sigma8, flow_P.Z2X_bijector)
 
 ###############################################################################
+# TESTING NEW CLASS FUNCTIONS:
+###############################################################################
+print(flow_P.f)
+jac = flow_P.Jacobian()
+print((jac))
+print(tf.transpose(jac))
+metric_method = flow_P.metric()
+print(metric_method)
+
+###############################################################################
 # Metric (class functions method):
 ###############################################################################
 omegam = np.linspace(.15, .4, 20)
@@ -486,7 +496,15 @@ grid = np.array([X,Y])
 points = grid.reshape(2,-1).T
 P1 = points
 #coords = flow_P.coords_transformed(omegam, sigma8, flow_P.Z2X_bijector.inverse)
-metric_method = flow_P.Metric(omegam, sigma8, flow_P.Z2X_bijector)
+#metric_method = flow_P.Metric(omegam, sigma8, flow_P.Z2X_bijector)
+
+print(flow_P.f)
+jac = flow_P.Jacobian()
+print((jac))
+print(tf.transpose(jac))
+metric_method = flow_P.metric()
+print(metric_method)
+
 PCA_eig, PCA_eigv = np.linalg.eigh(metric_method)
 
 idx = np.argsort(PCA_eig, axis = 1)[0][::-1]
