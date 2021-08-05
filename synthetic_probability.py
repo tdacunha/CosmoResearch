@@ -376,7 +376,13 @@ class DiffFlowCallback(Callback):
         """
         Initialize geometry calculations
         """
-        pass
+        # initialize the tensorflow tape for the gradient:
+        self._coord_z = tf.Variable(np.zeros(self.num_params, dtype=np.float32)) # need to change this
+        self.gradient_tape = tf.GradientTape(watch_accessed_variables=False, persistent=True)
+        self.delta = tf.Variable(np.zeros(self.num_params, dtype=np.float32))
+        with self.gradient_tape:
+            self.gradient_tape.watch(self.delta)
+            f = self.Z2X_bijector(self._coord_z + self.delta)
 
     def train(self, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, **kwargs):
         """
@@ -431,7 +437,7 @@ class DiffFlowCallback(Callback):
 
     def sample(self, N):
         """
-        Return samples from the syntetic probablity.
+        Return samples from the synthetic probablity.
         """
         return self.dist_learned.sample(N)
 
@@ -451,7 +457,7 @@ class DiffFlowCallback(Callback):
                                         **kwargs)
         # cache MAP value:
         if result.success:
-            self.MAP = result.x
+            self.MAP_coord = result.x
             self.MAP_logP = -result.fun
         #
         return result
@@ -459,18 +465,44 @@ class DiffFlowCallback(Callback):
     ###############################################################################
     # Information geometry methods:
 
-    def grad_tape(self, coords_z):
+    def log_det_metric(self, coords):
         """
-        Make this a class property for the two bijectors
+        Computes the log determinant of the metric
         """
-        bijector = self.Z2X_bijector
-        delta = tf.Variable([0.0, 0.0])
-        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad:
-            grad.watch(delta)
-            f = bijector(coords_z+delta)
-        self.grad = grad
+        log_det = self.Z2X_bijector.inverse_log_det_jacobian(coords, event_ndims=1)
+        return 2.*log_det
 
-        return grad, f, delta
+    def jacobian(self):
+        """
+        TD can work on this!
+        """
+        if hasattr(self, 'jacobian'):
+            return self.jacobian
+        else:
+            jac = self.tape.jacobian(self.Z2X_bijector, self.delta)
+            self.jacobian = jac
+            return jac
+
+    def metric(self):
+        jac = self.jacobian()
+        jac_T = tf.transpose(jac, (0,2,1)) # need to make this generalized to more dimensions
+        metric = tf.linalg.matmul(jac, jac_T)
+        self.metric = metric
+        return metric
+
+    #
+    # def grad_tape(self, coords_z):
+    #     """
+    #     Make this a class property for the two bijectors
+    #     """
+    #     bijector = self.Z2X_bijector
+    #     delta = tf.Variable([0.0, 0.0])
+    #     with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad:
+    #         grad.watch(delta)
+    #         f = bijector(coords_z+delta)
+    #     self.grad = grad
+    #
+    #     return grad, f, delta
 
     def grad_tape_inv(self, coords_z):
         bijector_inv = self.Z2X_bijector.inverse
@@ -481,13 +513,13 @@ class DiffFlowCallback(Callback):
         self.grad_inv = grad_inv
 
         return grad_inv, f_inv, delta_inv
-
-    def jacobian(self, coords_z):
-        bijector = self.Z2X_bijector
-        grad, f, delta = self.grad_tape(coords_z)
-        jac = grad.jacobian(f,delta)
-        self.jac = jac
-        return jac
+    #
+    # def jacobian(self, coords_z):
+    #     bijector = self.Z2X_bijector
+    #     grad, f, delta = self.grad_tape(coords_z)
+    #     jac = grad.jacobian(f,delta)
+    #     self.jac = jac
+    #     return jac
 
 
     def jacobian_inverse(self, coords):
@@ -508,30 +540,20 @@ class DiffFlowCallback(Callback):
         self.jac_T = jac_T
         return jac_T
 
-    def metric(self, coords):
-        bijector = self.Z2X_bijector
-        coords_z = np.array((bijector.inverse)(coords.astype(np.float32)))
-        jac = self.jacobian(coords_z)
-        jac_T = self.jacobian_T(coords_z)
-        metric = tf.linalg.matmul(jac, jac_T)
-        self.metric = metric
-        return metric
+    # def metric(self, coords):
+    #     bijector = self.Z2X_bijector
+    #     coords_z = np.array((bijector.inverse)(coords.astype(np.float32)))
+    #     jac = self.jacobian(coords_z)
+    #     jac_T = self.jacobian_T(coords_z)
+    #     metric = tf.linalg.matmul(jac, jac_T)
+    #     self.metric = metric
+    #     return metric
 
     def inverse_metric(coords_x):
         """
         Fill in
         """
         pass
-
-    def det_metric(self, x_array, y_array):
-        """
-        """
-        bijector = self.Z2X_bijector
-
-        log_det = -bijector.forward_log_det_jacobian(coords_z, event_ndims=1)
-        log_det = np.array(log_det).T
-        det = (np.exp(log_det))**2
-        return det
 
     def hessian(self, coords_z):
         """

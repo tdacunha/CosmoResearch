@@ -116,7 +116,7 @@ density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
 
- ###############################################################################
+###############################################################################
 # determinant of the Jacobian:
 ###############################################################################
 
@@ -127,8 +127,7 @@ x, y = omegam, sigma8
 X, Y = np.meshgrid(x, y)
 
 # compute log det Jacobian:
-abs_X = flow_P.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
-log_det = -flow_P.Z2X_bijector.forward_log_det_jacobian(abs_X, event_ndims=1)
+log_det = flow_P.log_det_metric(np.array([X, Y], dtype=np.float32).T)
 log_det = np.array(log_det).T
 
 pc = plt.pcolormesh(X, Y, log_det, linewidth=0, rasterized=True, shading='auto', cmap='RdBu')
