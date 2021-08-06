@@ -100,18 +100,9 @@ log_P = np.array(log_P).T
 P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
-# doing the calculation directly:
-abs_X = flow_P.Z2X_bijector.inverse(np.array([X, Y], dtype=np.float32).T)
-gaussian = tfd.MultivariateNormalDiag(np.zeros(2, dtype=np.float32), np.ones(2, dtype=np.float32))
-log_P_2 = gaussian.log_prob(abs_X) - flow_P.Z2X_bijector.forward_log_det_jacobian(abs_X, event_ndims=1)
-log_P_2 = np.array(log_P_2).T
-P2 = np.exp(log_P_2)
-P2 = P2 / simps(simps(P2, y), x)
-
 # plot:
 levels = [utilities.from_sigma_to_confidence(i) for i in range(5, 1, -1)]
 plt.contour(X, Y, P, get_levels(P, x, y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels])
-plt.contour(X, Y, P2, get_levels(P2, x, y, levels), linewidths=1., linestyles='-', colors=['green' for i in levels])
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
@@ -175,21 +166,8 @@ fisher_samples = np.linalg.inv(cov_samples)
 print('Fisher', fisher_samples)
 
 # covariance from flow around mean:
-x = tf.constant(np.array(mean_image)) # or tf.constant, Variable but Variable doesn;t work with tf.function
-with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
-    g.watch(x)
-    y = flow_P.Z2X_bijector(x)
-jac = g.jacobian(y, x)
-mu = np.identity(2)
-covariance_metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
-
-x = tf.constant(np.array(mean).astype(np.float32))
-with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
-    g.watch(x)
-    y = flow_P.Z2X_bijector.inverse(x)
-jac = g.jacobian(y, x)
-mu = np.identity(2)
-fisher_metric = np.dot(np.dot(np.array(jac).T, mu), np.array(jac))
+covariance_metric = flow_P.metric(np.array([mean]).astype(np.float32))[0]
+fisher_metric = flow_P.inverse_metric(np.array([mean]).astype(np.float32))[0]
 
 # compare:
 alpha = np.linspace(-1, 1, 1000)
@@ -213,7 +191,6 @@ plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', 
 mode = 1
 plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-')
 
-
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
@@ -225,57 +202,7 @@ plt.quiver(mean[0],mean[1],eigv[0,mode], eigv[1,mode], angles = 'xy')
 
 plt.xlim([0.15, 0.4])
 plt.ylim([0.6, 1.2])
-plt.legend()
 
-# covariance from flow around map:
-x = tf.constant(np.array(map_image))
-with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
-    g.watch(x)
-    y = flow_P.Z2X_bijector(x)
-jac = g.jacobian(y, x)
-mu = np.identity(2)
-covariance_metric = np.dot(np.array(jac), np.dot(mu, np.array(jac).T))
-
-x = tf.constant(np.array(maximum_posterior).astype(np.float32))
-with tf.GradientTape(watch_accessed_variables=False, persistent=True) as g: #persistent true doesn't seem to affect rn
-    g.watch(x)
-    y = flow_P.Z2X_bijector.inverse(x)
-jac = g.jacobian(y, x)
-mu = np.identity(2)
-fisher_metric = np.dot(np.dot(np.array(jac).T, mu), np.array(jac))
-
-# compare:
-alpha = np.linspace(-1, 1, 1000)
-_, eigv = np.linalg.eigh(covariance_metric)
-mode = 0
-plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], color='k', ls='--', label='flow covariance')
-mode = 1
-plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], color='k', ls='--')
-
-alpha = np.linspace(-1, 1, 1000)
-_, eigv = np.linalg.eigh(fisher_metric)
-mode = 0
-plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], color='green', ls='-.', label='flow fisher')
-mode = 1
-plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], color='green', ls='-.')
-
-alpha = np.linspace(-1, 1, 1000)
-_, eigv = np.linalg.eigh(cov_samples)
-mode = 0
-plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-', label='samples')
-mode = 1
-plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-')
-
-
-density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
-_X, _Y = np.meshgrid(density.x, density.y)
-plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
-plt.scatter(mean[0], mean[1], color='k')
-plt.scatter(maximum_posterior[0], maximum_posterior[1], color='red')
-plt.quiver()
-
-plt.xlim([0.15, 0.4])
-plt.ylim([0.6, 1.2])
 plt.legend()
 
 ###############################################################################
@@ -283,7 +210,6 @@ plt.legend()
 ###############################################################################
 
 import matplotlib
-
 
 r = np.linspace(0.0, 20.0, 1000)
 theta = np.linspace(0.0, 2.0*np.pi, 30)
@@ -293,7 +219,7 @@ geodesics = []
 for t in theta:
     geo = np.array([map_image[0] + r*np.cos(t),
                     map_image[1] + r*np.sin(t)], dtype=np.float32)
-    geodesics.append(flow_P.Z2X_bijector(geo.T))
+    geodesics.append(flow_P.map_to_original_coord(geo.T))
 
 # geodesics aligned with abstract coordinate axes:
 r = np.linspace(-20.0, 20.0, 1000)
@@ -301,12 +227,12 @@ r = np.linspace(-20.0, 20.0, 1000)
 t = 0.0
 geo = np.array([map_image[0] + r*np.cos(t),
                 map_image[1] + r*np.sin(t)], dtype=np.float32)
-geo_1 = flow_P.Z2X_bijector(geo.T)
+geo_1 = flow_P.map_to_original_coord(geo.T)
 
 t = np.pi/2.
 geo = np.array([map_image[0] + r*np.cos(t),
                 map_image[1] + r*np.sin(t)], dtype=np.float32)
-geo_2 = flow_P.Z2X_bijector(geo.T)
+geo_2 = flow_P.map_to_original_coord(geo.T)
 
 # plot:
 cmap = matplotlib.cm.get_cmap('Spectral')
@@ -328,7 +254,9 @@ plt.legend()
 ###############################################################################
 # asyntotic structure:
 ###############################################################################
-import matplotlib.pyplot as plt
+
+import matplotlib
+
 r = np.linspace(0.0, 1000.0, 1000)
 theta = np.linspace(0.0, 2.0*np.pi, 100)
 
@@ -340,7 +268,7 @@ geodesics = []
 for t in theta:
     geo = np.array([map_image[0] + r*np.cos(t),
                     map_image[1] + r*np.sin(t)], dtype=np.float32)
-    geodesics.append(flow_P.Z2X_bijector(geo.T))
+    geodesics.append(flow_P.map_to_original_coord(geo.T))
 
 # geodesics aligned with abstract coordinate axes:
 r = np.linspace(-1000.0, 1000.0, 1000)
@@ -348,12 +276,12 @@ r = np.linspace(-1000.0, 1000.0, 1000)
 t = 0.0
 geo = np.array([map_image[0] + r*np.cos(t),
                 map_image[1] + r*np.sin(t)], dtype=np.float32)
-geo_1 = flow_P.Z2X_bijector(geo.T)
+geo_1 = flow_P.map_to_original_coord(geo.T)
 
 t = np.pi/2.
 geo = np.array([map_image[0] + r*np.cos(t),
                 map_image[1] + r*np.sin(t)], dtype=np.float32)
-geo_2 = flow_P.Z2X_bijector(geo.T)
+geo_2 = flow_P.map_to_original_coord(geo.T)
 
 # plot:
 cmap = matplotlib.cm.get_cmap('Spectral')
@@ -373,9 +301,74 @@ _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
 plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
-plt.xlim([-10, 10.0])
-plt.ylim([-10, 10.0])
+plt.xlim([-100, 100.0])
+plt.ylim([-100, 100.0])
 plt.legend()
+
+
+###############################################################################
+# local eigenvalues of the metric:
+###############################################################################
+
+omegam = np.linspace(.15, .4, 20)
+sigma8 = np.linspace(.6, 1.2, 20)
+
+x, y = omegam, sigma8
+X, Y = np.meshgrid(x, y)
+grid = np.array([X,Y])
+points = grid.reshape(2,-1).T
+coords = points.astype(np.float32)
+
+jac = flow_P.direct_jacobian(coords)
+print((jac))
+metric_method = flow_P.metric(coords)
+print(metric_method)
+
+PCA_eig, PCA_eigv = np.linalg.eigh(metric_method)
+
+idx = np.argsort(PCA_eig, axis = 1)[0][::-1]
+PCA_eig = PCA_eig[:,idx]
+PCA_eigv = PCA_eigv[:,:,idx]
+
+# Plot
+plt.figure(figsize = (10,10))
+mode = 0
+plt.quiver(P1[:,0], P1[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
+mode = 1
+plt.quiver(P1[:,0], P1[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+
+eig, eigv = np.linalg.eigh(cov_samples)
+mode = 0
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+mode = 1
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+
+plt.xlim([np.amin(omegam), np.amax(omegam)])
+plt.ylim([np.amin(sigma8), np.amax(sigma8)])
+
+
+
+
+
+
+
+###############################################################################
+# Hession playground: function method
+###############################################################################
+
+
+flow_P.coord_metric_derivative(np.array([mean]).astype(np.float32))
+
+
+timeit flow_P.coord_metric_derivative(np.array([mean]).astype(np.float32))
+
+timeit flow_P.coord_metric_derivative(np.array([mean]).astype(np.float32))
+
 ###############################################################################
 # Hession playground: function method
 ###############################################################################
@@ -477,8 +470,15 @@ det, det_met = flow_P.det_metric(omegam, sigma8, flow_P.Z2X_bijector)
 ###############################################################################
 # TESTING NEW CLASS FUNCTIONS:
 ###############################################################################
+omegam = np.linspace(.15, .4, 5)
+sigma8 = np.linspace(.6, 1.2, 5)
+x, y = omegam, sigma8
+X, Y = np.meshgrid(x, y)
+grid = np.array([X,Y])
+coords = (grid.reshape(2,-1).T).astype(np.float32)
+
 print(flow_P.f)
-jac = flow_P.Jacobian()
+jac = flow_P.direct_jacobian(coords)
 print((jac))
 print(tf.transpose(jac))
 metric_method = flow_P.metric()
