@@ -553,7 +553,7 @@ class DiffFlowCallback(Callback):
         new_order = tf.concat([leading, trailing], axis=0)
         jac_T = tf.transpose(jac, new_order)
         # compute metric:
-        metric = tf.linalg.matmul(jac, jac_T)
+        metric = tf.linalg.matmul(jac_T, jac)
         #
         return metric
 
