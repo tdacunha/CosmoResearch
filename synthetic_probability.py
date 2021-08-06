@@ -577,6 +577,19 @@ class DiffFlowCallback(Callback):
             f = self.inverse_metric(coord)
         return tape.batch_jacobian(f, coord)
 
+    @tf.function(experimental_relax_shapes=True)
+    def levi_civita_connection(self, coord):
+        """
+        Compute the Levi-Civita connection
+        """
+        inv_metric = self.inverse_metric(coord)
+        metric_derivative = self.coord_metric_derivative(coord)
+        term1 = tf.einsum("...ijk -> ...jik", metric_derivative)
+        term2 = tf.einsum("...ijk -> ...kij", metric_derivative)
+        connection = 0.5*tf.einsum("...ij, ...jkl -> ...ikl", inv_metric, term1 + term2 - metric_derivative)
+        #
+        return connection
+
     #def hessian(self, coord_z):
     #    """
     #    Make this a class method?
