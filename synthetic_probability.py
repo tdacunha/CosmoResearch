@@ -590,6 +590,38 @@ class DiffFlowCallback(Callback):
         #
         return connection
 
+    @tf.function()
+    def geodesic_ode(self, t, y, n):
+        # unpack position and velocity:
+        y0 = y[:n]
+        yprime = y[n:]
+        # compute geodesic equation:
+        yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", self.levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
+        #
+        return tf.concat([yprime, yprimeprime[0]], axis=0)
+
+    @tf.function()
+    def solve_geodesic(self, y0, yprime0, solution_times, **kwargs):
+        # prepare initial conditions:
+        tf.concat([y0, yprime0], axis=0)
+        # solve with explicit solver:
+        results = tfp.math.ode.DormandPrince().solve(self.geodesic_ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': self.num_params}, **kwargs)
+        #
+        return results
+
+    @tf.function()
+    def eigenvalue_ode(self, t, y):
+        # compute metric at point:
+        metrself.
+
+        # compute geodesic equation:
+        yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", self.levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
+        #
+        return tf.concat([yprime, yprimeprime[0]], axis=0)
+
+
+
+
     #def hessian(self, coord_z):
     #    """
     #    Make this a class method?

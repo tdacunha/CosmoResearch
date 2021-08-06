@@ -351,20 +351,15 @@ plt.ylim([np.amin(sigma8), np.amax(sigma8)])
 ###############################################################################
 
 
-coord = np.array([mean]).astype(np.float32)
-
-inv_metric = flow_P.inverse_metric(coord)
-metric_derivative = flow_P.coord_metric_derivative(coord)
-term1 = tf.einsum("...ijk -> ...jik", metric_derivative)
-term2 = tf.einsum("...ijk -> ...kij", metric_derivative)
-
-0.5*tf.einsum("...ij, ...jkl -> ...ikl", inv_metric, term1 + term2 - metric_derivative)
-
-
-@tf.function(experimental_relax_shapes=True)
-def ode(y, yprime):
-    yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", flow_P.levi_civita_connection(np.array([y])), np.array([yprime]), np.array([yprime]))
-    return tf.concat([yprime, yprimeprime], axis=0)
+@tf.function()
+def ode(t, y, n):
+    # unpack position and velocity:
+    y0 = y[:n]
+    yprime = y[n:]
+    # compute geodesic equation:
+    yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", flow_P.levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
+    #
+    return tf.concat([yprime, yprimeprime[0]], axis=0)
 
 y_init = mean.astype(np.float32)
 covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
@@ -372,21 +367,65 @@ _, eigv = np.linalg.eigh(covariance_metric)
 yprime_init = eigv[:, 0]
 y0 = tf.concat([y_init, eigv[:, 0]], axis=0)
 print(np.shape(y0))
-solution_times = tf.linspace(0,1,100)
+solution_times = tf.linspace(0, 1, 100)
+
+#results = tfp.math.ode.BDF().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
+
+results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
+
+plt.plot(results.states[:, 0], results.states[:, 1])
+plt.quiver(results.states[:, 0], results.states[:, 1], results.states[:, 2], results.states[:, 3], color = 'red', angles = 'xy')
+
+results.states[:, 2]**2 + results.states[:, 3]**2
+
+# Plot
+mode = 0
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
+mode = 1
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+plt.tight_layout()
+plt.savefig('test.pdf')
 
 
-flow_P.levi_civita_connection(np.array([y_init]))
+
+################
 
 
-flow_P.levi_civita_connection([y_init])
+@tf.function()
+def ode(t, y, n):
+    # compute metric:
+    metric = flow_P.metric(tf.convert_to_tensor([y]))
+    # compute eigenvalues:
+    _, eigv = tf.linalg.eigh(metric[0])
+    #
+    return eigv[:, n]
 
--tf.einsum("...ijk, ...j, ...k -> ...i", flow_P.levi_civita_connection(y_init), yprime_init, yprime_init)
+y_init = mean.astype(np.float32)
+y = y_init
+y0 = y_init
+solution_times = tf.linspace(0, 1, 100)
 
-results = tfp.math.ode.BDF().solve(ode, initial_time=0., initial_state=y0,
-                                   solution_times=solution_times)
+results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 1})
 
+plt.plot(results.states[:, 0], results.states[:, 1])
 
+# Plot
+mode = 0
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
+mode = 1
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
 
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+plt.tight_layout()
+plt.savefig('test.pdf')
 
 
 
