@@ -305,7 +305,6 @@ plt.xlim([-100, 100.0])
 plt.ylim([-100, 100.0])
 plt.legend()
 
-
 ###############################################################################
 # local eigenvalues of the metric:
 ###############################################################################
@@ -315,27 +314,23 @@ sigma8 = np.linspace(.6, 1.2, 20)
 
 x, y = omegam, sigma8
 X, Y = np.meshgrid(x, y)
-grid = np.array([X,Y])
+grid = np.array([X, Y])
 points = grid.reshape(2,-1).T
 coords = points.astype(np.float32)
 
-jac = flow_P.direct_jacobian(coords)
-print((jac))
-metric_method = flow_P.metric(coords)
-print(metric_method)
+local_metric = flow_P.metric(coords)
 
-PCA_eig, PCA_eigv = np.linalg.eigh(metric_method)
+PCA_eig, PCA_eigv = np.linalg.eigh(local_metric)
 
 idx = np.argsort(PCA_eig, axis = 1)[0][::-1]
 PCA_eig = PCA_eig[:,idx]
 PCA_eigv = PCA_eigv[:,:,idx]
 
 # Plot
-plt.figure(figsize = (10,10))
 mode = 0
-plt.quiver(P1[:,0], P1[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
 mode = 1
-plt.quiver(P1[:,0], P1[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
 
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)

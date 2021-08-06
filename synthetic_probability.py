@@ -446,14 +446,14 @@ class DiffFlowCallback(Callback):
     ###############################################################################
     # Utility functions:
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def sample(self, N):
         """
         Return samples from the synthetic probablity.
         """
         return self.dist_learned.sample(N)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def log_probability(self, coord):
         """
         Returns learned log probability.
@@ -478,21 +478,21 @@ class DiffFlowCallback(Callback):
     ###############################################################################
     # Information geometry methods:
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def map_to_abstract_coord(self, coord):
         """
         Map from parameter space to abstract space
         """
         return self.Z2X_bijector.inverse(coord)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def map_to_original_coord(self, coord):
         """
         Map from abstract space to parameter space
         """
         return self.Z2X_bijector(coord)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def log_det_metric(self, coord):
         """
         Computes the log determinant of the metric
@@ -500,7 +500,7 @@ class DiffFlowCallback(Callback):
         log_det = self.Z2X_bijector.inverse_log_det_jacobian(coord, event_ndims=1)
         return 2.*log_det
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def direct_jacobian(self, coord):
         """
         Computes the Jacobian of the parameter transformation at one point in (original) parameter space
@@ -511,7 +511,7 @@ class DiffFlowCallback(Callback):
             f = self.map_to_original_coord(abs_coord)
         return tape.batch_jacobian(f, abs_coord)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def inverse_jacobian(self, coord):
         """
         Computes the inverse Jacobian of the parameter transformation at one point in (original) parameter space
@@ -521,7 +521,7 @@ class DiffFlowCallback(Callback):
             f = self.map_to_abstract_coord(coord)
         return tape.batch_jacobian(f, coord)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def metric(self, coord):
         """
         Computes the metric at a given point or array of points in (original) parameter space
@@ -539,7 +539,7 @@ class DiffFlowCallback(Callback):
         #
         return metric
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def inverse_metric(self, coord):
         """
         Computes the inverse metric at a given point or array of points in (original) parameter space
@@ -557,7 +557,7 @@ class DiffFlowCallback(Callback):
         #
         return metric
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def coord_metric_derivative(self, coord):
         """
         Compute the coordinate derivative of the metric at a given point in (original) parameter space
@@ -567,7 +567,7 @@ class DiffFlowCallback(Callback):
             f = self.metric(coord)
         return tape.batch_jacobian(f, coord)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def coord_inverse_metric_derivative(self, coord):
         """
         Compute the coordinate derivative of the inverse metric at a given point in (original) parameter space
@@ -577,7 +577,7 @@ class DiffFlowCallback(Callback):
             f = self.inverse_metric(coord)
         return tape.batch_jacobian(f, coord)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function()
     def levi_civita_connection(self, coord):
         """
         Compute the Levi-Civita connection
