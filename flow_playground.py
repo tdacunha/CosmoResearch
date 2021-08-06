@@ -351,6 +351,45 @@ plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1
 plt.xlim([np.amin(omegam), np.amax(omegam)])
 plt.ylim([np.amin(sigma8), np.amax(sigma8)])
 
+###############################################################################
+# Compute the Levi-Civita connection
+###############################################################################
+
+
+coord = np.array([mean]).astype(np.float32)
+
+inv_metric = flow_P.inverse_metric(coord)
+metric_derivative = flow_P.coord_metric_derivative(coord)
+term1 = tf.einsum("...ijk -> ...jik", metric_derivative)
+term2 = tf.einsum("...ijk -> ...kij", metric_derivative)
+
+0.5*tf.einsum("...ij, ...jkl -> ...ikl", inv_metric, term1 + term2 - metric_derivative)
+
+
+@tf.function(experimental_relax_shapes=True)
+def ode(y, yprime):
+    yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", flow_P.levi_civita_connection(np.array([y])), np.array([yprime]), np.array([yprime]))
+    return tf.concat([yprime, yprimeprime], axis=0)
+
+y_init = mean.astype(np.float32)
+covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
+_, eigv = np.linalg.eigh(covariance_metric)
+yprime_init = eigv[:, 0]
+y0 = tf.concat([y_init, eigv[:, 0]], axis=0)
+print(np.shape(y0))
+solution_times = tf.linspace(0,1,100)
+
+
+flow_P.levi_civita_connection(np.array([y_init]))
+
+
+flow_P.levi_civita_connection([y_init])
+
+-tf.einsum("...ijk, ...j, ...k -> ...i", flow_P.levi_civita_connection(y_init), yprime_init, yprime_init)
+
+results = tfp.math.ode.BDF().solve(ode, initial_time=0., initial_state=y0,
+                                   solution_times=solution_times)
+
 
 
 
