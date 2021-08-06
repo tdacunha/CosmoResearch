@@ -460,7 +460,6 @@ class DiffFlowCallback(Callback):
         """
         return self.dist_learned.log_prob(coord)
 
-    @tf.function(experimental_relax_shapes=True)
     def MAP_finder(self, **kwargs):
         """
         Function that uses scipy differential evolution to find the global maximum of the synthetic posterior.
