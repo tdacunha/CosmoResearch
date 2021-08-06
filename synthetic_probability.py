@@ -446,18 +446,21 @@ class DiffFlowCallback(Callback):
     ###############################################################################
     # Utility functions:
 
+    @tf.function(experimental_relax_shapes=True)
     def sample(self, N):
         """
         Return samples from the synthetic probablity.
         """
         return self.dist_learned.sample(N)
 
+    @tf.function(experimental_relax_shapes=True)
     def log_probability(self, coord):
         """
         Returns learned log probability.
         """
         return self.dist_learned.log_prob(coord)
 
+    @tf.function(experimental_relax_shapes=True)
     def MAP_finder(self, **kwargs):
         """
         Function that uses scipy differential evolution to find the global maximum of the synthetic posterior.
@@ -476,127 +479,120 @@ class DiffFlowCallback(Callback):
     ###############################################################################
     # Information geometry methods:
 
-    def log_det_metric(self, coords):
+    @tf.function(experimental_relax_shapes=True)
+    def map_to_abstract_coord(self, coord):
+        """
+        Map from parameter space to abstract space
+        """
+        return self.Z2X_bijector.inverse(coord)
+
+    @tf.function(experimental_relax_shapes=True)
+    def map_to_original_coord(self, coord):
+        """
+        Map from abstract space to parameter space
+        """
+        return self.Z2X_bijector(coord)
+
+    @tf.function(experimental_relax_shapes=True)
+    def log_det_metric(self, coord):
         """
         Computes the log determinant of the metric
         """
-        log_det = self.Z2X_bijector.inverse_log_det_jacobian(coords, event_ndims=1)
+        log_det = self.Z2X_bijector.inverse_log_det_jacobian(coord, event_ndims=1)
         return 2.*log_det
 
-    def Jacobian(self):
+    @tf.function(experimental_relax_shapes=True)
+    def direct_jacobian(self, coord):
         """
-        TD can work on this!
+        Computes the Jacobian of the parameter transformation at one point in (original) parameter space
         """
-        if hasattr(self, 'jac'):
-            return self.jac
-        else:
-            jac = self.gradient_tape.jacobian(self.f, self.delta)
-            self.jac = jac
-            return jac
+        abs_coord = self.map_to_abstract_coord(coord)
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(abs_coord)
+            f = self.map_to_original_coord(abs_coord)
+        return tape.batch_jacobian(f, abs_coord)
 
-    def metric(self):
-        jac = self.Jacobian()
-        jac_T = tf.transpose(jac)#, (0,2,1)) # need to make this generalized to more dimensions, more coords
+    @tf.function(experimental_relax_shapes=True)
+    def inverse_jacobian(self, coord):
+        """
+        Computes the inverse Jacobian of the parameter transformation at one point in (original) parameter space
+        """
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(coord)
+            f = self.map_to_abstract_coord(coord)
+        return tape.batch_jacobian(f, coord)
+
+    @tf.function(experimental_relax_shapes=True)
+    def metric(self, coord):
+        """
+        Computes the metric at a given point or array of points in (original) parameter space
+        """
+        # compute Jacobian:
+        jac = self.direct_jacobian(coord)
+        # take the transpose (we need to calculate the indexes that we want to swap):
+        trailing_axes = [-1, -2]
+        leading = tf.range(tf.rank(jac) - len(trailing_axes))
+        trailing = trailing_axes + tf.rank(jac)
+        new_order = tf.concat([leading, trailing], axis=0)
+        jac_T = tf.transpose(jac, new_order)
+        # compute metric:
         metric = tf.linalg.matmul(jac, jac_T)
-        self.met = metric
+        #
         return metric
 
-    def Jacobian_inv(self):
+    @tf.function(experimental_relax_shapes=True)
+    def inverse_metric(self, coord):
         """
-        TD can work on this!
+        Computes the inverse metric at a given point or array of points in (original) parameter space
         """
-        if hasattr(self, 'jacobian_inv'):
-            return self.jac_inv
-        else:
-            jac_inv = self.gradient_tape.jacobian(self.f_inv, self.delta_inv)
-            self.jac_inv = jac_inv
-    #
-    # def grad_tape(self, coords_z):
-    #     """
-    #     Make this a class property for the two bijectors
-    #     """
-    #     bijector = self.Z2X_bijector
-    #     delta = tf.Variable([0.0, 0.0])
-    #     with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad:
-    #         grad.watch(delta)
-    #         f = bijector(coords_z+delta)
-    #     self.grad = grad
-    #
-    #     return grad, f, delta
-    #
-    # def grad_tape_inv(self, coords_z):
-    #     bijector_inv = self.Z2X_bijector.inverse
-    #     delta_inv = tf.Variable([0.0, 0.0])
-    #     with tf.GradientTape(watch_accessed_variables=False, persistent=True) as grad_inv:
-    #         grad_inv.watch(delta_inv)
-    #         f_inv = bijector_inv(coords_z+delta_inv)
-    #     self.grad_inv = grad_inv
-    #
-    #     return grad_inv, f_inv, delta_inv
-    #
-    # def jacobian(self, coords_z):
-    #     bijector = self.Z2X_bijector
-    #     grad, f, delta = self.grad_tape(coords_z)
-    #     jac = grad.jacobian(f,delta)
-    #     self.jac = jac
-    #     return jac
+        # compute Jacobian:
+        jac = self.inverse_jacobian(coord)
+        # take the transpose (we need to calculate the indexes that we want to swap):
+        trailing_axes = [-1, -2]
+        leading = tf.range(tf.rank(jac) - len(trailing_axes))
+        trailing = trailing_axes + tf.rank(jac)
+        new_order = tf.concat([leading, trailing], axis=0)
+        jac_T = tf.transpose(jac, new_order)
+        # compute metric:
+        metric = tf.linalg.matmul(jac, jac_T)
+        #
+        return metric
 
+    @tf.function(experimental_relax_shapes=True)
+    def coord_metric_derivative(self, coord):
+        """
+        Compute the coordinate derivative of the metric at a given point in (original) parameter space
+        """
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(coord)
+            f = self.metric(coord)
+        return tape.batch_jacobian(f, coord)
 
-    def jacobian_inverse(self, coords):
+    @tf.function(experimental_relax_shapes=True)
+    def coord_inverse_metric_derivative(self, coord):
         """
+        Compute the coordinate derivative of the inverse metric at a given point in (original) parameter space
         """
-        bijector = self.Z2X_bijector
-        bijector_inv = bijector.inverse
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(coord)
+            f = self.inverse_metric(coord)
+        return tape.batch_jacobian(f, coord)
 
-        pass
-
-    def jacobian_T(self, coords_z):
-        """
-        Remove?
-        """
-        bijector = self.Z2X_bijector
-        jac = self.jacobian(coords_z)
-        jac_T = tf.transpose(jac, (0,2,1))
-        self.jac_T = jac_T
-        return jac_T
-
-    # def metric(self, coords):
-    #     bijector = self.Z2X_bijector
-    #     coords_z = np.array((bijector.inverse)(coords.astype(np.float32)))
-    #     jac = self.jacobian(coords_z)
-    #     jac_T = self.jacobian_T(coords_z)
-    #     metric = tf.linalg.matmul(jac, jac_T)
-    #     self.metric = metric
-    #     return metric
-
-    def inverse_metric(coords_x):
-        """
-        Fill in
-        """
-        pass
-
-    def hessian(self, coords_z):
-        """
-        Make this a class method?
-        """
-        bijector = self.Z2X_bijector
-        delta = tf.Variable([0.0,0.0])
-        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
-            t2.watch(delta)
-            with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
-                t1.watch(delta)
-                f = bijector(coords_z+delta)
-            g = t1.jacobian(f,delta)
-        h = t2.jacobian(g,delta)
-        self.hessian = h
-        return h
-
-    def coord_metric_derivative():
-        """
-        \partial_\mu g_\\alpha\\beta
-        """
-        pass
-
+    #def hessian(self, coord_z):
+    #    """
+    #    Make this a class method?
+    #    """
+    #    bijector = self.Z2X_bijector
+    #    delta = tf.Variable([0.0,0.0])
+    #    with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
+    #        t2.watch(delta)
+    #        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
+    #            t1.watch(delta)
+    #            f = bijector(coords_z+delta)
+    #        g = t1.jacobian(f,delta)
+    #    h = t2.jacobian(g,delta)
+    #    self.hessian = h
+    #    return h
 
     ###############################################################################
     # Training statistics:
