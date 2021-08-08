@@ -578,6 +578,26 @@ class DiffFlowCallback(Callback):
         return tape.batch_jacobian(f, coord)
 
     @tf.function()
+    def coord_metric_derivative_2(self, coord):
+        """
+        Compute the second coordinate derivative of the metric at a given point in (original) parameter space
+        """
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(coord)
+            f = self.coord_metric_derivative(coord)
+        return tape.batch_jacobian(f, coord)
+
+    @tf.function()
+    def coord_inverse_metric_derivative_2(self, coord):
+        """
+        Compute the second coordinate derivative of the inverse metric at a given point in (original) parameter space
+        """
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(coord)
+            f = self.coord_inverse_metric_derivative(coord)
+        return tape.batch_jacobian(f, coord)
+
+    @tf.function()
     def levi_civita_connection(self, coord):
         """
         Compute the Levi-Civita connection
@@ -591,10 +611,10 @@ class DiffFlowCallback(Callback):
         return connection
 
     @tf.function()
-    def geodesic_ode(self, t, y, n):
+    def geodesic_ode(self, t, y):
         # unpack position and velocity:
-        y0 = y[:n]
-        yprime = y[n:]
+        y0 = y[:self.num_params]
+        yprime = y[self.num_params:]
         # compute geodesic equation:
         yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", self.levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
         #
@@ -605,38 +625,25 @@ class DiffFlowCallback(Callback):
         # prepare initial conditions:
         tf.concat([y0, yprime0], axis=0)
         # solve with explicit solver:
-        results = tfp.math.ode.DormandPrince().solve(self.geodesic_ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': self.num_params}, **kwargs)
+        results = tfp.math.ode.DormandPrince().solve(self.geodesic_ode, initial_time=0., initial_state=y0, solution_times=solution_times, **kwargs)
         #
         return results
 
     @tf.function()
-    def eigenvalue_ode(self, t, y):
-        # compute metric at point:
-        metrself.
-
-        # compute geodesic equation:
-        yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", self.levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
+    def eigenvalue_ode(self, t, y, n):
+        # compute metric:
+        metric = self.metric(tf.convert_to_tensor([y]))
+        # compute eigenvalues:
+        _, eigv = tf.linalg.eigh(metric[0])
         #
-        return tf.concat([yprime, yprimeprime[0]], axis=0)
+        return eigv[:, n]
 
-
-
-
-    #def hessian(self, coord_z):
-    #    """
-    #    Make this a class method?
-    #    """
-    #    bijector = self.Z2X_bijector
-    #    delta = tf.Variable([0.0,0.0])
-    #    with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t2:
-    #        t2.watch(delta)
-    #        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as t1:
-    #            t1.watch(delta)
-    #            f = bijector(coords_z+delta)
-    #        g = t1.jacobian(f,delta)
-    #    h = t2.jacobian(g,delta)
-    #    self.hessian = h
-    #    return h
+    @tf.function()
+    def solve_eigenvalue_ode(self, y0, solution_times, n, **kwargs):
+        # solve with explicit solver:
+        results = tfp.math.ode.DormandPrince().solve(self.eigenvalue_ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': n})
+        #
+        return results
 
     ###############################################################################
     # Training statistics:

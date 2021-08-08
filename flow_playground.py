@@ -206,7 +206,7 @@ plt.ylim([0.6, 1.2])
 plt.legend()
 
 ###############################################################################
-# trace geodesics passing from the maximum posterior
+# trace geodesics in abstract space passing from the maximum posterior
 ###############################################################################
 
 import matplotlib
@@ -347,9 +347,10 @@ plt.xlim([np.amin(omegam), np.amax(omegam)])
 plt.ylim([np.amin(sigma8), np.amax(sigma8)])
 
 ###############################################################################
-# Compute the Levi-Civita connection
+# Geodesics
 ###############################################################################
 
+# add plot of geodesics that start from map and go around, as in the previous case
 
 @tf.function()
 def ode(t, y, n):
@@ -388,13 +389,13 @@ density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
 plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-plt.tight_layout()
-plt.savefig('test.pdf')
 
 
+###############################################################################
+# PCA flow
+###############################################################################
 
-################
-
+# add plot of PCA flow from many points in parameter space
 
 @tf.function()
 def ode(t, y, n):
@@ -424,10 +425,11 @@ density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
 plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-plt.tight_layout()
-plt.savefig('test.pdf')
 
 
+
+
+# can we clean up the following?
 
 
 ###############################################################################
