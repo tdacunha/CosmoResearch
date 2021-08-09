@@ -198,11 +198,6 @@ class DiffFlowCallback(Callback):
     :type feedback: int, optional
     :param validation_split: fraction of samples to use for the validation sample, defaults to 0.1
     :type validation_split: float, optional
-    :param early_stop_nsigma: absolute error on the tension at the zero-shift point to be used
-        as an approximate convergence criterion for early stopping, defaults to 0.
-    :type early_stop_nsigma: float, optional
-    :param early_stop_patience: minimum number of epochs to use when `early_stop_nsigma` is non-zero, defaults to 10.
-    :type early_stop_patience: int, optional
     :raises NotImplementedError: if `pregauss_bijector` is not None.
     :reference: George Papamakarios, Theo Pavlakou, Iain Murray (2017). Masked Autoregressive Flow for Density Estimation. `arXiv:1705.07057 <https://arxiv.org/abs/1705.07057>`_
     """
@@ -216,12 +211,10 @@ class DiffFlowCallback(Callback):
     learning_rate=1e-3
     feedback=1
     validation_split=0.1
-    early_stop_nsigma=0.
-    early_stop_patience=10
     kwargs={}
     """
 
-    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, early_stop_nsigma=0., early_stop_patience=10, **kwargs):
+    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
 
         # read in varaiables:
         self.feedback = feedback
@@ -236,15 +229,11 @@ class DiffFlowCallback(Callback):
             print("    - trainable parameters:", self.model.count_params())
 
         # Metrics
-        keys = ["loss", "val_loss", "shift0_chi2", "shift0_pval", "shift0_nsigma", "chi2Z_ks", "chi2Z_ks_p"]
+        keys = ["loss", "val_loss", "chi2Z_ks", "chi2Z_ks_p"]
         self.log = {_k: [] for _k in keys}
 
         self.chi2Y = np.sum(self.Y_test**2, axis=1)
         self.chi2Y_ks, self.chi2Y_ks_p = scipy.stats.kstest(self.chi2Y, 'chi2', args=(self.num_params,))
-
-        # Options
-        self.early_stop_nsigma = early_stop_nsigma
-        self.early_stop_patience = early_stop_patience
 
         # Pre-gaussianization
         if pregauss_bijector is not None:
@@ -666,20 +655,6 @@ class DiffFlowCallback(Callback):
             ax.set_ylabel("Loss")
             ax.legend()
 
-    def _plot_shift_proba(self, ax, logs={}):
-        # Compute chi2 at zero shift
-        zero, chi2Z0, pval, nsigma = self._compute_shift_proba()
-        self.log["shift0_chi2"].append(chi2Z0)
-        self.log["shift0_pval"].append(pval)
-        self.log["shift0_nsigma"].append(nsigma)
-
-        # Plot
-        if ax is not None:
-            ax.plot(self.log["shift0_chi2"])
-            ax.set_title(r"$\chi^2$ at zero-shift")
-            ax.set_xlabel("Epoch #")
-            ax.set_ylabel(r"$\chi^2$")
-
     def _plot_chi2_dist(self, ax, logs={}):
         # Compute chi2 and make sure some are finite
         chi2Z = np.sum(np.array(self.Z2Y_bijector.inverse(self.Y_test))**2, axis=1)
@@ -736,22 +711,15 @@ class DiffFlowCallback(Callback):
                 if epoch % self.feedback:
                     return
             clear_output(wait=True)
-            fig, axes = plt.subplots(1, 4, figsize=(16, 3))
+            fig, axes = plt.subplots(1, 3, figsize=(16, 3))
         else:
-            axes = [None]*4
+            axes = [None]*3
         self._plot_loss(axes[0], logs=logs)
         self._plot_shift_proba(axes[1], logs=logs)
-        self._plot_chi2_dist(axes[2], logs=logs)
-        self._plot_chi2_ks_p(axes[3], logs=logs)
+        self._plot_chi2_ks_p(axes[2], logs=logs)
 
         for k in self.log.keys():
             logs[k] = self.log[k][-1]
-
-        if self.early_stop_nsigma > 0.:
-            if len(self.log["shift0_nsigma"]) > self.early_stop_patience and \
-               np.std(self.log["shift0_nsigma"][-self.early_stop_patience:]) < self.early_stop_nsigma and \
-               self.log["chi2Z_ks_p"][-1] > 1e-6:
-                self.model.stop_training = True
 
         if self.feedback:
             plt.tight_layout()
