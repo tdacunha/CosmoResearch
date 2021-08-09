@@ -99,8 +99,8 @@ if __name__ == '__main__':
     # plot distribution:
     g = plots.get_subplot_plotter()
     g.triangle_plot([prior_chain, posterior_chain], filled=True)
-    g.export(out_folder+'prior_posterior.pdf')
+    g.export(out_folder+'0_prior_posterior.pdf')
 
     g = plots.get_subplot_plotter()
     g.triangle_plot([posterior_chain], filled=True)
-    g.export(out_folder+'posterior.pdf')
+    g.export(out_folder+'0_posterior.pdf')
