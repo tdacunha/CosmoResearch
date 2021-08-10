@@ -79,8 +79,8 @@ posterior_chain = MCSamples(samples=posterior_chain.samples[:, [posterior_chain.
 _mins = np.amin(prior_chain.samples[:, [prior_chain.index[name] for name in param_names]], axis=0)
 _maxs = np.amax(prior_chain.samples[:, [prior_chain.index[name] for name in param_names]], axis=0)
 
-_mins = [0., 0.]
-_maxs = [1., 2.]
+_mins = [0.0, 0.0]
+_maxs = [0.7, 1.7]
 
 prior_samples = []
 for _min, _max in zip(_mins, _maxs):

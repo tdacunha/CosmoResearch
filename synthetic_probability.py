@@ -715,7 +715,7 @@ class DiffFlowCallback(Callback):
         else:
             axes = [None]*3
         self._plot_loss(axes[0], logs=logs)
-        self._plot_shift_proba(axes[1], logs=logs)
+        self._plot_chi2_dist(axes[1], logs=logs)
         self._plot_chi2_ks_p(axes[2], logs=logs)
 
         for k in self.log.keys():
