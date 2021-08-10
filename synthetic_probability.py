@@ -593,11 +593,11 @@ class DiffFlowCallback(Callback):
         """
         inv_metric = self.inverse_metric(coord)
         metric_derivative = self.coord_metric_derivative(coord)
-        term1 = tf.einsum("...ijk -> ...jik", metric_derivative)
-        term2 = tf.einsum("...ijk -> ...kij", metric_derivative)
-        connection = 0.5*tf.einsum("...ij, ...jkl -> ...ikl", inv_metric, term1 + term2 - metric_derivative)
+        term_1 = tf.einsum("...ij, ...kjl -> ...ikl", inv_metric, metric_derivative)
+        term_2 = tf.einsum("...ij, ...ljk -> ...ikl", inv_metric, metric_derivative)
+        term_3 = tf.einsum("...ij, ...klj -> ...ikl", inv_metric, metric_derivative)
         #
-        return connection
+        return 0.5*(term_1 + term_2 - term_3)
 
     @tf.function()
     def geodesic_ode(self, t, y):
