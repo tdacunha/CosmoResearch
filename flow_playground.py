@@ -384,6 +384,10 @@ y0 = tf.concat([y_init, yprime_init], axis=0)
 print(np.shape(y0))
 solution_times = tf.linspace(0, 1, 100)
 
+print(ode(.01,y0,2))
+print(y0)
+
+
 #results = tfp.math.ode.BDF().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
 
 results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
