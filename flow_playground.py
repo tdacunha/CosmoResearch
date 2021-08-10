@@ -102,10 +102,13 @@ P = P / simps(simps(P, y), x)
 
 # plot:
 levels = [utilities.from_sigma_to_confidence(i) for i in range(5, 1, -1)]
+plt.figure(figsize = (8,8))
 plt.contour(X, Y, P, get_levels(P, x, y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels])
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+plt.xlabel(param_names[0], fontsize = 15)
+plt.ylabel(param_names[1], fontsize = 15)
 
 ###############################################################################
 # determinant of the Jacobian:
@@ -120,14 +123,15 @@ X, Y = np.meshgrid(x, y)
 # compute log det Jacobian:
 log_det = flow_P.log_det_metric(np.array([X, Y], dtype=np.float32).T)
 log_det = np.array(log_det).T
-
+plt.figure(figsize = (8,8))
 pc = plt.pcolormesh(X, Y, log_det, linewidth=0, rasterized=True, shading='auto', cmap='RdBu')
 colorbar = plt.colorbar(pc)
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
-plt.xlim([np.amin(omegam), np.amax(omegam)])
-plt.ylim([np.amin(sigma8), np.amax(sigma8)])
+#plt.xlim([np.amin(omegam), np.amax(omegam)])
+#plt.ylim([np.amin(sigma8), np.amax(sigma8)])
+
 
 ###############################################################################
 # find maximum posterior:
@@ -138,21 +142,23 @@ result = flow_P.MAP_finder(disp=True)
 print(result)
 maximum_posterior = result.x
 # find where the MAP goes:
-map_image = flow_P.Z2X_bijector.inverse(np.array(maximum_posterior, dtype=np.float32))
+map_image = flow_P.map_to_abstract_coord(np.array(maximum_posterior, dtype=np.float32))
 print(maximum_posterior, np.array(map_image))
 
 # mean:
 mean = chain.getMeans([chain.index[name] for name in ['omegam', 'sigma8']])
-mean_image = flow_P.Z2X_bijector.inverse(np.array(mean, dtype=np.float32))
+mean_image = flow_P.map_to_abstract_coord(np.array(mean, dtype=np.float32))
 print(mean, np.array(mean_image))
 
 # plot:
-levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 1, -1)]
+plt.figure(figsize = (8,8))
+levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
+
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
-plt.scatter(maximum_posterior[0], maximum_posterior[1], color='red', label='MAP')
-plt.scatter(mean[0], mean[1], color='green', label='mean')
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='red', label='MAP: (%.3f, %.3f)' %(maximum_posterior[0],maximum_posterior[1]))
+plt.scatter(mean[0], mean[1], color='green', label='mean: (%.3f, %.3f)' %(mean[0],mean[1]))
 plt.legend()
 
 ###############################################################################
@@ -177,14 +183,12 @@ plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='k', ls
 mode = 1
 plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='k', ls='--')
 
-alpha = np.linspace(-1, 1, 1000)
 _, eigv = np.linalg.eigh(fisher_metric)
 mode = 0
 plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='green', ls='-.', label='flow fisher')
 mode = 1
 plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='green', ls='-.')
 
-alpha = np.linspace(-1, 1, 1000)
 _, eigv = np.linalg.eigh(cov_samples)
 mode = 0
 plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-', label='samples')
@@ -199,9 +203,10 @@ mode = 0
 plt.quiver(mean[0],mean[1],eigv[0,mode], eigv[1,mode], angles = 'xy')
 mode = 1
 plt.quiver(mean[0],mean[1],eigv[0,mode], eigv[1,mode], angles = 'xy')
-
-plt.xlim([0.15, 0.4])
-plt.ylim([0.6, 1.2])
+plt.xlim([np.amin(omegam), np.amax(omegam)])
+plt.ylim([np.amin(sigma8), np.amax(sigma8)])
+#plt.xlim([0.15, 0.4])
+#plt.ylim([0.6, 1.2])
 
 plt.legend()
 
@@ -257,7 +262,7 @@ plt.legend()
 
 import matplotlib
 
-r = np.linspace(0.0, 1000.0, 1000)
+r = np.linspace(0.0, 100000.0, 10000)
 theta = np.linspace(0.0, 2.0*np.pi, 100)
 
 # copmpute PCA:
@@ -271,7 +276,7 @@ for t in theta:
     geodesics.append(flow_P.map_to_original_coord(geo.T))
 
 # geodesics aligned with abstract coordinate axes:
-r = np.linspace(-1000.0, 1000.0, 1000)
+r = np.linspace(-100000.0, 100000.0, 1000)
 
 t = 0.0
 geo = np.array([map_image[0] + r*np.cos(t),
@@ -300,10 +305,18 @@ density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
 plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-
-plt.xlim([-100, 100.0])
-plt.ylim([-100, 100.0])
+#testing (for use with other parameters)
+scale_x = abs(np.amax(omegam) - np.amin(omegam))
+scale_y = abs(np.amax(sigma8) - np.amin(sigma8))
+scale_r = np.linalg.norm([scale_x,scale_y])
+print(scale_r)
+plt.xlim([-1000*scale_x, 1000.0*scale_x])
+plt.ylim([-1000*scale_y, 1000.0*scale_y])
+# plt.xlim([-100, 100.0])
+# plt.ylim([-100, 100.0])
 plt.legend()
+
+
 
 ###############################################################################
 # local eigenvalues of the metric:
@@ -314,23 +327,23 @@ sigma8 = np.linspace(.6, 1.2, 20)
 
 x, y = omegam, sigma8
 X, Y = np.meshgrid(x, y)
-grid = np.array([X, Y])
-points = grid.reshape(2,-1).T
-coords = points.astype(np.float32)
+coords = np.array([X, Y], dtype = np.float32).reshape(2,-1).T
 
 local_metric = flow_P.metric(coords)
 
 PCA_eig, PCA_eigv = np.linalg.eigh(local_metric)
-
-idx = np.argsort(PCA_eig, axis = 1)[0][::-1]
+print(PCA_eig)
+idx = np.argsort(PCA_eig, axis = 1)[0]#[::-1]
 PCA_eig = PCA_eig[:,idx]
 PCA_eigv = PCA_eigv[:,:,idx]
+print(PCA_eig)
 
 # Plot
+plt.figure(figsize = (8,8))
 mode = 0
-plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy', label = 'First mode')
 mode = 1
-plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy', label = 'Second mode')
 
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
@@ -345,6 +358,7 @@ plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1
 
 plt.xlim([np.amin(omegam), np.amax(omegam)])
 plt.ylim([np.amin(sigma8), np.amax(sigma8)])
+plt.legend()
 
 ###############################################################################
 # Geodesics
@@ -362,11 +376,11 @@ def ode(t, y, n):
     #
     return tf.concat([yprime, yprimeprime[0]], axis=0)
 
-y_init = mean.astype(np.float32)
+y_init = maximum_posterior.astype(np.float32)
 covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
 _, eigv = np.linalg.eigh(covariance_metric)
 yprime_init = eigv[:, 0]
-y0 = tf.concat([y_init, eigv[:, 0]], axis=0)
+y0 = tf.concat([y_init, yprime_init], axis=0)
 print(np.shape(y0))
 solution_times = tf.linspace(0, 1, 100)
 
@@ -375,20 +389,25 @@ solution_times = tf.linspace(0, 1, 100)
 results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
 
 plt.plot(results.states[:, 0], results.states[:, 1])
-plt.quiver(results.states[:, 0], results.states[:, 1], results.states[:, 2], results.states[:, 3], color = 'red', angles = 'xy')
+plt.quiver(results.states[:, 0], results.states[:, 1], results.states[:, 2], results.states[:, 3], color = 'indigo', angles = 'xy')
 
-results.states[:, 2]**2 + results.states[:, 3]**2
+#np.sqrt(results.states[:, 2]**2 + results.states[:, 3]**2)
 
-# Plot
-mode = 0
-plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
-mode = 1
-plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
+print((np.linalg.norm([results.states[:, 2], results.states[:, 3]], axis =0)))
+
+
+# # Plot
+# mode = 0
+# plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
+# mode = 1
+# plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
 
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
 plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+plt.xlim([np.amin(omegam), np.amax(omegam)])
+plt.ylim([np.amin(sigma8), np.amax(sigma8)])
 
 
 ###############################################################################
@@ -739,3 +758,10 @@ plt.savefig('test.pdf')
         coords = np.array((bijector_inv)(coords0.astype(np.float32)))
         #
         return coords
+
+
+
+import analyze_2d_example
+import importlib
+importlib.reload(analyze_2d_example)
+analyze_2d_example.run_example_2d(chain, prior_chain, ['omegam','sigma8'], [[.1,.5],[.55,1.25]], outroot = '/Users/TaraD/Downloads/')
