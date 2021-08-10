@@ -144,9 +144,6 @@ plt.legend()
 # Geodesics
 ###############################################################################
 
-coord = np.array([maximum_posterior]).astype(np.float32)
-
-
 # add plot of geodesics that start from map and go around, as in the previous case
 @tf.function()
 def levi_civita_connection(coord):
@@ -162,44 +159,58 @@ def levi_civita_connection(coord):
     return 0.5*(term_1 + term_2 - term_3)
 
 
+coord = np.array([mean]).astype(np.float32)
+coord
+
+flow_P.metric(coord)
+flow_P.direct_jacobian(coord)
+
+levi_civita_connection(coord)
+flow_P.coord_metric_derivative(coord)
+
 @tf.function()
 def ode(t, y, n):
     # unpack position and velocity:
-    y0 = y[:n]
-    yprime = y[n:]
+    pos = y[:n]
+    vel = y[n:]
     # compute geodesic equation:
-    yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
+    acc = -tf.einsum("...ijk, ...j, ...k -> ...i", levi_civita_connection(tf.convert_to_tensor([pos])), tf.convert_to_tensor([vel]), tf.convert_to_tensor([vel]))
     #
-    return tf.concat([yprime, yprimeprime[0]], axis=0)
-
+    return tf.concat([vel, acc[0]], axis=0)
 
 y_init = maximum_posterior.astype(np.float32)
 covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
 eig, eigv = np.linalg.eigh(covariance_metric)
 yprime_init = eigv[:, 1]/np.sqrt(eig[1])
 y0 = tf.concat([y_init, yprime_init], axis=0)
-solution_times = tf.linspace(0., 10.*np.sqrt(eig[0]), 100)
-solution_times = tf.linspace(0., 0.05, 100)
+solution_times = tf.linspace(0., 0.1, 20)
 
 print('Norm of initial velocity', np.dot(np.dot(yprime_init, covariance_metric), yprime_init))
 
 results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
+#results = tfp.math.ode.BDF().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
 
+# check conservation of velocity modulus:
 temp_metric = flow_P.metric(np.array([results.states[:, 0], results.states[:, 1]]).T.astype(np.float32)).numpy()
 velocity = np.array([results.states[:, 2], results.states[:, 3]]).T
 
 res = []
 for g, v in zip(temp_metric, velocity):
     res.append(np.dot(np.dot(v, g), v))
-print(res)
+res = np.array(res)
+plt.plot(results.times.numpy(), res)
 
 
+print(yprime_init)
 plt.plot(results.states[:, 0], results.states[:, 1])
+plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color = 'red', angles = 'xy')
 density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
 _X, _Y = np.meshgrid(density.x, density.y)
 plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
-plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-
+#plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+#plt.xlim(.25,.35)
+#plt.ylim(.8,1)
+plt.savefig('test.pdf')
 
 ###############################################################################
 # PCA flow
@@ -221,7 +232,7 @@ y = y_init
 y0 = y_init
 solution_times = tf.linspace(0, 1, 100)
 
-results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 1})
+results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 0})
 
 plt.plot(results.states[:, 0], results.states[:, 1])
 
