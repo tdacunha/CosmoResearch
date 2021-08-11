@@ -31,6 +31,8 @@ from scipy import optimize
 from scipy.integrate import simps
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import scipy.stats
+
 
 # import the tensiometer tools that we need:
 from tensiometer import utilities
@@ -69,7 +71,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     fontsize = 15
 
     # parameter ranges for plotting from the prior:
-    param_ranges = np.array([np.amin(prior_chain.samples, axis=0), np.amax(prior_chain.samples, axis=0)]).T
+    # the following needs to be fixed:
+    #param_ranges = np.array([np.amin(prior_chain.samples, axis=0), np.amax(prior_chain.samples, axis=0)]).T
+    param_ranges  = [[.15,.4],[.6,1.2]]
 
     # parameter labels:
     param_labels = [name.label for name in posterior_chain.getParamNames().parsWithNames(param_names)]
@@ -367,5 +371,40 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.savefig(outroot+'8_local_metric_PCA.pdf')
 
     ###########################################################################
-    # Plot geodesics:
+    # Plot geodesics around MAP:
     ###########################################################################
+    def rot(v,theta):
+        rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+        v_new = np.dot(rot,v)
+        return v_new
+
+    y_init = maximum_posterior.astype(np.float32)
+    covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
+    eig, eigv = np.linalg.eigh(covariance_metric)
+    yprime_init = eigv[:, 0]
+
+    sig3 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
+    sig2 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(2), 2))
+    sig1 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(1), 2))
+
+    solution_times = np.linspace(0., sig3, 200)
+
+    plt.figure(figsize = figsize)
+    theta_arr = np.linspace(0.0, 2.0*np.pi, 30)
+    for ind,theta in enumerate(theta_arr):
+        yprime = rot(yprime_init,theta).astype(np.float32)
+        norm = np.sqrt(np.dot(np.dot(yprime,covariance_metric),yprime))
+        yprime /= norm
+        results = flow_P.solve_geodesic(y_init, yprime,solution_times)
+
+        #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
+        plt.plot(results.states[:, 0], results.states[:, 1], ls = '--', color=cmap(ind/len(theta_arr)))
+        plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_3), linewidths=1., linestyles='-', colors=['k' for i in levels_3], zorder=0)
+        plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+        plt.xlim([np.amin(P1), np.amax(P1)])
+        plt.ylim([np.amin(P2), np.amax(P2)])
+        plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+        plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+
+    plt.savefig(outroot+'9_geodesics_around_MAP.pdf')
+    plt.show()

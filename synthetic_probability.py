@@ -511,9 +511,9 @@ class DiffFlowCallback(Callback):
         return tape.batch_jacobian(f, coord)
 
     @tf.function()
-    def metric(self, coord):
+    def inverse_metric(self, coord): #used to be metric
         """
-        Computes the metric at a given point or array of points in (original) parameter space
+        Computes the inverse metric at a given point or array of points in (original) parameter space
         """
         # compute Jacobian:
         jac = self.direct_jacobian(coord)
@@ -529,9 +529,9 @@ class DiffFlowCallback(Callback):
         return metric
 
     @tf.function()
-    def inverse_metric(self, coord):
+    def metric(self, coord): #used to be inverse_metric
         """
-        Computes the inverse metric at a given point or array of points in (original) parameter space
+        Computes the metric at a given point or array of points in (original) parameter space
         """
         # compute Jacobian:
         jac = self.inverse_jacobian(coord)
@@ -593,28 +593,31 @@ class DiffFlowCallback(Callback):
         """
         inv_metric = self.inverse_metric(coord)
         metric_derivative = self.coord_metric_derivative(coord)
-        term_1 = tf.einsum("...ij, ...kjl -> ...ikl", inv_metric, metric_derivative)
-        term_2 = tf.einsum("...ij, ...ljk -> ...ikl", inv_metric, metric_derivative)
-        term_3 = tf.einsum("...ij, ...klj -> ...ikl", inv_metric, metric_derivative)
+        # rearrange indexes:
+        term_1 = tf.einsum("...kjl -> ...jkl", metric_derivative)
+        term_2 = tf.einsum("...lik -> ...ikl", metric_derivative)
+        term_3 = tf.einsum("...kli -> ...ikl", metric_derivative)
+        # compute
+        connection = 0.5*tf.einsum("...ij,...jkl-> ...ikl", inv_metric, term_1 + term_2 - term_3)
         #
-        return 0.5*(term_1 + term_2 - term_3)
+        return connection
 
     @tf.function()
     def geodesic_ode(self, t, y):
         # unpack position and velocity:
-        y0 = y[:self.num_params]
-        yprime = y[self.num_params:]
+        pos = y[:self.num_params]
+        vel = y[self.num_params:]
         # compute geodesic equation:
-        yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", self.levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
+        acc = -tf.einsum("...ijk, ...j, ...k -> ...i", self.levi_civita_connection(tf.convert_to_tensor([pos])), tf.convert_to_tensor([vel]), tf.convert_to_tensor([vel]))
         #
-        return tf.concat([yprime, yprimeprime[0]], axis=0)
+        return tf.concat([vel, acc[0]], axis=0)
 
     @tf.function()
-    def solve_geodesic(self, y0, yprime0, solution_times, **kwargs):
+    def solve_geodesic(self, y_init, yprime_init, solution_times, **kwargs):
         # prepare initial conditions:
-        tf.concat([y0, yprime0], axis=0)
+        y0 = tf.concat([y_init, yprime_init], axis=0)
         # solve with explicit solver:
-        results = tfp.math.ode.DormandPrince().solve(self.geodesic_ode, initial_time=0., initial_state=y0, solution_times=solution_times, **kwargs)
+        results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(self.geodesic_ode, initial_time=0., initial_state=y0, solution_times=solution_times, **kwargs)
         #
         return results
 
@@ -630,7 +633,7 @@ class DiffFlowCallback(Callback):
     @tf.function()
     def solve_eigenvalue_ode(self, y0, solution_times, n, **kwargs):
         # solve with explicit solver:
-        results = tfp.math.ode.DormandPrince().solve(self.eigenvalue_ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': n})
+        results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(self.eigenvalue_ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': n})
         #
         return results
 

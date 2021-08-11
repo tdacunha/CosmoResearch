@@ -1,4 +1,3 @@
-
 # import libraries:
 import sys, os
 here = './'
@@ -45,6 +44,7 @@ prior_chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'prior', no_c
 param_names = ['omegam', 'sigma8']
 
 # define the flow:
+#flow_P = mcmc_tension.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
 flow_P = synthetic_probability.DiffFlowCallback(chain, param_names=param_names, feedback=1, learning_rate=0.01)
 
 
@@ -68,6 +68,10 @@ Y_chain = MCSamples(samples=Y_sample, names=param_names, label='Transformed dist
 g = plots.get_subplot_plotter()
 g.triangle_plot([chain, flow_chain, Y_chain], params=param_names, filled=False)
 
+###############################################################################
+# plot learned distribution from value in different ways:
+###############################################################################
+
 def get_levels(P, x, y, conf=[0.95, 0.68]):
     """
     Get levels from a 2D grid
@@ -83,26 +87,241 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
     #
     return levs
 
+
+omegam = np.linspace(.0, .8, 200)
+sigma8 = np.linspace(.2, 1.8, 200)
+
+x, y = omegam, sigma8
+X, Y = np.meshgrid(x, y)
+
+# using the method implemented in dist_learned:
+log_P = flow_P.log_probability(np.array([X, Y], dtype=np.float32).T)
+log_P = np.array(log_P).T
+P = np.exp(log_P)
+P = P / simps(simps(P, y), x)
+
+# plot:
+levels = [utilities.from_sigma_to_confidence(i) for i in range(5, 1, -1)]
+plt.figure(figsize = (8,8))
+plt.contour(X, Y, P, get_levels(P, x, y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels])
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+plt.xlabel(param_names[0], fontsize = 15)
+plt.ylabel(param_names[1], fontsize = 15)
+
+###############################################################################
+# determinant of the Jacobian:
+###############################################################################
+
+omegam = np.linspace(.1, .5, 100)
+sigma8 = np.linspace(.6, 1.2, 100)
+
+x, y = omegam, sigma8
+X, Y = np.meshgrid(x, y)
+
+# compute log det Jacobian:
+log_det = flow_P.log_det_metric(np.array([X, Y], dtype=np.float32).T)
+log_det = np.array(log_det).T
+plt.figure(figsize = (8,8))
+pc = plt.pcolormesh(X, Y, log_det, linewidth=0, rasterized=True, shading='auto', cmap='RdBu')
+colorbar = plt.colorbar(pc)
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+#plt.xlim([np.amin(omegam), np.amax(omegam)])
+#plt.ylim([np.amin(sigma8), np.amax(sigma8)])
+
+
+###############################################################################
 # find maximum posterior:
+###############################################################################
 
 # MAP:
 result = flow_P.MAP_finder(disp=True)
+print(result)
 maximum_posterior = result.x
 # find where the MAP goes:
 map_image = flow_P.map_to_abstract_coord(np.array(maximum_posterior, dtype=np.float32))
+print(maximum_posterior, np.array(map_image))
+
 # mean:
 mean = chain.getMeans([chain.index[name] for name in ['omegam', 'sigma8']])
 mean_image = flow_P.map_to_abstract_coord(np.array(mean, dtype=np.float32))
+print(mean, np.array(mean_image))
+
+# plot:
+plt.figure(figsize = (8,8))
+levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='red', label='MAP: (%.3f, %.3f)' %(maximum_posterior[0],maximum_posterior[1]))
+plt.scatter(mean[0], mean[1], color='green', label='mean: (%.3f, %.3f)' %(mean[0],mean[1]))
+plt.legend()
+
+###############################################################################
+# get covariance from samples and from flow:
+###############################################################################
+
 # covariance from samples
 cov_samples = chain.cov(pars=['omegam', 'sigma8'])
-# probability levels:
-levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
+print('Covariance', cov_samples)
+fisher_samples = np.linalg.inv(cov_samples)
+print('Fisher', fisher_samples)
+
+# covariance from flow around mean:
+covariance_metric = flow_P.metric(np.array([mean]).astype(np.float32))[0]
+fisher_metric = flow_P.inverse_metric(np.array([mean]).astype(np.float32))[0]
+
+# compare:
+alpha = np.linspace(-1, 1, 1000)
+_, eigv = np.linalg.eigh(covariance_metric)
+mode = 0
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='k', ls='--', label='flow covariance')
+mode = 1
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='k', ls='--')
+
+_, eigv = np.linalg.eigh(fisher_metric)
+mode = 0
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='green', ls='-.', label='flow fisher')
+mode = 1
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='green', ls='-.')
+
+_, eigv = np.linalg.eigh(cov_samples)
+mode = 0
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-', label='samples')
+mode = 1
+plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='--', colors=['red' for i in levels])
+plt.scatter(mean[0], mean[1], color='k')
+mode = 0
+plt.quiver(mean[0],mean[1],eigv[0,mode], eigv[1,mode], angles = 'xy')
+mode = 1
+plt.quiver(mean[0],mean[1],eigv[0,mode], eigv[1,mode], angles = 'xy')
+plt.xlim([np.amin(omegam), np.amax(omegam)])
+plt.ylim([np.amin(sigma8), np.amax(sigma8)])
+#plt.xlim([0.15, 0.4])
+#plt.ylim([0.6, 1.2])
+
+plt.legend()
+
+###############################################################################
+# trace geodesics in abstract space passing from the maximum posterior
+###############################################################################
+
+import matplotlib
+
+r = np.linspace(0.0, 20.0, 1000)
+theta = np.linspace(0.0, 2.0*np.pi, 30)
+
+# compute geodesics:
+geodesics = []
+for t in theta:
+    geo = np.array([map_image[0] + r*np.cos(t),
+                    map_image[1] + r*np.sin(t)], dtype=np.float32)
+    geodesics.append(flow_P.map_to_original_coord(geo.T))
+
+# geodesics aligned with abstract coordinate axes:
+r = np.linspace(-20.0, 20.0, 1000)
+
+t = 0.0
+geo = np.array([map_image[0] + r*np.cos(t),
+                map_image[1] + r*np.sin(t)], dtype=np.float32)
+geo_1 = flow_P.map_to_original_coord(geo.T)
+
+t = np.pi/2.
+geo = np.array([map_image[0] + r*np.cos(t),
+                map_image[1] + r*np.sin(t)], dtype=np.float32)
+geo_2 = flow_P.map_to_original_coord(geo.T)
+
+# plot:
+cmap = matplotlib.cm.get_cmap('Spectral')
+for ind, geo in enumerate(geodesics):
+    plt.plot(*np.array(geo).T, color=cmap(ind/len(geodesics)), zorder=-10)
+
+plt.plot(*np.array(geo_1).T, color='k', ls='--', zorder=-10, label='$\\theta=0$')
+plt.plot(*np.array(geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+plt.xlim([0.15, 0.4])
+plt.ylim([0.6, 1.2])
+plt.legend()
+
+
+###############################################################################
+# asyntotic structure:
+###############################################################################
+
+import matplotlib
+
+r = np.linspace(0.0, 100000.0, 10000)
+theta = np.linspace(0.0, 2.0*np.pi, 100)
+
+# copmpute PCA:
+eig, eigv = np.linalg.eigh(cov_samples)
+
+# compute geodesics:
+geodesics = []
+for t in theta:
+    geo = np.array([map_image[0] + r*np.cos(t),
+                    map_image[1] + r*np.sin(t)], dtype=np.float32)
+    geodesics.append(flow_P.map_to_original_coord(geo.T))
+
+# geodesics aligned with abstract coordinate axes:
+r = np.linspace(-100000.0, 100000.0, 1000)
+
+t = 0.0
+geo = np.array([map_image[0] + r*np.cos(t),
+                map_image[1] + r*np.sin(t)], dtype=np.float32)
+geo_1 = flow_P.map_to_original_coord(geo.T)
+
+t = np.pi/2.
+geo = np.array([map_image[0] + r*np.cos(t),
+                map_image[1] + r*np.sin(t)], dtype=np.float32)
+geo_2 = flow_P.map_to_original_coord(geo.T)
+
+# plot:
+cmap = matplotlib.cm.get_cmap('Spectral')
+for ind, geo in enumerate(geodesics):
+    plt.plot(*np.array(geo).T, color=cmap(ind/len(geodesics)), zorder=-10)
+
+plt.plot(*np.array(geo_1).T, color='k', ls='--', zorder=-10, label='$\\theta=0$')
+plt.plot(*np.array(geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
+
+mode = 0
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+mode = 1
+plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+#testing (for use with other parameters)
+scale_x = abs(np.amax(omegam) - np.amin(omegam))
+scale_y = abs(np.amax(sigma8) - np.amin(sigma8))
+scale_r = np.linalg.norm([scale_x,scale_y])
+print(scale_r)
+plt.xlim([-1000*scale_x, 1000.0*scale_x])
+plt.ylim([-1000*scale_y, 1000.0*scale_y])
+# plt.xlim([-100, 100.0])
+# plt.ylim([-100, 100.0])
+plt.legend()
+
+
 
 ###############################################################################
 # local eigenvalues of the metric:
 ###############################################################################
 
-r = np.linspace(-20.0, 20.0, 1000)
 omegam = np.linspace(.15, .4, 20)
 sigma8 = np.linspace(.6, 1.2, 20)
 
@@ -113,9 +332,11 @@ coords = np.array([X, Y], dtype = np.float32).reshape(2,-1).T
 local_metric = flow_P.metric(coords)
 
 PCA_eig, PCA_eigv = np.linalg.eigh(local_metric)
+print(PCA_eig)
 idx = np.argsort(PCA_eig, axis = 1)[0]#[::-1]
 PCA_eig = PCA_eig[:,idx]
 PCA_eigv = PCA_eigv[:,:,idx]
+print(PCA_eig)
 
 # Plot
 plt.figure(figsize = (8,8))
@@ -143,295 +364,86 @@ plt.legend()
 # Geodesics
 ###############################################################################
 
-coord = np.array([mean]).astype(np.float32)
-
 # add plot of geodesics that start from map and go around, as in the previous case
-@tf.function()
-def levi_civita_connection(coord):
-    """
-    Compute the Levi-Civita connection
-    """
-    inv_metric = flow_P.inverse_metric(coord)
-    metric_derivative = flow_P.coord_metric_derivative(coord)
-    term_1 = tf.einsum("...ij, ...kjl -> ...ikl", inv_metric, metric_derivative)
-    term_2 = tf.einsum("...ij, ...ljk -> ...ikl", inv_metric, metric_derivative)
-    term_3 = tf.einsum("...ij, ...klj -> ...ikl", inv_metric, metric_derivative)
-    #
-    return 0.5*(term_1 + term_2 - term_3)
-
-
-# add plot of geodesics that start from map and go around, as in the previous case
-@tf.function()
-def levi_civita_connection(coord):
-    """
-    Compute the Levi-Civita connection
-    """
-    # precompute:
-    #metric = flow_P.metric(coord)
-    inv_metric = flow_P.inverse_metric(coord)
-    #inv_metric_derivative = flow_P.coord_inverse_metric_derivative(coord)
-    metric_derivative = flow_P.coord_metric_derivative(coord)
-
-    # rearrange indexes:
-    term_1 = tf.einsum("...kjl -> ...jkl", metric_derivative)
-    term_2 = tf.einsum("...lik -> ...ikl", metric_derivative)
-    term_3 = tf.einsum("...kli -> ...ikl", metric_derivative)
-    # compute
-    connection = 0.5*tf.einsum("...ij,...jkl-> ...ikl", inv_metric, term_1 + term_2 - term_3)
-    #
-    return connection
-
 
 @tf.function()
 def ode(t, y, n):
     # unpack position and velocity:
-    pos = y[:n]
-    vel = y[n:]
+    y0 = y[:n]
+    yprime = y[n:]
     # compute geodesic equation:
-    acc = -tf.einsum("...ijk, ...j, ...k -> ...i", levi_civita_connection(tf.convert_to_tensor([pos])), tf.convert_to_tensor([vel]), tf.convert_to_tensor([vel]))
+    yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", flow_P.levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
     #
-    return tf.concat([vel, acc[0]], axis=0)
+    return tf.concat([yprime, yprimeprime[0]], axis=0)
 
 y_init = maximum_posterior.astype(np.float32)
 covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
-eig, eigv = np.linalg.eigh(covariance_metric)
-yprime_init = eigv[:, 0]/np.sqrt(eig[0])
+_, eigv = np.linalg.eigh(covariance_metric)
+yprime_init = eigv[:, 0]
 y0 = tf.concat([y_init, yprime_init], axis=0)
-solution_times = tf.linspace(0., 1.5, 200)
+print(np.shape(y0))
+solution_times = tf.linspace(0, 1, 100)
 
-print('Norm of initial velocity', np.dot(np.dot(yprime_init, covariance_metric), yprime_init))
-
-results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
 #results = tfp.math.ode.BDF().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
 
+results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
 
-results = flow_P.solve_geodesic(y_init, yprime_init,solution_times)
-# check conservation of velocity modulus:
-temp_metric = flow_P.metric(np.array([results.states[:, 0], results.states[:, 1]]).T.astype(np.float32)).numpy()
-velocity = np.array([results.states[:, 2], results.states[:, 3]]).T
-
-res = []
-for g, v in zip(temp_metric, velocity):
-    res.append(np.dot(np.dot(v, g), v))
-res = np.array(res)
-plt.plot(results.times.numpy(), res)
-
-print(res)
-print(yprime_init)
-print(len(results.states[:, 0]))
 plt.plot(results.states[:, 0], results.states[:, 1])
-plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color = 'red', angles = 'xy')
-density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
-_X, _Y = np.meshgrid(density.x, density.y)
-plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
-#plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-plt.xlim(.2,.5)
-plt.ylim(.6,1)
-plt.savefig('test.pdf')
+plt.quiver(results.states[:, 0], results.states[:, 1], results.states[:, 2], results.states[:, 3], color = 'indigo', angles = 'xy')
+
+#np.sqrt(results.states[:, 2]**2 + results.states[:, 3]**2)
+
+print((np.linalg.norm([results.states[:, 2], results.states[:, 3]], axis =0)))
 
 
-
-# add plot of PCA flow from many points in parameter space
-
-#points = np.linspace(maximum_posterior - .05,maximum_posterior + .05, 10).astype(np.float32)
-def rot(v,theta):
-    rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-    v_new = np.dot(rot,v)
-    return v_new
-y_init = maximum_posterior.astype(np.float32)
-covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
-eig, eigv = np.linalg.eigh(covariance_metric)
-yprime_init = eigv[:, 0]#/np.sqrt(eig[0])
-print(yprime_init)
-sig3 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
-sig2 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(2), 2))
-sig1 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(1), 2))
-solution_times = tf.linspace(0., sig2, 100)
-print('Norm of initial velocity', np.dot(np.dot(yprime_init, covariance_metric), yprime_init))
-sig2
-
-import matplotlib.cm as cm
-plt.figure(figsize = (8,8))
-cmap = cm.get_cmap('Spectral')
-theta_arr = np.linspace(0.0, 2.0*np.pi, 30)
-abs_arr = []
-for ind,theta in enumerate(theta_arr):
-    #print(theta)
-
-    yprime = rot(yprime_init,theta).astype(np.float32)
-    norm = np.sqrt(np.dot(np.dot(yprime,covariance_metric),yprime))
-    yprime /= norm
-    #print(yprime)
-    print('Norm of velocity', np.dot(np.dot(yprime, covariance_metric), yprime))
-    results = flow_P.solve_geodesic(y_init, yprime,solution_times)
-    # check conservation of velocity modulus:
-    temp_metric = flow_P.metric(np.array([results.states[:, 0], results.states[:, 1]]).T.astype(np.float32)).numpy()
-    velocity = np.array([results.states[:, 2], results.states[:, 3]]).T
-
-    res = []
-    for g, v in zip(temp_metric, velocity):
-        res.append(np.dot(np.dot(v, g), v))
-    res = np.array(res)
-    #plt.plot(results.times.numpy(), res)
-    print(res[::5])
-
-    #print(res)
-    #print(yprime_init)
-    #print(len(results.states[:, 0]))
-    plt.plot(results.states[:, 0], results.states[:, 1], ls = '--', color=cmap(ind/len(theta_arr)))
-    coord1 = results.states[0,:2]
-    coord2 = results.states[-1,:2]
-    coord1_abs = flow_P.map_to_abstract_coord(coord1)
-    coord2_abs = flow_P.map_to_abstract_coord(coord2)
-    dist = np.linalg.norm(coord2_abs - coord1_abs)
-    print(dist)
-    r = np.linspace(0.0, 10, 100)
-
-    t = np.arctan2((coord2_abs[1] - coord1_abs[1]),(coord2_abs[0] - coord1_abs[0]))
-    abs_line = np.array([coord1_abs[0] + r*np.cos(t),
-                    coord1_abs[1] + r*np.sin(t)], dtype=np.float32)
-    abs_arr.append(abs_line)
-    line = flow_P.map_to_original_coord(abs_line.T)
-    plt.plot(*np.array(line).T, ls = '-', color=cmap(ind/len(theta_arr)))
-    #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
-    density = flow_chain.get2DDensity('omegam', 'sigma8', normalized=True)
-    _X, _Y = np.meshgrid(density.x, density.y)
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    plt.xlim(.15,.4)
-    plt.ylim(.6,1.2)
-
-plt.savefig('test.pdf')
-plt.show()
-plt.figure(figsize = (5,5))
-for i in range(len(abs_arr)):
-    plt.plot(*abs_arr[i], color=cmap(i/len(theta_arr)))
-plt.xlim(-10, 10)
-plt.ylim(-10,10)
-plt.show()
-###############################################################################
-# With scipy
-###############################################################################
-
-from scipy.integrate import solve_ivp
-
-def ode(t, y, n):
-    # unpack position and velocity:
-    pos = y[:n].astype(np.float32)
-    vel = y[n:].astype(np.float32)
-    # compute geodesic equation:
-    acc = -tf.einsum("...ijk, ...j, ...k -> ...i", levi_civita_connection(tf.convert_to_tensor([pos])), tf.convert_to_tensor([vel]), tf.convert_to_tensor([vel]))
-    #
-    return tf.concat([vel, acc[0]], axis=0)
-
-
-result = solve_ivp(ode, t_span=[0., 0.02], y0=y0, args=[2], method='LSODA')
-
-# check conservation of velocity modulus:
-temp_metric = flow_P.metric(np.array([result.y[0, :], result.y[1, :]]).T.astype(np.float32)).numpy()
-velocity = np.array([result.y[2, :], result.y[3, :]]).T
-position = np.array([result.y[0, :], result.y[1, :]]).T
-
-res = []
-for g, v in zip(temp_metric, velocity):
-    res.append(np.dot(np.dot(v, g), v))
-res = np.array(res)
-plt.plot(result.t, res)
-
-((position[1:]-position[:-1]).T/(result.t[1:]-result.t[:-1])).T
-
-res2 = []
-for g, v in zip(temp_metric[:-1], (position[1:]-position[:-1])/(result.t[1:]-result.t[:-1])):
-    res2.append(np.dot(np.dot(v, g), v))
-res2 = np.array(res2)
-plt.plot(result.t[:-1], res2)
-
-np.cumsum(np.sqrt(res2))
-
-
-
-plt.plot(result.y[0, :], result.y[1, :])
-plt.quiver(result.y[0, :], result.y[1, :], result.y[2, :], result.y[3, :], color = 'red', angles = 'xy')
-density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
-_X, _Y = np.meshgrid(density.x, density.y)
-plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
-plt.savefig('test.pdf')
-
-
-
-###############################################################################
-# PCA flow
-###############################################################################
-# add plot of PCA flow from many points in parameter space
-
-points = np.linspace(maximum_posterior - .05,maximum_posterior + .05, 10).astype(np.float32)
-plt.figure()
-for y_init in points:
-    #y_init = maximum_posterior.astype(np.float32)
-    covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
-    eig, eigv = np.linalg.eigh(covariance_metric)
-    yprime_init = eigv[:, 0]/np.sqrt(eig[0])
-    y0 = tf.concat([y_init, yprime_init], axis=0)
-    solution_times = tf.linspace(0., 1.5, 200)
-
-    print('Norm of initial velocity', np.dot(np.dot(yprime_init, covariance_metric), yprime_init))
-
-    results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
-    #results = tfp.math.ode.BDF().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
-
-    # check conservation of velocity modulus:
-    temp_metric = flow_P.metric(np.array([results.states[:, 0], results.states[:, 1]]).T.astype(np.float32)).numpy()
-    velocity = np.array([results.states[:, 2], results.states[:, 3]]).T
-
-    res = []
-    for g, v in zip(temp_metric, velocity):
-        res.append(np.dot(np.dot(v, g), v))
-    res = np.array(res)
-    #plt.plot(results.times.numpy(), res)
-
-    #print(res)
-    #print(yprime_init)
-    #print(len(results.states[:, 0]))
-    plt.plot(results.states[:, 0], results.states[:, 1])
-    plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color = 'red', angles = 'xy')
-    density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
-    _X, _Y = np.meshgrid(density.x, density.y)
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
-    #plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    plt.xlim(.1,.6)
-    plt.ylim(.4,1.3)
-plt.savefig('test.pdf')
-plt.show()
-
-
-# @tf.function()
-# def ode(t, y, n):
-#     # compute metric:
-#     metric = flow_P.metric(tf.convert_to_tensor([y]))
-#     # compute eigenvalues:
-#     _, eigv = tf.linalg.eigh(metric[0])
-#     #
-#     return eigv[:, n]
-
-# y_init = mean.astype(np.float32)
-# y = y_init
-# y0 = y_init
-# solution_times = tf.linspace(0, 1, 100)
-#
-# results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 0})
-#
-# plt.plot(results.states[:, 0], results.states[:, 1])
-#
 # # Plot
 # mode = 0
 # plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
 # mode = 1
 # plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
-#
-# density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
-# _X, _Y = np.meshgrid(density.x, density.y)
-# plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
-# plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+plt.xlim([np.amin(omegam), np.amax(omegam)])
+plt.ylim([np.amin(sigma8), np.amax(sigma8)])
+
+
+###############################################################################
+# PCA flow
+###############################################################################
+
+# add plot of PCA flow from many points in parameter space
+
+@tf.function()
+def ode(t, y, n):
+    # compute metric:
+    metric = flow_P.metric(tf.convert_to_tensor([y]))
+    # compute eigenvalues:
+    _, eigv = tf.linalg.eigh(metric[0])
+    #
+    return eigv[:, n]
+
+y_init = mean.astype(np.float32)
+y = y_init
+y0 = y_init
+solution_times = tf.linspace(0, 1, 100)
+
+results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 1})
+
+plt.plot(results.states[:, 0], results.states[:, 1])
+
+# Plot
+mode = 0
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:, 1,mode], color = 'red', angles = 'xy')
+mode = 1
+plt.quiver(coords[:,0], coords[:,1], PCA_eigv[:, 0,mode], PCA_eigv[:,1, mode], color = 'cadetblue', angles = 'xy')
+
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
 
 
@@ -746,21 +758,10 @@ plt.savefig('test.pdf')
         coords = np.array((bijector_inv)(coords0.astype(np.float32)))
         #
         return coords
-param1 = (param_names[1]).strip()
-print(param1)
-param_ranges = np.array([np.amin(chain.getParams().sigma8, axis=0), np.amax(chain.getParams().sigma8, axis=0)]).T
 
-print()
-print(param_ranges)
-param_ranges = np.array([np.amin(chain.samples, axis=0), np.amax(chain.samples, axis=0)]).T
-param_ranges
-np.shape(param_ranges)
-#param_range = (chain.getBounds())
-param_range = (chain.getBounds([param_names]))
 
-print(param_range)
 
 import analyze_2d_example
 import importlib
 importlib.reload(analyze_2d_example)
-analyze_2d_example.run_example_2d(chain, prior_chain, ['omegam','sigma8'], outroot = '/Users/TaraD/Downloads/')
+analyze_2d_example.run_example_2d(chain, prior_chain, ['omegam','sigma8'], [[.1,.5],[.55,1.25]], outroot = '/Users/TaraD/Downloads/')
