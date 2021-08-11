@@ -68,7 +68,3 @@ if __name__ == '__main__':
     g = plots.get_subplot_plotter()
     g.triangle_plot([posterior_distribution], filled=True)
     g.export(out_folder+'0_posterior.pdf')
-
-
-
-analyze_2d_example.run_example_2d(chain, prior_chain, [param_names[0],param_names[1]], outroot = '/Users/TaraD/Downloads/')
