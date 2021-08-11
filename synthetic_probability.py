@@ -622,6 +622,14 @@ class DiffFlowCallback(Callback):
         return results
 
     @tf.function()
+    def geodesic_distance(self, coord_1, coord_2):
+        # map to abstract coordinates:
+        abs_coord_1 = self.map_to_abstract_coord(coord_1)
+        abs_coord_2 = self.map_to_abstract_coord(coord_2)
+        # metric there is Euclidean:
+        return tf.linalg.norm(abs_coord_1-abs_coord_2)
+
+    @tf.function()
     def eigenvalue_ode(self, t, y, n):
         # compute metric:
         metric = self.metric(tf.convert_to_tensor([y]))

@@ -394,7 +394,6 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
 
     # define length to travel along geodesic using chi2
     length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
-
     solution_times = np.linspace(0., length, 200)
 
     # loop through angles and plot:
@@ -402,15 +401,15 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.figure(figsize=figsize)
     theta_arr = np.linspace(0.0, 2.0*np.pi, 30)
     for ind, theta in enumerate(theta_arr):
-        yprime = rot(yprime_init,theta).astype(np.float32)
+        yprime = rot(yprime_init, theta).astype(np.float32)
         # normalize vector using metric
         norm = np.sqrt(np.dot(np.dot(yprime,covariance_metric),yprime))
         yprime /= norm
         results = flow_P.solve_geodesic(y_init, yprime,solution_times)
-        geo = results.states[:,0:2]
+        geo = results.states[:, 0:2]
         geo_list.append(geo)
         #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
-        plt.plot(results.states[:, 0], results.states[:, 1], ls = '--', color=cmap(ind/len(theta_arr)))
+        plt.plot(results.states[:, 0], results.states[:, 1], ls='--', color=cmap(ind/len(theta_arr)))
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
     plt.xlim([np.amin(P1), np.amax(P1)])
@@ -436,11 +435,6 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'10_geodesics_in_abstract_space.pdf')
-
-
-
-
-
 
 
     pass
