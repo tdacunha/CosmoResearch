@@ -33,7 +33,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import scipy.stats
 
-
 # import the tensiometer tools that we need:
 from tensiometer import utilities
 from tensiometer import gaussian_tension
@@ -72,8 +71,8 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
 
     # parameter ranges for plotting from the prior:
     # the following needs to be fixed:
-    #param_ranges = np.array([np.amin(prior_chain.samples, axis=0), np.amax(prior_chain.samples, axis=0)]).T
-    param_ranges  = [[.15,.4],[.6,1.2]]
+    param_ranges = np.array([np.amin(prior_chain.samples, axis=0), np.amax(prior_chain.samples, axis=0)]).T
+    param_ranges = param_ranges[[prior_chain.index[name] for name in param_names], :]
 
     # parameter labels:
     param_labels = [name.label for name in posterior_chain.getParamNames().parsWithNames(param_names)]
@@ -87,8 +86,8 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     flow_P.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
 
     # parameter grids:
-    P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 100)
-    P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 100)
+    P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 200)
+    P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 200)
     x, y = P1, P2
     X, Y = np.meshgrid(x, y)
 
@@ -134,6 +133,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_5), linewidths=1., linestyles='--', colors=['red' for i in levels_5])
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
     plt.savefig(outroot+'2_log_prob_distribution.pdf')
 
     ###########################################################################
@@ -150,11 +150,12 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     colorbar = plt.colorbar(pc)
 
     # plot contours
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_5), linewidths=1., linestyles='--', colors=['red' for i in levels_5])
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.xlim([np.amin(P1), np.amax(P1)])
     plt.ylim([np.amin(P2), np.amax(P2)])
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
     plt.savefig(outroot+'3_log_det_jacobian_distribution.pdf')
 
     ###########################################################################
@@ -169,7 +170,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
 
     # plot contours with MAP and mean
     plt.figure(figsize=figsize)
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_3), linewidths=1., linestyles='--', colors=['red' for i in levels_3])
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.scatter(maximum_posterior[0], maximum_posterior[1], color='green', label='MAP: (%.3f, %.3f)' %(maximum_posterior[0],maximum_posterior[1]))
     plt.scatter(mean[0], mean[1], color='red', label='mean: (%.3f, %.3f)' %(mean[0],mean[1]))
     plt.legend()
@@ -177,6 +178,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.ylim([np.amin(P2), np.amax(P2)])
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
     plt.savefig(outroot+'4_maximum_posterior_and_sample_mean.pdf')
 
     ###########################################################################
@@ -215,7 +217,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-')
 
     # plot contours
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_3), linewidths=1., linestyles='--', colors=['red' for i in levels_3])
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.scatter(mean[0], mean[1], color='k')
 
     plt.legend()
@@ -224,6 +226,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.legend()
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
     plt.savefig(outroot+'5_comparison_of_cov_fisher_samples_at_mean.pdf')
 
     ###########################################################################
@@ -259,7 +262,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.plot(*np.array(geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
 
     # plot contours
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_3), linewidths=1., linestyles='-', colors=['k' for i in levels_3], zorder=0)
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
     plt.xlim([np.amin(P1), np.amax(P1)])
@@ -267,6 +270,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.legend()
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
     plt.savefig(outroot+'6_abstract_geodesics_in_parameter_space.pdf')
 
     ###############################################################################
@@ -317,7 +321,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
 
     # plot contours and MAP
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_3), linewidths=1., linestyles='-', colors=['k' for i in levels_3], zorder=0)
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
     plt.xlim([-1000*scale_x, 1000.0*scale_x])
@@ -325,6 +329,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.legend()
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
     plt.savefig(outroot+'7_asymptotic_structure_of_geodesics.pdf')
 
     ###########################################################################
@@ -353,7 +358,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.quiver(coords[:, 0], coords[:, 1], PCA_eigv[:, 0, mode], PCA_eigv[:, 1, mode], color='cadetblue', angles='xy', label='Second mode')
 
     # plot contours
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_3), linewidths=1., linestyles='-', colors=['k' for i in levels_3], zorder=0)
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
     # compute and plot eigenvalues of covariance of samples
@@ -368,16 +373,19 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.ylim([np.amin(P2), np.amax(P2)])
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
     plt.savefig(outroot+'8_local_metric_PCA.pdf')
 
     ###########################################################################
     # Plot geodesics around MAP:
     ###########################################################################
+
     # define function to rotate vector by set angle theta:
-    def rot(v,theta):
+    def rot(v, theta):
         rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-        v_new = np.dot(rot,v)
+        v_new = np.dot(rot, v)
         return v_new
+
     # initial point as MAP and determine eigenvector (not normalized):
     y_init = maximum_posterior.astype(np.float32)
     covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
@@ -391,9 +399,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
 
     # loop through angles and plot:
     geo_list = []
-    plt.figure(figsize = figsize)
+    plt.figure(figsize=figsize)
     theta_arr = np.linspace(0.0, 2.0*np.pi, 30)
-    for ind,theta in enumerate(theta_arr):
+    for ind, theta in enumerate(theta_arr):
         yprime = rot(yprime_init,theta).astype(np.float32)
         # normalize vector using metric
         norm = np.sqrt(np.dot(np.dot(yprime,covariance_metric),yprime))
@@ -401,26 +409,38 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
         results = flow_P.solve_geodesic(y_init, yprime,solution_times)
         geo = results.states[:,0:2]
         geo_list.append(geo)
-        # plot geodesics up to 3 sigma, contours, MAP
         #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
         plt.plot(results.states[:, 0], results.states[:, 1], ls = '--', color=cmap(ind/len(theta_arr)))
-        plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_3), linewidths=1., linestyles='-', colors=['k' for i in levels_3], zorder=0)
-        plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-        plt.xlim([np.amin(P1), np.amax(P1)])
-        plt.ylim([np.amin(P2), np.amax(P2)])
-        plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-        plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    plt.xlim([np.amin(P1), np.amax(P1)])
+    plt.ylim([np.amin(P2), np.amax(P2)])
+    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.savefig(outroot+'9_geodesics_around_MAP.pdf')
-    plt.show()
 
     # plot geodesics in abstract space:
-    plt.figure(figsize = figsize)
-    for ind,geo in enumerate(geo_list):
+    plt.figure(figsize=figsize)
+    for ind, geo in enumerate(geo_list):
         geo = np.array(geo)
         geo_abs = flow_P.map_to_abstract_coord(geo)
-        plt.plot(*np.array(geo_abs).T, ls = '--', color=cmap(ind/len(geo_list)))
+        plt.plot(*np.array(geo_abs).T, ls='--', color=cmap(ind/len(geo_list)))
+
+    # print the iso-contours:
+    origin = flow_P.map_to_abstract_coord(y_init)
+    theta = np.linspace(0.0, 2.*np.pi, 200)
+    plt.plot(origin[0]+length*np.sin(theta), origin[1]+length*np.cos(theta), ls='--', lw=1., color='k')
+    plt.scatter(origin[0], origin[1], color='k', zorder=999)
+
     plt.xlabel('$Z_{1}$', fontsize=fontsize)
     plt.ylabel('$Z_{2}$', fontsize=fontsize)
+    plt.tight_layout()
     plt.savefig(outroot+'10_geodesics_in_abstract_space.pdf')
-    plt.show()
+
+
+
+
+
+
+
+    pass
