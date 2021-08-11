@@ -255,6 +255,7 @@ plt.figure(figsize = (8,8))
 cmap = cm.get_cmap('Spectral')
 theta_arr = np.linspace(0.0, 2.0*np.pi, 30)
 abs_arr = []
+geo_list = []
 for ind,theta in enumerate(theta_arr):
     #print(theta)
 
@@ -286,12 +287,15 @@ for ind,theta in enumerate(theta_arr):
     dist = np.linalg.norm(coord2_abs - coord1_abs)
     print(dist)
     r = np.linspace(0.0, 10, 100)
-
     t = np.arctan2((coord2_abs[1] - coord1_abs[1]),(coord2_abs[0] - coord1_abs[0]))
     abs_line = np.array([coord1_abs[0] + r*np.cos(t),
                     coord1_abs[1] + r*np.sin(t)], dtype=np.float32)
     abs_arr.append(abs_line)
     line = flow_P.map_to_original_coord(abs_line.T)
+
+    geo = results.states[:,0:2]
+    geo_list.append(geo)
+
     plt.plot(*np.array(line).T, ls = '-', color=cmap(ind/len(theta_arr)))
     #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
     density = flow_chain.get2DDensity('omegam', 'sigma8', normalized=True)
@@ -309,6 +313,14 @@ for i in range(len(abs_arr)):
 plt.xlim(-10, 10)
 plt.ylim(-10,10)
 plt.show()
+plt.figure()
+for ind,theta in enumerate(theta_arr):
+    geo = np.array(geo_list[ind])
+    geo_abs = flow_P.map_to_abstract_coord(geo)
+    plt.plot(*np.array(geo_abs).T, ls = '--', color=cmap(ind/len(theta_arr)))
+plt.xlabel('$Z_{2}$', fontsize=15)
+plt.show()
+
 ###############################################################################
 # With scipy
 ###############################################################################

@@ -373,30 +373,35 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     ###########################################################################
     # Plot geodesics around MAP:
     ###########################################################################
+    # define function to rotate vector by set angle theta:
     def rot(v,theta):
         rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
         v_new = np.dot(rot,v)
         return v_new
-
+    # initial point as MAP and determine eigenvector (not normalized):
     y_init = maximum_posterior.astype(np.float32)
     covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
     eig, eigv = np.linalg.eigh(covariance_metric)
     yprime_init = eigv[:, 0]
 
-    sig3 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
-    sig2 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(2), 2))
-    sig1 = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(1), 2))
+    # define length to travel along geodesic using chi2
+    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
 
-    solution_times = np.linspace(0., sig3, 200)
+    solution_times = np.linspace(0., length, 200)
 
+    # loop through angles and plot:
+    geo_list = []
     plt.figure(figsize = figsize)
     theta_arr = np.linspace(0.0, 2.0*np.pi, 30)
     for ind,theta in enumerate(theta_arr):
         yprime = rot(yprime_init,theta).astype(np.float32)
+        # normalize vector using metric
         norm = np.sqrt(np.dot(np.dot(yprime,covariance_metric),yprime))
         yprime /= norm
         results = flow_P.solve_geodesic(y_init, yprime,solution_times)
-
+        geo = results.states[:,0:2]
+        geo_list.append(geo)
+        # plot geodesics up to 3 sigma, contours, MAP
         #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
         plt.plot(results.states[:, 0], results.states[:, 1], ls = '--', color=cmap(ind/len(theta_arr)))
         plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_3), linewidths=1., linestyles='-', colors=['k' for i in levels_3], zorder=0)
@@ -407,4 +412,15 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
         plt.ylabel(param_labels_latex[1], fontsize=fontsize)
 
     plt.savefig(outroot+'9_geodesics_around_MAP.pdf')
+    plt.show()
+
+    # plot geodesics in abstract space:
+    plt.figure(figsize = figsize)
+    for ind,geo in enumerate(geo_list):
+        geo = np.array(geo)
+        geo_abs = flow_P.map_to_abstract_coord(geo)
+        plt.plot(*np.array(geo_abs).T, ls = '--', color=cmap(ind/len(geo_list)))
+    plt.xlabel('$Z_{1}$', fontsize=fontsize)
+    plt.ylabel('$Z_{2}$', fontsize=fontsize)
+    plt.savefig(outroot+'10_geodesics_in_abstract_space.pdf')
     plt.show()
