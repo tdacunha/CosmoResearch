@@ -144,6 +144,8 @@ plt.legend()
 # Geodesics
 ###############################################################################
 
+coord = np.array([mean]).astype(np.float32)
+
 # add plot of geodesics that start from map and go around, as in the previous case
 @tf.function()
 def levi_civita_connection(coord):
@@ -159,14 +161,24 @@ def levi_civita_connection(coord):
     return 0.5*(term_1 + term_2 - term_3)
 
 
-coord = np.array([mean]).astype(np.float32)
-coord
+# add plot of geodesics that start from map and go around, as in the previous case
+@tf.function()
+def levi_civita_connection(coord):
+    """
+    Compute the Levi-Civita connection
+    """
+    # precompute:
+    inv_metric = flow_P.inverse_metric(coord)
+    metric_derivative = flow_P.coord_metric_derivative(coord)
+    # rearrange indexes:
+    term_1 = tf.einsum("...kjl -> ...jkl", metric_derivative)
+    term_2 = tf.einsum("...lik -> ...ikl", metric_derivative)
+    term_3 = tf.einsum("...kli -> ...ikl", metric_derivative)
+    # compute
+    connection = 0.5*tf.einsum("...ij,...jkl-> ...ikl", inv_metric, term_1 + term_2 - term_3)
+    #
+    return connection
 
-flow_P.metric(coord)
-flow_P.direct_jacobian(coord)
-
-levi_civita_connection(coord)
-flow_P.coord_metric_derivative(coord)
 
 @tf.function()
 def ode(t, y, n):
@@ -181,13 +193,13 @@ def ode(t, y, n):
 y_init = maximum_posterior.astype(np.float32)
 covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
 eig, eigv = np.linalg.eigh(covariance_metric)
-yprime_init = eigv[:, 1]/np.sqrt(eig[1])
+yprime_init = eigv[:, 0]/np.sqrt(eig[0])
 y0 = tf.concat([y_init, yprime_init], axis=0)
-solution_times = tf.linspace(0., 0.1, 20)
+solution_times = tf.linspace(0., 0.02, 200)
 
 print('Norm of initial velocity', np.dot(np.dot(yprime_init, covariance_metric), yprime_init))
 
-results = tfp.math.ode.DormandPrince().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
+results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
 #results = tfp.math.ode.BDF().solve(ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': 2})
 
 # check conservation of velocity modulus:
@@ -211,6 +223,56 @@ plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, level
 #plt.xlim(.25,.35)
 #plt.ylim(.8,1)
 plt.savefig('test.pdf')
+
+###############################################################################
+# With scipy
+###############################################################################
+
+from scipy.integrate import solve_ivp
+
+def ode(t, y, n):
+    # unpack position and velocity:
+    pos = y[:n].astype(np.float32)
+    vel = y[n:].astype(np.float32)
+    # compute geodesic equation:
+    acc = -tf.einsum("...ijk, ...j, ...k -> ...i", levi_civita_connection(tf.convert_to_tensor([pos])), tf.convert_to_tensor([vel]), tf.convert_to_tensor([vel]))
+    #
+    return tf.concat([vel, acc[0]], axis=0)
+
+
+result = solve_ivp(ode, t_span=[0., 0.02], y0=y0, args=[2], method='LSODA')
+
+# check conservation of velocity modulus:
+temp_metric = flow_P.metric(np.array([result.y[0, :], result.y[1, :]]).T.astype(np.float32)).numpy()
+velocity = np.array([result.y[2, :], result.y[3, :]]).T
+position = np.array([result.y[0, :], result.y[1, :]]).T
+
+res = []
+for g, v in zip(temp_metric, velocity):
+    res.append(np.dot(np.dot(v, g), v))
+res = np.array(res)
+plt.plot(result.t, res)
+
+((position[1:]-position[:-1]).T/(result.t[1:]-result.t[:-1])).T
+
+res2 = []
+for g, v in zip(temp_metric[:-1], (position[1:]-position[:-1])/(result.t[1:]-result.t[:-1])):
+    res2.append(np.dot(np.dot(v, g), v))
+res2 = np.array(res2)
+plt.plot(result.t[:-1], res2)
+
+np.cumsum(np.sqrt(res2))
+
+
+
+plt.plot(result.y[0, :], result.y[1, :])
+plt.quiver(result.y[0, :], result.y[1, :], result.y[2, :], result.y[3, :], color = 'red', angles = 'xy')
+density = chain.get2DDensity('omegam', 'sigma8', normalized=True)
+_X, _Y = np.meshgrid(density.x, density.y)
+plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels], zorder=0)
+plt.savefig('test.pdf')
+
+
 
 ###############################################################################
 # PCA flow
