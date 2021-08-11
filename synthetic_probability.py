@@ -511,25 +511,7 @@ class DiffFlowCallback(Callback):
         return tape.batch_jacobian(f, coord)
 
     @tf.function()
-    def inverse_metric(self, coord): #used to be metric
-        """
-        Computes the inverse metric at a given point or array of points in (original) parameter space
-        """
-        # compute Jacobian:
-        jac = self.direct_jacobian(coord)
-        # take the transpose (we need to calculate the indexes that we want to swap):
-        trailing_axes = [-1, -2]
-        leading = tf.range(tf.rank(jac) - len(trailing_axes))
-        trailing = trailing_axes + tf.rank(jac)
-        new_order = tf.concat([leading, trailing], axis=0)
-        jac_T = tf.transpose(jac, new_order)
-        # compute metric:
-        metric = tf.linalg.matmul(jac, jac_T)
-        #
-        return metric
-
-    @tf.function()
-    def metric(self, coord): #used to be inverse_metric
+    def metric(self, coord):
         """
         Computes the metric at a given point or array of points in (original) parameter space
         """
@@ -543,6 +525,24 @@ class DiffFlowCallback(Callback):
         jac_T = tf.transpose(jac, new_order)
         # compute metric:
         metric = tf.linalg.matmul(jac_T, jac)
+        #
+        return metric
+
+    @tf.function()
+    def inverse_metric(self, coord):
+        """
+        Computes the inverse metric at a given point or array of points in (original) parameter space
+        """
+        # compute Jacobian:
+        jac = self.direct_jacobian(coord)
+        # take the transpose (we need to calculate the indexes that we want to swap):
+        trailing_axes = [-1, -2]
+        leading = tf.range(tf.rank(jac) - len(trailing_axes))
+        trailing = trailing_axes + tf.rank(jac)
+        new_order = tf.concat([leading, trailing], axis=0)
+        jac_T = tf.transpose(jac, new_order)
+        # compute metric:
+        metric = tf.linalg.matmul(jac, jac_T)
         #
         return metric
 
