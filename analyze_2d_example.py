@@ -38,6 +38,10 @@ from tensiometer import utilities
 from tensiometer import gaussian_tension
 from tensiometer import mcmc_tension
 
+# tensorflow imports:
+import tensorflow as tf
+import tensorflow_probability as tfp
+
 ###############################################################################
 # general utility functions:
 
@@ -435,6 +439,94 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'10_geodesics_in_abstract_space.pdf')
+
+    ###########################################################################
+    # Plot eigenvalue network:
+    ###########################################################################
+
+    @tf.function()
+    def eigenvalue_ode_temp(t, y, n, side=1.):
+        # compute metric:
+        metric = flow_P.metric(tf.convert_to_tensor([y]))
+        # compute eigenvalues:
+        eig, eigv = tf.linalg.eigh(metric[0])
+        #
+        return side * eigv[:, n] / tf.sqrt(eig[n])
+
+    @tf.function()
+    def solve_eigenvalue_ode_temp(y0, solution_times, n, side=1., **kwargs):
+        # solve with explicit solver:
+        results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(eigenvalue_ode_temp, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': n, 'side': side})
+        #
+        return results
+
+    def helper_solve_geo(y0, n, length=1.5, num_points=100):
+        solution_times = np.linspace(0., length, num_points)
+        temp_sol_1 = solve_eigenvalue_ode_temp(y0, solution_times, n=n, side=1.)
+        temp_sol_2 = solve_eigenvalue_ode_temp(y0, solution_times, n=n, side=-1.)
+        times = tf.concat([-temp_sol_2.times[1:][::-1], temp_sol_1.times], axis=0)
+        traj = tf.concat([temp_sol_2.states[1:][::-1], temp_sol_1.states], axis=0)
+        #
+        return times, traj
+
+    # obtain PCA modes that pass through MAP:
+    y0 = maximum_posterior.astype(np.float32)
+    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
+    _, start_1 = helper_solve_geo(y0, n=0, length=2.*length, num_points=10)
+    _, start_0 = helper_solve_geo(y0, n=1, length=2.*length, num_points=5)
+
+    modes_0, modes_1 = [], []
+    plt.figure(figsize=figsize)
+    for start in start_0:
+        _, mode = helper_solve_geo(start, n=0, length=2.*length, num_points=100)
+        modes_0.append(mode)
+        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
+    for start in start_1:
+        _, mode = helper_solve_geo(start, n=1, length=2.*length, num_points=100)
+        modes_1.append(mode)
+        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    plt.xlim([np.amin(P1), np.amax(P1)])
+    plt.ylim([np.amin(P2), np.amax(P2)])
+    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
+    plt.savefig(outroot+'11_local_pca_flow.pdf')
+
+    # plot in abstract space:
+    plt.figure(figsize=figsize)
+    for mode in modes_0:
+        mode_abs = flow_P.map_to_abstract_coord(mode)
+        plt.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
+    for mode in modes_1:
+        mode_abs = flow_P.map_to_abstract_coord(mode)
+        plt.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
+
+    # print the iso-contours:
+    origin = flow_P.map_to_abstract_coord(y0)
+    theta = np.linspace(0.0, 2.*np.pi, 200)
+    for i in range(4):
+        _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
+        plt.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
+    plt.scatter(origin[0], origin[1], color='k', zorder=999)
+
+    plt.xlabel('$Z_{1}$', fontsize=fontsize)
+    plt.ylabel('$Z_{2}$', fontsize=fontsize)
+    plt.tight_layout()
+    plt.savefig(outroot+'12_local_pca_flow_abstract.pdf')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     pass
