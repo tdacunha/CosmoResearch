@@ -23,9 +23,9 @@ from scipy import optimize
 import analyze_2d_example
 
 ###############################################################################
-# first example:
+# run example:
 
-import example_2_generate as example
+import example_4_generate as example
 
 analyze_2d_example.run_example_2d(posterior_chain=example.posterior_chain,
                                   prior_chain=example.prior_chain,
