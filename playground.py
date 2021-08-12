@@ -3,7 +3,7 @@ import aifeynman
 
 # generate power law:
 x = np.linspace(0.1, 1.0, 1000)
-y = 5*x**-0.5
+y = 5*x**-0.6
 
 # save to file:
 with open('temp.txt', "w") as f:
