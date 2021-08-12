@@ -516,10 +516,134 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     plt.tight_layout()
     plt.savefig(outroot+'12_local_pca_flow_abstract.pdf')
 
+    ###########################################################################
+    # Find principal eigenvalue flow:
+    ###########################################################################
+    from scipy.interpolate import interp1d
+
+    def expected_distance(y0, max_length, n1, n2, samples):
+        # solve the pca equation:
+        time, mode = helper_solve_geo(y0, n=n1, length=max_length, num_points=100)
+        # interpolate:
+        interp_mode = interp1d(time, mode, kind='cubic', axis=0)
+        # compute distances:
+        distances = []
+        for samp in samples:
+            # solve:
+            time2, mode2 = helper_solve_geo(samp, n=n2, length=max_length, num_points=100)
+            # interpolate:
+            interp_mode2 = interp1d(time2, mode2, kind='cubic', axis=0)
+            # minimize distance:
+            def _helper(y):
+                lambda_1, lambda_2 = y
+                return np.linalg.norm(interp_mode(lambda_1)-interp_mode2(lambda_2))
+            result = scipy.optimize.minimize(_helper, [0., 0.],
+                                            bounds=[[-max_length, max_length], [-max_length, max_length]])
+            # append result:
+            distances.append(result.x[1]**2)
+        #
+        return np.mean(distances)
+
+    # general setup:
+    y0 = maximum_posterior.astype(np.float32)
+    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
+    # minimize for first mode:
+    time_0, start_0 = helper_solve_geo(y0, n=1, length=2.*length, num_points=100)
+    interp_start = interp1d(time_0, start_0, kind='cubic', axis=0)
+    num_samples = 100
+    samples = flow_P.sample(num_samples)
+    def _helper_temp(temp):
+        return expected_distance(interp_start(temp[0]).astype(np.float32), 2.*length, n1=0, n2=1, samples=samples)
+    result_0 = scipy.optimize.minimize(_helper_temp, [0.],
+                                     bounds=[[-length, length]], method='L-BFGS-B')
+    pca_mode_0_times, pca_mode_0 = helper_solve_geo(interp_start(result_0.x)[0].astype(np.float32), n=0, length=2.*length, num_points=100)
+
+    # minimize for the second mode:
+    time_1, start_1 = helper_solve_geo(y0, n=0, length=2.*length, num_points=100)
+    interp_start = interp1d(time_1, start_1, kind='cubic', axis=0)
+    num_samples = 100
+    samples = flow_P.sample(num_samples)
+    def _helper_temp(temp):
+        return expected_distance(interp_start(temp[0]).astype(np.float32), 2.*length, n1=1, n2=0, samples=samples)
+    result_1 = scipy.optimize.minimize(_helper_temp, [0.],
+                                     bounds=[[-length, length]], method='L-BFGS-B')
+    pca_mode_1_times, pca_mode_1 = helper_solve_geo(interp_start(result_1.x)[0].astype(np.float32), n=1, length=2.*length, num_points=100)
+
+    # plot in parameter space:
+    plt.figure(figsize=figsize)
+    for mode in modes_0:
+        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
+    plt.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=2., ls='-', color='k')
+    for mode in modes_1:
+        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
+    plt.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=2., ls='-', color='red')
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    plt.xlim([np.amin(P1), np.amax(P1)])
+    plt.ylim([np.amin(P2), np.amax(P2)])
+    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
+    plt.savefig(outroot+'13_local_pca.pdf')
+
+    # plot in abstract space:
+    plt.figure(figsize=figsize)
+    for mode in modes_0:
+        mode_abs = flow_P.map_to_abstract_coord(mode)
+        plt.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
+    mode_abs = flow_P.map_to_abstract_coord(pca_mode_0)
+    plt.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='k')
+    for mode in modes_1:
+        mode_abs = flow_P.map_to_abstract_coord(mode)
+        plt.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
+    mode_abs = flow_P.map_to_abstract_coord(pca_mode_1)
+    plt.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='red')
+
+    # print the iso-contours:
+    origin = flow_P.map_to_abstract_coord(y0)
+    theta = np.linspace(0.0, 2.*np.pi, 200)
+    for i in range(4):
+        _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
+        plt.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
+    plt.scatter(origin[0], origin[1], color='k', zorder=999)
+
+    plt.xlabel('$Z_{1}$', fontsize=fontsize)
+    plt.ylabel('$Z_{2}$', fontsize=fontsize)
+    plt.tight_layout()
+    plt.savefig(outroot+'14_local_pca_abstract.pdf')
+
+    ###########################################################################
+    # Run AI Feynman
+    ###########################################################################
+
+    # save to file the first PCA mode:
+    with open('temp.txt', "w") as f:
+        np.savetxt(f, pca_mode_0.numpy())
 
 
 
 
+
+    import aifeynman
+    aifeynman.run_aifeynman("./", "temp.txt", 60, "19ops.txt", polyfit_deg=2, NN_epochs=500)
+
+    plt.figure(figsize=figsize)
+    plt.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=1., ls='-', color='k')
+
+    x0 = np.linspace(np.amin(P1), np.amax(P1), 1000)
+    y0 = np.arcsin(1.68*x0**3 - 1.3*x0**2 - 1.1*x0 + 1.1)
+    y0 = np.arcsin(0.3*x0**2 - 1.53*x0 + 1.13)
+
+    plt.plot(x0, y0, lw=2., ls='--', color='k')
+
+    plt.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=1., ls='-', color='red')
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=1., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    plt.xlim([np.amin(P1), np.amax(P1)])
+    plt.ylim([np.amin(P2), np.amax(P2)])
+    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
 
 
 
