@@ -616,41 +616,18 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     # Run AI Feynman
     ###########################################################################
 
-    # save to file the first PCA mode:
-    with open('temp.txt', "w") as f:
-        np.savetxt(f, pca_mode_0.numpy())
-
-
-
-
-
-    import aifeynman
-    aifeynman.run_aifeynman("./", "temp.txt", 60, "19ops.txt", polyfit_deg=2, NN_epochs=500)
-
-    plt.figure(figsize=figsize)
-    plt.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=1., ls='-', color='k')
-
-    x0 = np.linspace(np.amin(P1), np.amax(P1), 1000)
-    y0 = np.arcsin(1.68*x0**3 - 1.3*x0**2 - 1.1*x0 + 1.1)
-    y0 = np.arcsin(0.3*x0**2 - 1.53*x0 + 1.13)
-
-    plt.plot(x0, y0, lw=2., ls='--', color='k')
-
-    plt.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=1., ls='-', color='red')
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=1., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    plt.xlim([np.amin(P1), np.amax(P1)])
-    plt.ylim([np.amin(P2), np.amax(P2)])
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-    plt.tight_layout()
-
-
-
-
-
-
-
-
-
-    pass
+    ## save to file the first PCA mode:
+    #with open('temp.txt', "w") as f:
+    #    np.savetxt(f, pca_mode_0.numpy())
+    #import aifeynman
+    #aifeynman.run_aifeynman("./", "temp.txt", 60, "19ops.txt", polyfit_deg=2, NN_epochs=500)
+    #plt.figure(figsize=figsize)
+    #plt.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=1., ls='-', color='k')
+    #plt.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=1., ls='-', color='red')
+    #plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=1., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+    #plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    #plt.xlim([np.amin(P1), np.amax(P1)])
+    #plt.ylim([np.amin(P2), np.amax(P2)])
+    #plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    #plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    #plt.tight_layout()
