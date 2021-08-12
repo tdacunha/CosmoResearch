@@ -64,7 +64,7 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
 
 ###############################################################################
 
-def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
+def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ranges=None):
     """
     Run full analysis of 2d example case, as in flow playground
     """
@@ -74,9 +74,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot):
     fontsize = 15
 
     # parameter ranges for plotting from the prior:
-    # the following needs to be fixed:
-    param_ranges = np.array([np.amin(prior_chain.samples, axis=0), np.amax(prior_chain.samples, axis=0)]).T
-    param_ranges = param_ranges[[prior_chain.index[name] for name in param_names], :]
+    if param_ranges is None:
+        param_ranges = np.array([np.amin(prior_chain.samples, axis=0), np.amax(prior_chain.samples, axis=0)]).T
+        param_ranges = param_ranges[[prior_chain.index[name] for name in param_names], :]
 
     # parameter labels:
     param_labels = [name.label for name in posterior_chain.getParamNames().parsWithNames(param_names)]
