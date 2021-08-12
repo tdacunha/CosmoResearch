@@ -64,7 +64,7 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
 
 ###############################################################################
 
-def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ranges=None):
+def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ranges=None, train_params={}):
     """
     Run full analysis of 2d example case, as in flow playground
     """
@@ -84,9 +84,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
 
     # obtain the synthetic probability:
     flow_P = synthetic_probability.DiffFlowCallback(posterior_chain, param_names=param_names, feedback=1, learning_rate=0.01)
-    batch_size = 8192
-    epochs = 40
-    steps_per_epoch = 128
+    batch_size = train_params.get('batch_size', 8192)
+    epochs = train_params.get('epochs', 40)
+    steps_per_epoch = train_params.get('steps_per_epoch', 128)
     flow_P.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
 
     # parameter grids:
@@ -107,6 +107,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
 
     # levels for contour plots:
     levels_5 = [utilities.from_sigma_to_confidence(i) for i in range(5, 1, -1)]
+    levels_5 = [utilities.from_sigma_to_confidence(i) for i in range(3, 1, -1)]
     levels_3 = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
 
     ###########################################################################
