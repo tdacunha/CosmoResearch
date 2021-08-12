@@ -30,7 +30,7 @@ import example_1_generate as example
 analyze_2d_example.run_example_2d(posterior_chain=example.posterior_chain,
                                   prior_chain=example.prior_chain,
                                   param_names=example.posterior_chain.getParamNames().list(),
-                                  param_ranges = [[0.0, 1.0], [0.0, 1.0]],
+                                  param_ranges = [[0.0, 0.5], [0.3, 1.5]],
                                   outroot=example.out_folder)
 
 
