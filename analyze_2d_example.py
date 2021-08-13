@@ -126,6 +126,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     g = plots.get_subplot_plotter()
     g.triangle_plot([posterior_chain, flow_chain], params=param_names, filled=False)
     g.export(outroot+'1_learned_posterior_distribution.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plot learned distribution using flow log probability (and samples):
@@ -145,6 +146,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'2_log_prob_distribution.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plot samples:
@@ -157,6 +159,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'2_learned_distribution_samples.pdf')
+    plt.close('all')
 
     # in abstract space:
     abstract_samples = flow_P.map_to_abstract_coord(flow_chain.samples)
@@ -166,6 +169,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'2_learned_distribution_samples_abstract.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plot log determinant of metric:
@@ -188,6 +192,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'3_log_det_jacobian_distribution.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plot maximum posterior and mean:
@@ -211,6 +216,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'4_maximum_posterior_and_sample_mean.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plot comparison of covariance metric, fisher metric,
@@ -259,6 +265,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'5_comparison_of_cov_fisher_samples_at_mean.pdf')
+    plt.close('all')
 
     ###########################################################################
     # trace geodesics in abstract space passing from the maximum posterior
