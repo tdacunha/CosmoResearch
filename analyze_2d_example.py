@@ -4,14 +4,15 @@
 General code to analyze examples
 
 For testing purposes:
-
-import example_2_generate as example
+"""
+import example_3_generate as example
 
 posterior_chain = example.posterior_chain
 prior_chain = example.prior_chain
 param_names = posterior_chain.getParamNames().list()
 outroot = example.out_folder
-"""
+train_params={}
+
 
 ###############################################################################
 # initial imports:
