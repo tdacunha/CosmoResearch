@@ -371,7 +371,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.savefig(outroot+'7_asymptotic_structure_of_geodesics.pdf')
 
     ###########################################################################
-    # Plot of local metric eigenvalues
+    # Plot of local metric eigenvectors
     ###########################################################################
 
     # restructure meshgrid of points to give an array of coordinates
@@ -399,7 +399,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
-    # compute and plot eigenvalues of covariance of samples
+    # compute and plot eigenvectors of covariance of samples
     eig, eigv = np.linalg.eigh(cov_samples)
     mode = 0
     plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
@@ -413,6 +413,56 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'8_local_metric_PCA.pdf')
+
+    ###########################################################################
+    # Plots of local metric eigenvalues
+    ###########################################################################
+
+
+    coords = np.array([X, Y], dtype=np.float32).reshape(2, -1).T
+
+    # compute the metric at all coordinates
+    local_metrics = flow_P.metric(coords)
+
+    # compute the PCA eigenvalues and eigenvectors of each local metric
+    PCA_eig, PCA_eigv = np.linalg.eigh(local_metrics)
+
+    # sort PCA so first mode is index 0
+    idx = np.argsort(PCA_eig, axis=1)[0]
+    PCA_eig = PCA_eig[:, idx]
+    PCA_eigv = PCA_eigv[:, :, idx]
+
+    # plot PCA eigenvalues
+    mode = 0
+    plt.figure(figsize=figsize)
+    pc = plt.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='First mode')
+    colorbar = plt.colorbar(pc)
+    # plot contours
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    #plt.legend()
+    plt.xlim([np.amin(P1), np.amax(P1)])
+    plt.ylim([np.amin(P2), np.amax(P2)])
+    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
+    plt.savefig(outroot+'8_local_metric_PCA_eig0.pdf')
+
+    mode = 1
+    plt.figure(figsize=figsize)
+    pc = plt.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='Second mode')
+    colorbar = plt.colorbar(pc)
+    # plot contours
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    #plt.legend()
+    plt.xlim([np.amin(P1), np.amax(P1)])
+    plt.ylim([np.amin(P2), np.amax(P2)])
+    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
+
+    plt.savefig(outroot+'8_local_metric_PCA_eig1.pdf')
 
     ###########################################################################
     # Plot geodesics around MAP:
