@@ -6,6 +6,7 @@ General code to analyze examples
 For testing purposes:
 
 import example_3_generate as example
+import example_2_generate as example
 
 posterior_chain = example.posterior_chain
 prior_chain = example.prior_chain
@@ -552,6 +553,72 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
         traj = tf.concat([temp_sol_2.states[1:][::-1], temp_sol_1.states], axis=0)
         #
         return times, traj
+
+
+    # solve one pca problem in param space:
+    y0 = maximum_posterior.astype(np.float32)
+    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
+    time, mode = helper_solve_geo(y0, n=0, length=2.*length, num_points=100)
+
+    # bring solution to abstract space:
+    origin = flow_P.map_to_abstract_coord(y0)
+    abs_mode = flow_P.map_to_abstract_coord(mode)
+
+    # Jacobian derivative:
+    @tf.function()
+    def coord_jacobian_derivative(coord):
+        """
+        Compute the coordinate derivative of the Jacobian at a given point in (original) parameter space
+        """
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(coord)
+            f = flow_P.direct_jacobian(coord)
+        return tape.batch_jacobian(f, coord)
+
+    # solve problem in abstract space with Minsus equation:
+
+    @tf.function()
+    def eigenvalue_ode_abs_temp(t, y):
+        # unpack y:
+        x = tf.convert_to_tensor([y[:flow_P.num_params]])
+        w = tf.convert_to_tensor([y[flow_P.num_params:-1]])
+        alpha = tf.convert_to_tensor([y[-1]])
+        # precompute Jacobian and its derivative:
+        jac = flow_P.direct_jacobian(x)[0]
+        djac = coord_jacobian_derivative(x)[0]
+        jac_T = tf.transpose(jac)
+        jac_jac_T = tf.matmul(jac, jac_T)
+        I = tf.eye(flow_P.num_params)
+        dot_J = tf.einsum('k, ijk -> ji', w[0], djac)
+        # equation for alpha:
+        alpha_dot = 2.*tf.matmul(tf.matmul(w, jac), tf.matmul(dot_J, tf.transpose(w)))
+        # equation for wdot:
+        wdot_lhs = (jac_jac_T - tf.matmul(tf.matmul(w, jac_jac_T), tf.transpose(w))*I)
+        wdot_rhs = tf.matmul(alpha_dot - tf.matmul(dot_J, jac_T) -tf.matmul(jac, tf.transpose(dot_J)), tf.transpose(w))
+        w_dot = tf.linalg.solve(wdot_lhs, wdot_rhs)
+        w_dot = tf.matmul((I - tf.einsum('i,j->ij', w[0], tf.transpose(w[0]))), w_dot)
+        # equation for w:
+        x_dot = tf.transpose(w)
+        #
+        return tf.transpose(tf.concat([x_dot, w_dot, alpha_dot], axis=0))[0]
+
+    #  prepare initial conditions:
+    jac = flow_P.direct_jacobian([origin])[0]
+    jac_T = tf.transpose(jac)
+    jac_jac_T = tf.matmul(jac, jac_T)
+    eig, eigv = tf.linalg.eigh(jac_jac_T)
+    mode = 0
+    yinit = tf.concat([origin, eigv[:, 0], [eig[mode]]], axis=0)
+    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
+    solution_times = np.linspace(0., length, 200)
+
+    results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(eigenvalue_ode_abs_temp, initial_time=0., initial_state=yinit, solution_times=solution_times)
+
+
+    plt.plot(abs_mode[:, 0], abs_mode[:, 1])
+    plt.plot(results.states[:, 0], results.states[:, 1])
+
+
 
     # obtain PCA modes that pass through MAP:
     y0 = maximum_posterior.astype(np.float32)
