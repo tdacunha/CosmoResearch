@@ -4,15 +4,16 @@
 General code to analyze examples
 
 For testing purposes:
-"""
+
 import example_3_generate as example
 
 posterior_chain = example.posterior_chain
 prior_chain = example.prior_chain
 param_names = posterior_chain.getParamNames().list()
 outroot = example.out_folder
-train_params={}
-
+train_params = {}
+param_ranges = None
+"""
 
 ###############################################################################
 # initial imports:
@@ -105,10 +106,10 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     # obtain posterior on grid from samples:
     density = posterior_chain.get2DDensity(param_names[0], param_names[1], normalized=True)
     _X, _Y = np.meshgrid(density.x, density.y)
+    density.P = density.P / simps(simps(density.P, density.y), density.x)
 
     # levels for contour plots:
     levels_5 = [utilities.from_sigma_to_confidence(i) for i in range(5, 1, -1)]
-    levels_5 = [utilities.from_sigma_to_confidence(i) for i in range(3, 1, -1)]
     levels_3 = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
 
     ###########################################################################
@@ -117,7 +118,10 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
 
     N = 10000
     X_sample = np.array(flow_P.sample(N))
-    flow_chain = MCSamples(samples=X_sample, names=param_names, label='Learned distribution')
+    flow_chain = MCSamples(samples=X_sample,
+                           loglikes = -flow_P.log_probability(X_sample).numpy(),
+                           names=param_names,
+                           label='Learned distribution')
 
     g = plots.get_subplot_plotter()
     g.triangle_plot([posterior_chain, flow_chain], params=param_names, filled=False)
@@ -141,6 +145,27 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'2_log_prob_distribution.pdf')
+
+    ###########################################################################
+    # Plot samples:
+    ###########################################################################
+
+    # in parameter space:
+    plt.figure(figsize=figsize)
+    plt.scatter(flow_chain.samples[:, 0], flow_chain.samples[:, 1], s=0.3, c=flow_chain.loglikes)
+    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
+    plt.savefig(outroot+'2_learned_distribution_samples.pdf')
+
+    # in abstract space:
+    abstract_samples = flow_P.map_to_abstract_coord(flow_chain.samples)
+    plt.figure(figsize=figsize)
+    plt.scatter(abstract_samples[:, 0], abstract_samples[:, 1], s=0.3, c=flow_chain.loglikes)
+    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.tight_layout()
+    plt.savefig(outroot+'2_learned_distribution_samples_abstract.pdf')
 
     ###########################################################################
     # Plot log determinant of metric:
