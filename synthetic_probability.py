@@ -361,28 +361,6 @@ class DiffFlowCallback(Callback):
 
         self.model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate), loss=loss)
 
-    def _init_geometry(self):
-        """
-        Initialize geometry calculations
-        """
-        # initialize the tensorflow tape for the gradient:
-        self._coord_x = tf.Variable(np.zeros(self.num_params, dtype=np.float32)) # need to change this
-        self._coord_z = tf.Variable(np.zeros(self.num_params, dtype=np.float32)) # need to change this
-
-        self.gradient_tape = tf.GradientTape(watch_accessed_variables=False, persistent=True)
-        self.delta = tf.Variable(np.zeros(self.num_params, dtype=np.float32))
-        with self.gradient_tape:
-            self.gradient_tape.watch(self.delta)
-            f = self.Z2X_bijector(self._coord_z + self.delta)
-        self.f = f
-
-        # initialize tape for inverse bijector (X2Z):
-        self.gradient_tape_inv = tf.GradientTape(watch_accessed_variables=False, persistent=True)
-        self.delta_inv = tf.Variable(np.zeros(self.num_params, dtype=np.float32))
-        with self.gradient_tape_inv:
-            self.gradient_tape_inv.watch(self.delta_inv)
-            f_inv = self.Z2X_bijector.inverse(self._coord_x + self.delta_inv)
-        self.f_inv = f_inv
 
     def train(self, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, **kwargs):
         """
