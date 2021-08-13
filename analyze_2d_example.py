@@ -428,7 +428,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     # plot PCA eigenvalues
     mode = 0
     plt.figure(figsize=figsize)
-    pc = plt.pcolormesh(X, Y, PCA_eig[:, mode].reshape(200,200), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='First mode')
+    pc = plt.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='First mode')
     colorbar = plt.colorbar(pc)
     # plot contours
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
@@ -443,7 +443,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
 
     mode = 1
     plt.figure(figsize=figsize)
-    pc = plt.pcolormesh(X, Y, PCA_eig[:, mode].reshape(200,200), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='Second mode')
+    pc = plt.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='Second mode')
     colorbar = plt.colorbar(pc)
     # plot contours
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
