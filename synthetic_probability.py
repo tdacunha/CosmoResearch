@@ -68,6 +68,14 @@ except ModuleNotFoundError:
 # helper class to build a masked-autoregressive flow:
 
 
+class shift_and_log_scale_fn_helper(tf.Module):
+    def __init__(self, made, name=None):
+        super(shift_and_log_scale_fn_helper, self).__init__(name=name)
+        self.made = made
+        self._made_variables = made.variables
+    def __call__(self, x):
+        return tf.exp(-0.05*tf.norm(x, ord=2, axis=-1, keepdims=False)**2)[...,None,None] * self.made(x)
+
 class SimpleMAF(object):
     """
     A class to implement a simple Masked AutoRegressive Flow (MAF) using the implementation :class:`tfp.bijectors.AutoregressiveNetwork` from from `Tensorflow Probability <https://www.tensorflow.org/probability/>`_. Additionally, this class provides utilities to load/save models, including random permutations.
@@ -112,11 +120,23 @@ class SimpleMAF(object):
 
         # Build transformed distribution
         bijectors = []
+
+        mafs = []
+        mades = []
         for i in range(n_maf):
             if _permutations:
                 bijectors.append(tfb.Permute(_permutations[i].astype(np.int32)))
             made = tfb.AutoregressiveNetwork(params=2, event_shape=event_shape, hidden_units=hidden_units, activation=activation, kernel_initializer=kernel_initializer, **kwargs)
-            bijectors.append(tfb.MaskedAutoregressiveFlow(shift_and_log_scale_fn=made))
+            shift_and_log_scale_fn = shift_and_log_scale_fn_helper(made)
+            maf = tfb.MaskedAutoregressiveFlow(shift_and_log_scale_fn=shift_and_log_scale_fn)
+            bijectors.append(maf)
+            
+            if _permutations: # add the inverse permutation
+                inv_perm = np.zeros_like(_permutations[i])
+                inv_perm[_permutations[i]] = np.arange(len(inv_perm))
+                print(_permutations[i])
+                print(inv_perm)
+                bijectors.append(tfb.Permute(inv_perm.astype(np.int32)))
 
         self.bijector = tfb.Chain(bijectors)
 
