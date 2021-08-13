@@ -244,9 +244,6 @@ class DiffFlowCallback(Callback):
         # internal variables:
         self.is_trained = False
 
-        # initialize geometry:
-        self._init_geometry()
-
     def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1):
         """
         Add documentation
