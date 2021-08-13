@@ -16,7 +16,8 @@ sys.path.insert(0, temp_path)
 import getdist
 from getdist import plots, MCSamples
 from getdist.gaussian_mixtures import GaussianND
-
+import analyze_2d_example
+import importlib
 ###############################################################################
 # initial settings:
 
@@ -24,6 +25,9 @@ from getdist.gaussian_mixtures import GaussianND
 out_folder = './results/example_1/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
+
+# number of samples:
+n_samples = 100000
 
 ###############################################################################
 # define the pdf from the DES samples:
@@ -46,6 +50,7 @@ prior_distribution = GaussianND(prior_mean, prior_cov,
                                 names=['theta_'+str(i+1) for i in range(len(param_names))],
                                 labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
                                 label='prior')
+prior_chain = prior_distribution.MCSamples(n_samples)
 
 # posterior distribution:
 posterior_mean = chain.getMeans([chain.index[name] for name in param_names])
@@ -54,6 +59,7 @@ posterior_distribution = GaussianND(posterior_mean, posterior_cov,
                                     names=['theta_'+str(i+1) for i in range(len(param_names))],
                                     labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
                                     label='posterior')
+posterior_chain = posterior_distribution.MCSamples(n_samples)
 
 ###############################################################################
 # test plot if called directly:

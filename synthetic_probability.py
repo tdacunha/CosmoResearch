@@ -264,9 +264,6 @@ class DiffFlowCallback(Callback):
         # internal variables:
         self.is_trained = False
 
-        # initialize geometry:
-        self._init_geometry()
-
     def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1):
         """
         Add documentation
@@ -381,28 +378,6 @@ class DiffFlowCallback(Callback):
 
         self.model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate), loss=loss)
 
-    def _init_geometry(self):
-        """
-        Initialize geometry calculations
-        """
-        # initialize the tensorflow tape for the gradient:
-        self._coord_x = tf.Variable(np.zeros(self.num_params, dtype=np.float32)) # need to change this
-        self._coord_z = tf.Variable(np.zeros(self.num_params, dtype=np.float32)) # need to change this
-
-        self.gradient_tape = tf.GradientTape(watch_accessed_variables=False, persistent=True)
-        self.delta = tf.Variable(np.zeros(self.num_params, dtype=np.float32))
-        with self.gradient_tape:
-            self.gradient_tape.watch(self.delta)
-            f = self.Z2X_bijector(self._coord_z + self.delta)
-        self.f = f
-
-        # initialize tape for inverse bijector (X2Z):
-        self.gradient_tape_inv = tf.GradientTape(watch_accessed_variables=False, persistent=True)
-        self.delta_inv = tf.Variable(np.zeros(self.num_params, dtype=np.float32))
-        with self.gradient_tape_inv:
-            self.gradient_tape_inv.watch(self.delta_inv)
-            f_inv = self.Z2X_bijector.inverse(self._coord_x + self.delta_inv)
-        self.f_inv = f_inv
 
     def train(self, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, **kwargs):
         """
@@ -536,24 +511,6 @@ class DiffFlowCallback(Callback):
         Computes the metric at a given point or array of points in (original) parameter space
         """
         # compute Jacobian:
-        jac = self.direct_jacobian(coord)
-        # take the transpose (we need to calculate the indexes that we want to swap):
-        trailing_axes = [-1, -2]
-        leading = tf.range(tf.rank(jac) - len(trailing_axes))
-        trailing = trailing_axes + tf.rank(jac)
-        new_order = tf.concat([leading, trailing], axis=0)
-        jac_T = tf.transpose(jac, new_order)
-        # compute metric:
-        metric = tf.linalg.matmul(jac, jac_T)
-        #
-        return metric
-
-    @tf.function()
-    def inverse_metric(self, coord):
-        """
-        Computes the inverse metric at a given point or array of points in (original) parameter space
-        """
-        # compute Jacobian:
         jac = self.inverse_jacobian(coord)
         # take the transpose (we need to calculate the indexes that we want to swap):
         trailing_axes = [-1, -2]
@@ -563,6 +520,24 @@ class DiffFlowCallback(Callback):
         jac_T = tf.transpose(jac, new_order)
         # compute metric:
         metric = tf.linalg.matmul(jac_T, jac)
+        #
+        return metric
+
+    @tf.function()
+    def inverse_metric(self, coord):
+        """
+        Computes the inverse metric at a given point or array of points in (original) parameter space
+        """
+        # compute Jacobian:
+        jac = self.direct_jacobian(coord)
+        # take the transpose (we need to calculate the indexes that we want to swap):
+        trailing_axes = [-1, -2]
+        leading = tf.range(tf.rank(jac) - len(trailing_axes))
+        trailing = trailing_axes + tf.rank(jac)
+        new_order = tf.concat([leading, trailing], axis=0)
+        jac_T = tf.transpose(jac, new_order)
+        # compute metric:
+        metric = tf.linalg.matmul(jac, jac_T)
         #
         return metric
 
@@ -613,30 +588,41 @@ class DiffFlowCallback(Callback):
         """
         inv_metric = self.inverse_metric(coord)
         metric_derivative = self.coord_metric_derivative(coord)
-        term1 = tf.einsum("...ijk -> ...jik", metric_derivative)
-        term2 = tf.einsum("...ijk -> ...kij", metric_derivative)
-        connection = 0.5*tf.einsum("...ij, ...jkl -> ...ikl", inv_metric, term1 + term2 - metric_derivative)
+        # rearrange indexes:
+        term_1 = tf.einsum("...kjl -> ...jkl", metric_derivative)
+        term_2 = tf.einsum("...lik -> ...ikl", metric_derivative)
+        term_3 = tf.einsum("...kli -> ...ikl", metric_derivative)
+        # compute
+        connection = 0.5*tf.einsum("...ij,...jkl-> ...ikl", inv_metric, term_1 + term_2 - term_3)
         #
         return connection
 
     @tf.function()
     def geodesic_ode(self, t, y):
         # unpack position and velocity:
-        y0 = y[:self.num_params]
-        yprime = y[self.num_params:]
+        pos = y[:self.num_params]
+        vel = y[self.num_params:]
         # compute geodesic equation:
-        yprimeprime = -tf.einsum("...ijk, ...j, ...k -> ...i", self.levi_civita_connection(tf.convert_to_tensor([y0])), tf.convert_to_tensor([yprime]), tf.convert_to_tensor([yprime]))
+        acc = -tf.einsum("...ijk, ...j, ...k -> ...i", self.levi_civita_connection(tf.convert_to_tensor([pos])), tf.convert_to_tensor([vel]), tf.convert_to_tensor([vel]))
         #
-        return tf.concat([yprime, yprimeprime[0]], axis=0)
+        return tf.concat([vel, acc[0]], axis=0)
 
     @tf.function()
-    def solve_geodesic(self, y0, yprime0, solution_times, **kwargs):
+    def solve_geodesic(self, y_init, yprime_init, solution_times, **kwargs):
         # prepare initial conditions:
-        tf.concat([y0, yprime0], axis=0)
+        y0 = tf.concat([y_init, yprime_init], axis=0)
         # solve with explicit solver:
-        results = tfp.math.ode.DormandPrince().solve(self.geodesic_ode, initial_time=0., initial_state=y0, solution_times=solution_times, **kwargs)
+        results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(self.geodesic_ode, initial_time=0., initial_state=y0, solution_times=solution_times, **kwargs)
         #
         return results
+
+    @tf.function()
+    def geodesic_distance(self, coord_1, coord_2):
+        # map to abstract coordinates:
+        abs_coord_1 = self.map_to_abstract_coord(coord_1)
+        abs_coord_2 = self.map_to_abstract_coord(coord_2)
+        # metric there is Euclidean:
+        return tf.linalg.norm(abs_coord_1-abs_coord_2)
 
     @tf.function()
     def eigenvalue_ode(self, t, y, n):
@@ -650,7 +636,7 @@ class DiffFlowCallback(Callback):
     @tf.function()
     def solve_eigenvalue_ode(self, y0, solution_times, n, **kwargs):
         # solve with explicit solver:
-        results = tfp.math.ode.DormandPrince().solve(self.eigenvalue_ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': n})
+        results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(self.eigenvalue_ode, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': n})
         #
         return results
 
