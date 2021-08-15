@@ -27,12 +27,10 @@ import analyze_2d_example
 
 import example_1_generate as example
 
+# run posterior:
 analyze_2d_example.run_example_2d(posterior_chain=example.posterior_chain,
-                                  prior_chain=example.prior_chain,
                                   param_names=example.posterior_chain.getParamNames().list(),
                                   param_ranges = [[0.0, 0.5], [0.3, 1.5]],
-                                  outroot=example.out_folder)
-
-
+                                  outroot=example.out_folder+'posterior_')
 
 pass

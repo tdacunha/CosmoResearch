@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Generate data for example: multi-modal
+Generate data for example: flat degeneracy
 """
 
 ###############################################################################
@@ -37,26 +37,16 @@ cache_file = out_folder+'example_4_cache.plk'
 ###############################################################################
 # define the pdf:
 
-mean_1 = [+0.5, +0.5]
-mean_2 = [-0.5, -0.5]
-sigma_1 = 0.17
-sigma_2 = 0.17
-weights = [1., 1.]
 
-
-def log_pdf(theta, theta0=mean_1, sigma0=sigma_1, theta1=mean_2, sigma1=sigma_2, weights=weights):
+def log_pdf(theta, theta0=[0., 0.], rsigma=0.1):
     x, y = theta
     x0, y0 = theta0
-    x1, y1 = theta1
-    r0 = (x-x0)**2+(y-y0)**2
-    r1 = (x-x1)**2+(y-y1)**2
-    p0 = np.exp(-0.5*r0/sigma0**2)/(2.*np.pi*sigma0**2)
-    p1 = np.exp(-0.5*r1/sigma1**2)/(2.*np.pi*sigma1**2)
-    return np.log(weights[0]*p0 + weights[1]*p1)
+    r = (x-x0) - (y-y0)**3
+    return -0.5*r**2/rsigma**2
 
 
 # prior:
-prior = [-2., 2.]
+prior = [-1., 1.]
 
 # if the cache file exists load it, otherwise generate it:
 if os.path.isfile(cache_file):

@@ -13,7 +13,7 @@ prior_chain = example.prior_chain
 param_names = posterior_chain.getParamNames().list()
 outroot = example.out_folder
 train_params = {}
-param_ranges = None
+param_ranges = [[0.0, 0.6], [0.4, 1.5]]
 """
 
 ###############################################################################
@@ -35,6 +35,7 @@ from scipy.integrate import simps
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import scipy.stats
+import matplotlib.gridspec as gridspec
 
 # import the tensiometer tools that we need:
 from tensiometer import utilities
@@ -67,7 +68,7 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
 
 ###############################################################################
 
-def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ranges=None, train_params={}):
+def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, train_params={}):
     """
     Run full analysis of 2d example case, as in flow playground
     """
@@ -78,8 +79,8 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
 
     # parameter ranges for plotting from the prior:
     if param_ranges is None:
-        param_ranges = np.array([np.amin(prior_chain.samples, axis=0), np.amax(prior_chain.samples, axis=0)]).T
-        param_ranges = param_ranges[[prior_chain.index[name] for name in param_names], :]
+        param_ranges = np.array([np.amin(posterior_chain.samples, axis=0), np.amax(posterior_chain.samples, axis=0)]).T
+        param_ranges = param_ranges[[posterior_chain.index[name] for name in param_names], :]
 
     # parameter labels:
     param_labels = [name.label for name in posterior_chain.getParamNames().parsWithNames(param_names)]
@@ -117,6 +118,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     # Plot learned distribution from samples:
     ###########################################################################
 
+    # feedback:
+    print('1) learned posterior')
+
     N = 10000
     X_sample = np.array(flow_P.sample(N))
     flow_chain = MCSamples(samples=X_sample,
@@ -133,6 +137,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     # Plot learned distribution using flow log probability (and samples):
     ###########################################################################
 
+    # feedback:
+    print('2) learned posterior from samples')
+
     # compute flow probability on a grid:
     log_P = flow_P.log_probability(np.array([X, Y], dtype=np.float32).T)
     log_P = np.array(log_P).T
@@ -141,10 +148,11 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
 
     # plot learned contours
     plt.figure(figsize=figsize)
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_5), linewidths=1., linestyles='--', colors=['red' for i in levels_5])
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5], label='flow')
+    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_5), linewidths=1., linestyles='--', colors=['red' for i in levels_5], label='samples')
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.legend()
     plt.tight_layout()
     plt.savefig(outroot+'2_log_prob_distribution.pdf')
     plt.close('all')
@@ -153,28 +161,30 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     # Plot samples:
     ###########################################################################
 
+    # transfer samples in abstract space:
+    abstract_samples = flow_P.map_to_abstract_coord(flow_chain.samples)
+
     # in parameter space:
-    plt.figure(figsize=figsize)
-    plt.scatter(flow_chain.samples[:, 0], flow_chain.samples[:, 1], s=0.3, c=flow_chain.loglikes)
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    plt.figure(figsize=(2*figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 2)
+    ax1 = plt.subplot(gs[0, 0])
+    ax2 = plt.subplot(gs[0, 1])
+    ax1.scatter(flow_chain.samples[:, 0], flow_chain.samples[:, 1], s=0.3, c=flow_chain.loglikes)
+    ax2.scatter(abstract_samples[:, 0], abstract_samples[:, 1], s=0.3, c=flow_chain.loglikes)
+    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+    ax2.set_xlabel('$Z_1$', fontsize=fontsize)
+    ax2.set_ylabel('$Z_2$', fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'2_learned_distribution_samples.pdf')
-    plt.close('all')
-
-    # in abstract space:
-    abstract_samples = flow_P.map_to_abstract_coord(flow_chain.samples)
-    plt.figure(figsize=figsize)
-    plt.scatter(abstract_samples[:, 0], abstract_samples[:, 1], s=0.3, c=flow_chain.loglikes)
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-    plt.tight_layout()
-    plt.savefig(outroot+'2_learned_distribution_samples_abstract.pdf')
     plt.close('all')
 
     ###########################################################################
     # Plot log determinant of metric:
     ###########################################################################
+
+    # feedback:
+    print('3) log determinant')
 
     # compute log determinant of metric:
     log_det = flow_P.log_det_metric(np.array([X, Y], dtype=np.float32).T)
@@ -199,6 +209,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     # Plot maximum posterior and mean:
     ###########################################################################
 
+    # feedback:
+    print('4) MAP and mean')
+
     # find the MAP:
     result = flow_P.MAP_finder(disp=True)
     maximum_posterior = result.x
@@ -222,6 +235,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     ###########################################################################
     # Plot comparison of covariance metric, fisher metric,
     ###########################################################################
+
+    # feedback:
+    print('5) global covariance')
 
     # covariance from samples
     cov_samples = posterior_chain.cov(pars=param_names)
@@ -272,6 +288,9 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     # trace geodesics in abstract space passing from the maximum posterior
     ###########################################################################
 
+    # feedback:
+    print('6) abstract geodesics')
+
     # find where the MAP goes:
     map_image = flow_P.map_to_abstract_coord(np.array(maximum_posterior, dtype=np.float32))
 
@@ -311,10 +330,14 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'6_abstract_geodesics_in_parameter_space.pdf')
+    plt.close('all')
 
     ###############################################################################
     # Plot of asymptotic structure
     ###############################################################################
+
+    # feedback:
+    print('7) asymptotic structure')
 
     # compute PCA of global covariance of samples:
     eig, eigv = np.linalg.eigh(cov_samples)
@@ -370,10 +393,14 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'7_asymptotic_structure_of_geodesics.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plot of local metric eigenvectors
     ###########################################################################
+
+    # feedback:
+    print('8) local metric eigenvectors')
 
     # restructure meshgrid of points to give an array of coordinates
     coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
@@ -414,11 +441,14 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'8_local_metric_PCA.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plots of local metric eigenvalues
     ###########################################################################
 
+    # feedback:
+    print('9) local metric eigenvalues')
 
     coords = np.array([X, Y], dtype=np.float32).reshape(2, -1).T
 
@@ -448,6 +478,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'8_local_metric_PCA_eig0.pdf')
+    plt.close('all')
 
     mode = 1
     plt.figure(figsize=figsize)
@@ -462,12 +493,15 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
-
     plt.savefig(outroot+'8_local_metric_PCA_eig1.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plot geodesics around MAP:
     ###########################################################################
+
+    # feedback:
+    print('10) geodesics around MAP')
 
     # define function to rotate vector by set angle theta:
     def rot(v, theta):
@@ -506,6 +540,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.savefig(outroot+'9_geodesics_around_MAP.pdf')
+    plt.close('all')
 
     # plot geodesics in abstract space:
     plt.figure(figsize=figsize)
@@ -524,120 +559,65 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'10_geodesics_in_abstract_space.pdf')
+    plt.close('all')
 
     ###########################################################################
     # Plot eigenvalue network:
     ###########################################################################
 
-    @tf.function()
-    def eigenvalue_ode_temp(t, y, n, side=1.):
-        # compute metric:
-        metric = flow_P.metric(tf.convert_to_tensor([y]))
-        # compute eigenvalues:
-        eig, eigv = tf.linalg.eigh(metric[0])
-        #
-        return side * eigv[:, n] / tf.sqrt(eig[n])
+    # feedback:
+    print('11) PCA flow')
 
-    @tf.function()
-    def solve_eigenvalue_ode_temp(y0, solution_times, n, side=1., **kwargs):
-        # solve with explicit solver:
-        results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(eigenvalue_ode_temp, initial_time=0., initial_state=y0, solution_times=solution_times, constants={'n': n, 'side': side})
-        #
-        return results
-
-    def helper_solve_geo(y0, n, length=1.5, num_points=100):
-        solution_times = np.linspace(0., length, num_points)
-        temp_sol_1 = solve_eigenvalue_ode_temp(y0, solution_times, n=n, side=1.)
-        temp_sol_2 = solve_eigenvalue_ode_temp(y0, solution_times, n=n, side=-1.)
-        times = tf.concat([-temp_sol_2.times[1:][::-1], temp_sol_1.times], axis=0)
-        traj = tf.concat([temp_sol_2.states[1:][::-1], temp_sol_1.states], axis=0)
-        #
-        return times, traj
-
-
-    # solve one pca problem in param space:
+    # lines along the global principal components:
     y0 = maximum_posterior.astype(np.float32)
-    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
-    time, mode = helper_solve_geo(y0, n=0, length=2.*length, num_points=100)
+    cov_samples = posterior_chain.cov(pars=param_names)
+    _, eigv = np.linalg.eigh(cov_samples)
 
-    # bring solution to abstract space:
-    origin = flow_P.map_to_abstract_coord(y0)
-    abs_mode = flow_P.map_to_abstract_coord(mode)
+    # even spacing along straight lines from global PCA:
+    # mode 0:
+    #mode = 0
+    #temp = np.array([(np.amin(P1) - y0[0]) / eigv[0, mode],
+    #                 (np.amin(P2) - y0[1]) / eigv[1, mode],
+    #                 (np.amax(P1) - y0[0]) / eigv[0, mode],
+    #                 (np.amax(P2) - y0[1]) / eigv[1, mode]])
+    #alpha_min = np.amax(temp[temp < 0])
+    #alpha_max = np.amin(temp[temp > 0])
+    #alpha = np.linspace(alpha_min, alpha_max, 10)
+    #start_0 = np.array([y0[0]+alpha*eigv[0, mode], y0[1]+alpha*eigv[1, mode]]).astype(np.float32).T
+    ## mode 1:
+    #mode = 1
+    #temp = np.array([(np.amin(P1) - y0[0]) / eigv[0, mode],
+    #                 (np.amin(P2) - y0[1]) / eigv[1, mode],
+    #                 (np.amax(P1) - y0[0]) / eigv[0, mode],
+    #                 (np.amax(P2) - y0[1]) / eigv[1, mode]])
+    #alpha_min = np.amax(temp[temp < 0])
+    #alpha_max = np.amin(temp[temp > 0])
+    #alpha = np.linspace(alpha_min, alpha_max, 10)
+    #start_1 = np.array([y0[0]+alpha*eigv[0, mode], y0[1]+alpha*eigv[1, mode]]).astype(np.float32).T
 
-    # Jacobian derivative:
-    @tf.function()
-    def coord_jacobian_derivative(coord):
-        """
-        Compute the coordinate derivative of the Jacobian at a given point in (original) parameter space
-        """
-        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
-            tape.watch(coord)
-            f = flow_P.direct_jacobian(coord)
-        return tape.batch_jacobian(f, coord)
+    length = (flow_P.sigma_to_length(6)).astype(np.float32)
+    _, start_1 = flow_P.solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
+    _, start_0 = flow_P.solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
 
-    # solve problem in abstract space with Minsus equation:
-
-    @tf.function()
-    def eigenvalue_ode_abs_temp(t, y):
-        # unpack y:
-        x = tf.convert_to_tensor([y[:flow_P.num_params]])
-        w = tf.convert_to_tensor([y[flow_P.num_params:-1]])
-        alpha = tf.convert_to_tensor([y[-1]])
-        # precompute Jacobian and its derivative:
-        jac = flow_P.direct_jacobian(x)[0]
-        djac = coord_jacobian_derivative(x)[0]
-        jac_T = tf.transpose(jac)
-        jac_jac_T = tf.matmul(jac, jac_T)
-        I = tf.eye(flow_P.num_params)
-        dot_J = tf.einsum('k, ijk -> ji', w[0], djac)
-        # equation for alpha:
-        alpha_dot = 2.*tf.matmul(tf.matmul(w, jac), tf.matmul(dot_J, tf.transpose(w)))
-        # equation for wdot:
-        wdot_lhs = (jac_jac_T - tf.matmul(tf.matmul(w, jac_jac_T), tf.transpose(w))*I)
-        wdot_rhs = tf.matmul(alpha_dot - tf.matmul(dot_J, jac_T) -tf.matmul(jac, tf.transpose(dot_J)), tf.transpose(w))
-        w_dot = tf.linalg.solve(wdot_lhs, wdot_rhs)
-        w_dot = tf.matmul((I - tf.einsum('i,j->ij', w[0], tf.transpose(w[0]))), w_dot)
-        # equation for w:
-        x_dot = tf.transpose(w)
-        #
-        return tf.transpose(tf.concat([x_dot, w_dot, alpha_dot], axis=0))[0]
-
-    #  prepare initial conditions:
-    jac = flow_P.direct_jacobian([origin])[0]
-    jac_T = tf.transpose(jac)
-    jac_jac_T = tf.matmul(jac, jac_T)
-    eig, eigv = tf.linalg.eigh(jac_jac_T)
-    mode = 0
-    yinit = tf.concat([origin, eigv[:, 0], [eig[mode]]], axis=0)
-    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
-    solution_times = np.linspace(0., length, 200)
-
-    results = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(eigenvalue_ode_abs_temp, initial_time=0., initial_state=yinit, solution_times=solution_times)
-
-
-    plt.plot(abs_mode[:, 0], abs_mode[:, 1])
-    plt.plot(results.states[:, 0], results.states[:, 1])
-
-
-
-    # obtain PCA modes that pass through MAP:
-    y0 = maximum_posterior.astype(np.float32)
-    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
-    _, start_1 = helper_solve_geo(y0, n=0, length=2.*length, num_points=10)
-    _, start_0 = helper_solve_geo(y0, n=1, length=2.*length, num_points=5)
-
+    # solve:
     modes_0, modes_1 = [], []
-    plt.figure(figsize=figsize)
     for start in start_0:
-        _, mode = helper_solve_geo(start, n=0, length=2.*length, num_points=100)
+        _, mode = flow_P.solve_eigenvalue_ode_par(start, n=0, length=length, num_points=100)
         modes_0.append(mode)
-        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
     for start in start_1:
-        _, mode = helper_solve_geo(start, n=1, length=2.*length, num_points=100)
+        _, mode = flow_P.solve_eigenvalue_ode_par(start, n=1, length=length, num_points=100)
         modes_1.append(mode)
+
+    # plot:
+    plt.figure(figsize=figsize)
+    for mode in modes_0:
+        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
+    for mode in modes_1:
         plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
+
     plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
     plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+
     plt.xlim([np.amin(P1), np.amax(P1)])
     plt.ylim([np.amin(P2), np.amax(P2)])
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
@@ -665,23 +645,26 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.xlabel('$Z_{1}$', fontsize=fontsize)
     plt.ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
-    plt.savefig(outroot+'12_local_pca_flow_abstract.pdf')
+    plt.savefig(outroot+'11_local_pca_flow_abstract.pdf')
 
     ###########################################################################
     # Find principal eigenvalue flow:
     ###########################################################################
     from scipy.interpolate import interp1d
 
+    # feedback:
+    print('12) PCA')
+
     def expected_distance(y0, max_length, n1, n2, samples):
         # solve the pca equation:
-        time, mode = helper_solve_geo(y0, n=n1, length=max_length, num_points=100)
+        time, mode = flow_P.solve_eigenvalue_ode_par(y0, n=n1, length=max_length, num_points=100)
         # interpolate:
         interp_mode = interp1d(time, mode, kind='cubic', axis=0)
         # compute distances:
         distances = []
         for samp in samples:
             # solve:
-            time2, mode2 = helper_solve_geo(samp, n=n2, length=max_length, num_points=100)
+            time2, mode2 = flow_P.solve_eigenvalue_ode_par(samp, n=n2, length=max_length, num_points=100)
             # interpolate:
             interp_mode2 = interp1d(time2, mode2, kind='cubic', axis=0)
             # minimize distance:
@@ -689,7 +672,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
                 lambda_1, lambda_2 = y
                 return np.linalg.norm(interp_mode(lambda_1)-interp_mode2(lambda_2))
             result = scipy.optimize.minimize(_helper, [0., 0.],
-                                            bounds=[[-max_length, max_length], [-max_length, max_length]])
+                                             bounds=[[-max_length, max_length], [-max_length, max_length]])
             # append result:
             distances.append(result.x[1]**2)
         #
@@ -697,28 +680,28 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
 
     # general setup:
     y0 = maximum_posterior.astype(np.float32)
-    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
+    length = (flow_P.sigma_to_length(6)).astype(np.float32)
     # minimize for first mode:
-    time_0, start_0 = helper_solve_geo(y0, n=1, length=2.*length, num_points=100)
+    time_0, start_0 = flow_P.solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=100)
     interp_start = interp1d(time_0, start_0, kind='cubic', axis=0)
     num_samples = 100
     samples = flow_P.sample(num_samples)
     def _helper_temp(temp):
-        return expected_distance(interp_start(temp[0]).astype(np.float32), 2.*length, n1=0, n2=1, samples=samples)
+        return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=0, n2=1, samples=samples)
     result_0 = scipy.optimize.minimize(_helper_temp, [0.],
-                                     bounds=[[-length, length]], method='L-BFGS-B')
-    pca_mode_0_times, pca_mode_0 = helper_solve_geo(interp_start(result_0.x)[0].astype(np.float32), n=0, length=2.*length, num_points=100)
+                                       bounds=[[-length, length]], method='L-BFGS-B')
+    pca_mode_0_times, pca_mode_0 = flow_P.solve_eigenvalue_ode_par(interp_start(result_0.x)[0].astype(np.float32), n=0, length=length, num_points=100)
 
     # minimize for the second mode:
-    time_1, start_1 = helper_solve_geo(y0, n=0, length=2.*length, num_points=100)
+    time_1, start_1 = flow_P.solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=100)
     interp_start = interp1d(time_1, start_1, kind='cubic', axis=0)
     num_samples = 100
     samples = flow_P.sample(num_samples)
     def _helper_temp(temp):
-        return expected_distance(interp_start(temp[0]).astype(np.float32), 2.*length, n1=1, n2=0, samples=samples)
+        return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=1, n2=0, samples=samples)
     result_1 = scipy.optimize.minimize(_helper_temp, [0.],
                                      bounds=[[-length, length]], method='L-BFGS-B')
-    pca_mode_1_times, pca_mode_1 = helper_solve_geo(interp_start(result_1.x)[0].astype(np.float32), n=1, length=2.*length, num_points=100)
+    pca_mode_1_times, pca_mode_1 = flow_P.solve_eigenvalue_ode_par(interp_start(result_1.x)[0].astype(np.float32), n=1, length=length, num_points=100)
 
     # plot in parameter space:
     plt.figure(figsize=figsize)
@@ -735,7 +718,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
-    plt.savefig(outroot+'13_local_pca.pdf')
+    plt.savefig(outroot+'12_local_pca.pdf')
 
     # plot in abstract space:
     plt.figure(figsize=figsize)
@@ -761,7 +744,7 @@ def run_example_2d(posterior_chain, prior_chain, param_names, outroot, param_ran
     plt.xlabel('$Z_{1}$', fontsize=fontsize)
     plt.ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
-    plt.savefig(outroot+'14_local_pca_abstract.pdf')
+    plt.savefig(outroot+'12_local_pca_abstract.pdf')
 
     ###########################################################################
     # Run AI Feynman

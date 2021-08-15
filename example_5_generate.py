@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Generate data for example: flat degeneracy
+Generate data for example: multi-modal
 """
 
 ###############################################################################
@@ -24,7 +24,7 @@ from scipy import optimize
 # initial settings:
 
 # output folder:
-out_folder = './results/example_3/'
+out_folder = './results/example_5/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
@@ -32,19 +32,31 @@ if not os.path.exists(out_folder):
 n_samples = 100000
 
 # cache file:
-cache_file = out_folder+'example_3_cache.plk'
+cache_file = out_folder+'example_5_cache.plk'
 
 ###############################################################################
 # define the pdf:
 
-def log_pdf(theta, theta0=[0.0, -0.5], sigma0=0.5):
+mean_1 = [+0.5, +0.5]
+mean_2 = [-0.5, -0.5]
+sigma_1 = 0.17
+sigma_2 = 0.17
+weights = [1., 1.]
+
+
+def log_pdf(theta, theta0=mean_1, sigma0=sigma_1, theta1=mean_2, sigma1=sigma_2, weights=weights):
     x, y = theta
     x0, y0 = theta0
-    r2 = (x-x0)**2 + 20.*(-(y-y0) + 2.*(x-x0)**2)**2
-    return -0.5*r2/sigma0**2
+    x1, y1 = theta1
+    r0 = (x-x0)**2+(y-y0)**2
+    r1 = (x-x1)**2+(y-y1)**2
+    p0 = np.exp(-0.5*r0/sigma0**2)/(2.*np.pi*sigma0**2)
+    p1 = np.exp(-0.5*r1/sigma1**2)/(2.*np.pi*sigma1**2)
+    return np.log(weights[0]*p0 + weights[1]*p1)
+
 
 # prior:
-prior = [-1., 1.]
+prior = [-2., 2.]
 
 # if the cache file exists load it, otherwise generate it:
 if os.path.isfile(cache_file):
