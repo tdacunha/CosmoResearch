@@ -8,13 +8,15 @@ For testing purposes:
 import example_3_generate as example
 import example_2_generate as example
 import example_5_generate as example
+import example_1_generate as example
+
 
 posterior_chain = example.posterior_chain
 prior_chain = example.prior_chain
 param_names = posterior_chain.getParamNames().list()
 outroot = example.out_folder
 train_params = {}
-param_ranges = [[0.0, 0.6], [0.4, 1.5]]
+param_ranges = None #[[-1.5, 1.5], [-1.5, 1.5]] #None # [[0.0, 0.6], [0.4, 1.5]]
 """
 
 ###############################################################################
@@ -375,7 +377,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     scale_y = abs(np.amax(P2) - np.amin(P2))
     scale_r = np.linalg.norm([scale_x, scale_y])
 
-    r = np.linspace(-100000*scale_r, 100000.0*scale_r, 100)
+    r = np.linspace(-100000*scale_r, 100000.0*scale_r, 1000)
     t = 0.0
     geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
     geo_1 = flow_P.map_to_original_coord(geo.T)
@@ -384,8 +386,8 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     geo_2 = flow_P.map_to_original_coord(geo.T)
 
     # compute geodesics at range of angles:
-    r = np.linspace(0.0, 100000.0*scale_r, 100)
-    theta = np.linspace(0.0, 2.0*np.pi, 100)
+    r = np.linspace(0.0, 100000.0*scale_r, 1000)
+    theta = np.linspace(0.0, 2.0*np.pi, 1000)
     geodesics = []
     for t in theta:
         geo = np.array([map_image[0] + r*np.cos(t),
@@ -400,9 +402,11 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         plt.plot(*np.array(geo).T, color=cmap(ind/len(geodesics)), zorder=-10)
     plt.plot(*np.array(geo_1).T, color='k', ls='--', zorder=-10, label='$\\theta=0$')
     plt.plot(*np.array(geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
+    #plt.scatter(*np.array(geo_2).T, color='k', zorder=-10, label='$\\theta=\\pi/2$')
 
+    #print(np.array(geo_2).T)
     # plot PCA of covariance of samples
-    r = np.linspace(-100000*scale_r, 100000.0*scale_r, 100)
+    r = np.linspace(-100000*scale_r, 100000.0*scale_r, 1000)
     mode = 0
     plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
     mode = 1
