@@ -495,7 +495,6 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     # plot contours
     ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    #plt.legend()
     ax1.set_xlim([np.amin(P1), np.amax(P1)])
     ax1.set_ylim([np.amin(P2), np.amax(P2)])
     ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
@@ -508,7 +507,6 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     # plot contours
     ax2.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     ax2.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    #plt.legend()
     ax2.set_xlim([np.amin(P1), np.amax(P1)])
     ax2.set_ylim([np.amin(P2), np.amax(P2)])
     ax2.set_xlabel(param_labels_latex[0], fontsize=fontsize)
@@ -697,9 +695,6 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     y0 = maximum_posterior.astype(np.float32)
     length = (flow.sigma_to_length(6)).astype(np.float32)
 
-    #n = 0
-    #num_points = 100
-    #y0 = flow.map_to_abstract_coord(y0)
     _, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
     _, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
 
@@ -730,11 +725,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     ax1.set_ylim([np.amin(P2), np.amax(P2)])
     ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
     ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
-    #plt.tight_layout()
-    #plt.savefig(outroot+'11_local_pca_flow.pdf')
 
-    # plot in abstract space:
-    #plt.figure(figsize=figsize)
     for mode in modes_0:
         mode_abs = flow.map_to_abstract_coord(mode)
         ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
@@ -743,7 +734,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
         ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
 
     # print the iso-contours:
-    origin = [0,0]#flow.map_to_abstract_coord(y0)
+    origin = [0,0]
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
@@ -830,8 +821,6 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     ax1.set_ylim([np.amin(P2), np.amax(P2)])
     ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
     ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
-    #plt.tight_layout()
-    #plt.savefig(outroot+'12_local_pca.pdf')
 
     # plot in abstract space:
     for mode in modes_0:
