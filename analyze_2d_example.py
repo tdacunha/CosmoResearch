@@ -7,6 +7,7 @@ For testing purposes:
 
 import example_3_generate as example
 import example_2_generate as example
+import example_5_generate as example
 
 posterior_chain = example.posterior_chain
 prior_chain = example.prior_chain
@@ -549,7 +550,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
 
     # loop through angles and plot:
     geo_list = []
-    plt.figure(figsize=(2.4*figsize[0], figsize[1]))
+    plt.figure(figsize=(2*figsize[0], figsize[1]))
     gs = gridspec.GridSpec(1, 2)
     ax1 = plt.subplot(gs[0, 0])
     ax2 = plt.subplot(gs[0, 1])
@@ -748,12 +749,13 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
 
     # print the iso-contours:
-    origin = flow_P.map_to_abstract_coord(y0)
+    origin = [0,0]#flow_P.map_to_abstract_coord(y0)
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
         ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
-    ax2.scatter(origin[0], origin[1], color='k', zorder=999)
+    y0_abs = flow_P.map_to_abstract_coord(y0)
+    ax2.scatter(y0_abs[0], y0_abs[1], color='k', zorder=999)
 
     ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
     ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
