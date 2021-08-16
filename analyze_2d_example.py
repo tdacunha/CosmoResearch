@@ -212,22 +212,47 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     # feedback:
     print('4) MAP and mean')
 
-    # find the MAP:
+    # find the MAP in parameter space:
     result = flow_P.MAP_finder(disp=True)
     maximum_posterior = result.x
     # mean:
     mean = posterior_chain.getMeans([posterior_chain.index[name] for name in param_names])
 
-    # plot contours with MAP and mean
-    plt.figure(figsize=figsize)
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='green', label='MAP: (%.3f, %.3f)' %(maximum_posterior[0],maximum_posterior[1]))
-    plt.scatter(mean[0], mean[1], color='red', label='mean: (%.3f, %.3f)' %(mean[0],mean[1]))
-    plt.legend()
-    plt.xlim([np.amin(P1), np.amax(P1)])
-    plt.ylim([np.amin(P2), np.amax(P2)])
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    # find in abstract space:
+    maximum_posterior_abs = flow_P.map_to_abstract_coord(maximum_posterior.astype(np.float32))
+    mean_abs = flow_P.map_to_abstract_coord(mean.astype(np.float32))
+
+
+    plt.figure(figsize=(2*figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 2)
+    ax1 = plt.subplot(gs[0, 0])
+    ax2 = plt.subplot(gs[0, 1])
+    # plot contours with MAP and mean in parameter space:
+    ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='green', label='MAP: (%.3f, %.3f)' %(maximum_posterior[0],maximum_posterior[1]))
+    ax1.scatter(mean[0], mean[1], color='red', label='mean: (%.3f, %.3f)' %(mean[0],mean[1]))
+    ax1.legend()
+    ax1.set_xlim([np.amin(P1), np.amax(P1)])
+    ax1.set_ylim([np.amin(P2), np.amax(P2)])
+    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+
+    # plot contours with MAP and mean in abstract space:
+
+    # print the iso-contours:
+    origin = [0,0]#flow_P.map_to_abstract_coord(y0)
+    theta = np.linspace(0.0, 2.*np.pi, 200)
+    for i in range(4):
+        _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
+        ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='k')
+    ax2.scatter(maximum_posterior_abs[0], maximum_posterior_abs[1], color='green', label='MAP: (%.3f, %.3f)' %(maximum_posterior_abs[0],maximum_posterior_abs[1]))
+    ax2.scatter(mean_abs[0], mean_abs[1], color='red', label='mean: (%.3f, %.3f)' %(mean_abs[0],mean_abs[1]))
+    ax2.legend()
+    #ax2.xlim([np.amin(P1), np.amax(P1)])
+    #ax2.ylim([np.amin(P2), np.amax(P2)])
+    ax2.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax2.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+
     plt.tight_layout()
     plt.savefig(outroot+'4_maximum_posterior_and_sample_mean.pdf')
     plt.close('all')
@@ -464,36 +489,39 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     PCA_eigv = PCA_eigv[:, :, idx]
 
     # plot PCA eigenvalues
+    plt.figure(figsize=(2.4*figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 2)
+    ax1 = plt.subplot(gs[0, 0])
+    ax2 = plt.subplot(gs[0, 1])
+
     mode = 0
-    plt.figure(figsize=figsize)
-    pc = plt.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='First mode')
-    colorbar = plt.colorbar(pc)
+    pc = ax1.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='First mode')
+    colorbar = plt.colorbar(pc, ax = ax1)
     # plot contours
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
     #plt.legend()
-    plt.xlim([np.amin(P1), np.amax(P1)])
-    plt.ylim([np.amin(P2), np.amax(P2)])
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-    plt.tight_layout()
-    plt.savefig(outroot+'8_local_metric_PCA_eig0.pdf')
-    plt.close('all')
+    ax1.set_xlim([np.amin(P1), np.amax(P1)])
+    ax1.set_ylim([np.amin(P2), np.amax(P2)])
+    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+    ax1.set_title('Mode 0')
 
     mode = 1
-    plt.figure(figsize=figsize)
-    pc = plt.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='Second mode')
-    colorbar = plt.colorbar(pc)
+    pc = ax2.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='Second mode')
+    colorbar = plt.colorbar(pc, ax = ax2)
     # plot contours
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax2.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    ax2.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
     #plt.legend()
-    plt.xlim([np.amin(P1), np.amax(P1)])
-    plt.ylim([np.amin(P2), np.amax(P2)])
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    ax2.set_xlim([np.amin(P1), np.amax(P1)])
+    ax2.set_ylim([np.amin(P2), np.amax(P2)])
+    ax2.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax2.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+    ax2.set_title('Mode 1')
+
     plt.tight_layout()
-    plt.savefig(outroot+'8_local_metric_PCA_eig1.pdf')
+    plt.savefig(outroot+'9_local_metric_PCA_eigs.pdf')
     plt.close('all')
 
     ###########################################################################
@@ -521,7 +549,11 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
 
     # loop through angles and plot:
     geo_list = []
-    plt.figure(figsize=figsize)
+    plt.figure(figsize=(2.4*figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 2)
+    ax1 = plt.subplot(gs[0, 0])
+    ax2 = plt.subplot(gs[0, 1])
+
     theta_arr = np.linspace(0.0, 2.0*np.pi, 30)
     for ind, theta in enumerate(theta_arr):
         yprime = rot(yprime_init, theta).astype(np.float32)
@@ -532,33 +564,37 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         geo = results.states[:, 0:2]
         geo_list.append(geo)
         #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
-        plt.plot(results.states[:, 0], results.states[:, 1], ls='--', color=cmap(ind/len(theta_arr)))
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    plt.xlim([np.amin(P1), np.amax(P1)])
-    plt.ylim([np.amin(P2), np.amax(P2)])
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-    plt.savefig(outroot+'9_geodesics_around_MAP.pdf')
-    plt.close('all')
+        ax1.plot(results.states[:, 0], results.states[:, 1], ls='--', color=cmap(ind/len(theta_arr)))
+    ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax1.set_xlim([np.amin(P1), np.amax(P1)])
+    ax1.set_ylim([np.amin(P2), np.amax(P2)])
+    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+
 
     # plot geodesics in abstract space:
-    plt.figure(figsize=figsize)
     for ind, geo in enumerate(geo_list):
         geo = np.array(geo)
         geo_abs = flow_P.map_to_abstract_coord(geo)
-        plt.plot(*np.array(geo_abs).T, ls='--', color=cmap(ind/len(geo_list)))
+        ax2.plot(*np.array(geo_abs).T, ls='--', color=cmap(ind/len(geo_list)))
 
-    # print the iso-contours:
+    # plot the iso-contour:
     origin = flow_P.map_to_abstract_coord(y_init)
     theta = np.linspace(0.0, 2.*np.pi, 200)
-    plt.plot(origin[0]+length*np.sin(theta), origin[1]+length*np.cos(theta), ls='--', lw=1., color='k')
-    plt.scatter(origin[0], origin[1], color='k', zorder=999)
+    ax2.plot(origin[0]+length*np.sin(theta), origin[1]+length*np.cos(theta), ls='--', lw=1., color='k', label = 'Contour centered at MAP')
+    ax2.scatter(origin[0], origin[1], color='k', zorder=999)
 
-    plt.xlabel('$Z_{1}$', fontsize=fontsize)
-    plt.ylabel('$Z_{2}$', fontsize=fontsize)
+    # now also plot the iso-contours centered at zero:
+    origin = [0,0]
+    ax2.plot(origin[0]+length*np.sin(theta), origin[1]+length*np.cos(theta), ls='--', lw=1., color='k', alpha = .3, label = 'Contour centered at zero')
+
+    #plt.legend()
+    ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
+    ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
+
     plt.tight_layout()
-    plt.savefig(outroot+'10_geodesics_in_abstract_space.pdf')
+    plt.savefig(outroot+'10_geodesics_around_MAP.pdf')
     plt.close('all')
 
     ###########################################################################
@@ -665,6 +701,9 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     # lines along the global principal components:
     y0 = maximum_posterior.astype(np.float32)
     length = (flow_P.sigma_to_length(6)).astype(np.float32)
+    from tensiometer import utilities as utils #edited by tara
+    #length = np.sqrt(scipy.stats.chi2.isf(1. - utils.from_sigma_to_confidence(6), flow_P.num_params))
+
     #n = 0
     #num_points = 100
     #y0 = flow_P.map_to_abstract_coord(y0)
@@ -681,41 +720,45 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         modes_1.append(mode)
 
     # plot:
-    plt.figure(figsize=figsize)
+    plt.figure(figsize=(2*figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 2)
+    ax1 = plt.subplot(gs[0, 0])
+    ax2 = plt.subplot(gs[0, 1])
+
     for mode in modes_0:
-        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
+        ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
     for mode in modes_1:
-        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
+        ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
 
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
-    plt.xlim([np.amin(P1), np.amax(P1)])
-    plt.ylim([np.amin(P2), np.amax(P2)])
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-    plt.tight_layout()
-    plt.savefig(outroot+'11_local_pca_flow.pdf')
+    ax1.set_xlim([np.amin(P1), np.amax(P1)])
+    ax1.set_ylim([np.amin(P2), np.amax(P2)])
+    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+    #plt.tight_layout()
+    #plt.savefig(outroot+'11_local_pca_flow.pdf')
 
     # plot in abstract space:
-    plt.figure(figsize=figsize)
+    #plt.figure(figsize=figsize)
     for mode in modes_0:
         mode_abs = flow_P.map_to_abstract_coord(mode)
-        plt.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
+        ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
     for mode in modes_1:
         mode_abs = flow_P.map_to_abstract_coord(mode)
-        plt.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
+        ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
 
     # print the iso-contours:
     origin = flow_P.map_to_abstract_coord(y0)
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
-        plt.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
-    plt.scatter(origin[0], origin[1], color='k', zorder=999)
+        ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
+    ax2.scatter(origin[0], origin[1], color='k', zorder=999)
 
-    plt.xlabel('$Z_{1}$', fontsize=fontsize)
-    plt.ylabel('$Z_{2}$', fontsize=fontsize)
+    ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
+    ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'11_local_pca_flow_abstract.pdf')
 
@@ -776,45 +819,48 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     pca_mode_1_times, pca_mode_1 = solve_eigenvalue_ode_par(interp_start(result_1.x)[0].astype(np.float32), n=1, length=length, num_points=100)
 
     # plot in parameter space:
-    plt.figure(figsize=figsize)
+    plt.figure(figsize=(2*figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 2)
+    ax1 = plt.subplot(gs[0, 0])
+    ax2 = plt.subplot(gs[0, 1])
+
     for mode in modes_0:
-        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
-    plt.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=2., ls='-', color='k')
+        ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
+    ax1.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=2., ls='-', color='k')
     for mode in modes_1:
-        plt.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
-    plt.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=2., ls='-', color='red')
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    plt.xlim([np.amin(P1), np.amax(P1)])
-    plt.ylim([np.amin(P2), np.amax(P2)])
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-    plt.tight_layout()
-    plt.savefig(outroot+'12_local_pca.pdf')
+        ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
+    ax1.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=2., ls='-', color='red')
+    ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax1.set_xlim([np.amin(P1), np.amax(P1)])
+    ax1.set_ylim([np.amin(P2), np.amax(P2)])
+    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+    #plt.tight_layout()
+    #plt.savefig(outroot+'12_local_pca.pdf')
 
     # plot in abstract space:
-    plt.figure(figsize=figsize)
     for mode in modes_0:
         mode_abs = flow_P.map_to_abstract_coord(mode)
-        plt.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
+        ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
     mode_abs = flow_P.map_to_abstract_coord(pca_mode_0)
-    plt.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='k')
+    ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='k')
     for mode in modes_1:
         mode_abs = flow_P.map_to_abstract_coord(mode)
-        plt.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
+        ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
     mode_abs = flow_P.map_to_abstract_coord(pca_mode_1)
-    plt.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='red')
+    ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='red')
 
     # print the iso-contours:
     origin = flow_P.map_to_abstract_coord(y0)
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
-        plt.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
-    plt.scatter(origin[0], origin[1], color='k', zorder=999)
+        ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
+    ax2.scatter(origin[0], origin[1], color='k', zorder=999)
 
-    plt.xlabel('$Z_{1}$', fontsize=fontsize)
-    plt.ylabel('$Z_{2}$', fontsize=fontsize)
+    ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
+    ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'12_local_pca_abstract.pdf')
 

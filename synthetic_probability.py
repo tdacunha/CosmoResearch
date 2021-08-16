@@ -362,7 +362,7 @@ class DiffFlowCallback(Callback):
 
     def train(self, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, **kwargs):
         """
-        Train the normalizing flow model. Internallay, this runs the fit method of the Keras :class:`~tf.keras.Model`, to which `**kwargs are passed`.
+        Train the normalizing flow model. Internally, this runs the fit method of the Keras :class:`~tf.keras.Model`, to which `**kwargs are passed`.
 
         :param epochs: number of training epochs, defaults to 100.
         :type epochs: int, optional
