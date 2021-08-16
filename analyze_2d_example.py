@@ -568,44 +568,116 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     # feedback:
     print('11) PCA flow')
 
+    def eigenvalue_ode(t, y, reference):
+        """
+        Solve the dynamical equation for eigenvalues.
+        """
+        # preprocess:
+        x = tf.convert_to_tensor([tf.cast(y, tf.float32)])
+        # map to original space to compute Jacobian (without inversion):
+        x_par = flow_P.map_to_original_coord(x)
+        # precompute Jacobian and its derivative:
+        jac = flow_P.inverse_jacobian(x_par)[0]
+        jac_T = tf.transpose(jac)
+        jac_jac_T = tf.matmul(jac, jac_T)
+        # compute eigenvalues:
+        eig, eigv = tf.linalg.eigh(jac_jac_T)
+        temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))
+        idx = tf.math.argmax(tf.abs(temp))[0]
+        w = tf.convert_to_tensor([tf.math.sign(temp[idx]) * eigv[:, idx]])
+        #
+        return w
+
+    def solve_eigenvalue_ode_abs(y0, n, length=1.5, num_points=100, **kwargs):
+        """
+        Solve eigenvalue problem in abstract space
+        """
+        # define solution points:
+        solution_times = tf.linspace(0., length, num_points)
+        # compute initial PCA:
+        x_abs = tf.convert_to_tensor([y0])
+        x_par = flow_P.map_to_original_coord(x_abs)
+        jac = flow_P.inverse_jacobian(x_par)[0]
+        jac_T = tf.transpose(jac)
+        jac_jac_T = tf.matmul(jac, jac_T)
+        # compute eigenvalues:
+        eig, eigv = tf.linalg.eigh(jac_jac_T)
+        # initialize solution:
+        temp_sol_1 = np.zeros((num_points-1, flow_P.num_params))
+        temp_sol_dot_1 = np.zeros((num_points-1, flow_P.num_params))
+        temp_sol_2 = np.zeros((num_points-1, flow_P.num_params))
+        temp_sol_dot_2 = np.zeros((num_points-1, flow_P.num_params))
+        # integrate forward:
+        solver = scipy.integrate.ode(eigenvalue_ode)
+        solver.set_integrator('lsoda')
+        solver.set_initial_value(y0, 0.)
+        reference = eigv[:, n]
+        for ind, t in enumerate(solution_times[1:]):
+            # set the reference:
+            solver.set_f_params(reference)
+            # advance solver:
+            yt = solver.integrate(t)
+            # compute derivative after time-step:
+            yprime = eigenvalue_ode(t, yt, reference)
+            # update reference:
+            reference = yprime[0]
+            # save out:
+            temp_sol_1[ind] = yt.copy()
+            temp_sol_dot_1[ind] = yprime.numpy().copy()
+        # integrate backward:
+        solver = scipy.integrate.ode(eigenvalue_ode)
+        #solver.set_integrator()
+        solver.set_initial_value(y0, 0.)
+        reference = - eigv[:, n]
+        for ind, t in enumerate(solution_times[1:]):
+            # set the reference:
+            solver.set_f_params(reference)
+            # advance solver:
+            yt = solver.integrate(t)
+            # compute derivative after time-step:
+            yprime = eigenvalue_ode(t, yt, reference)
+            # update reference:
+            reference = yprime[0]
+            # save out:
+            temp_sol_2[ind] = yt.copy()
+            temp_sol_dot_2[ind] = yprime.numpy().copy()
+        # patch solutions:
+        times = np.concatenate((-solution_times[::-1], solution_times[1:]))
+        traj = np.concatenate((temp_sol_2[::-1], x_abs.numpy(), temp_sol_1))
+        vel = np.concatenate((-temp_sol_dot_2[::-1], [eigv[:, n].numpy()], temp_sol_dot_1))
+        #
+        return times, traj, vel
+
+    def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
+        """
+        Solve eigenvalue ODE in parameter space
+        """
+        # go to abstract space:
+        x_par = tf.convert_to_tensor([y0])
+        x_abs = flow_P.map_to_abstract_coord(x_par)[0]
+        # call solver:
+        times, traj, vel = solve_eigenvalue_ode_abs(x_abs, n, length=length, num_points=num_points, **kwargs)
+        # convert back:
+        traj = flow_P.map_to_original_coord(tf.cast(traj, tf.float32))
+        #
+        return times, traj
+
     # lines along the global principal components:
     y0 = maximum_posterior.astype(np.float32)
-    cov_samples = posterior_chain.cov(pars=param_names)
-    _, eigv = np.linalg.eigh(cov_samples)
-
-    # even spacing along straight lines from global PCA:
-    # mode 0:
-    #mode = 0
-    #temp = np.array([(np.amin(P1) - y0[0]) / eigv[0, mode],
-    #                 (np.amin(P2) - y0[1]) / eigv[1, mode],
-    #                 (np.amax(P1) - y0[0]) / eigv[0, mode],
-    #                 (np.amax(P2) - y0[1]) / eigv[1, mode]])
-    #alpha_min = np.amax(temp[temp < 0])
-    #alpha_max = np.amin(temp[temp > 0])
-    #alpha = np.linspace(alpha_min, alpha_max, 10)
-    #start_0 = np.array([y0[0]+alpha*eigv[0, mode], y0[1]+alpha*eigv[1, mode]]).astype(np.float32).T
-    ## mode 1:
-    #mode = 1
-    #temp = np.array([(np.amin(P1) - y0[0]) / eigv[0, mode],
-    #                 (np.amin(P2) - y0[1]) / eigv[1, mode],
-    #                 (np.amax(P1) - y0[0]) / eigv[0, mode],
-    #                 (np.amax(P2) - y0[1]) / eigv[1, mode]])
-    #alpha_min = np.amax(temp[temp < 0])
-    #alpha_max = np.amin(temp[temp > 0])
-    #alpha = np.linspace(alpha_min, alpha_max, 10)
-    #start_1 = np.array([y0[0]+alpha*eigv[0, mode], y0[1]+alpha*eigv[1, mode]]).astype(np.float32).T
-
     length = (flow_P.sigma_to_length(6)).astype(np.float32)
-    _, start_1 = flow_P.solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
-    _, start_0 = flow_P.solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
+    #n = 0
+    #num_points = 100
+    #y0 = flow_P.map_to_abstract_coord(y0)
+    _, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
+    _, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
 
     # solve:
     modes_0, modes_1 = [], []
     for start in start_0:
-        _, mode = flow_P.solve_eigenvalue_ode_par(start, n=0, length=length, num_points=100)
+        _, mode = solve_eigenvalue_ode_par(start, n=0, length=length, num_points=100)
         modes_0.append(mode)
     for start in start_1:
-        _, mode = flow_P.solve_eigenvalue_ode_par(start, n=1, length=length, num_points=100)
+        _, mode = solve_eigenvalue_ode_par(start, n=1, length=length, num_points=100)
         modes_1.append(mode)
 
     # plot:
@@ -657,14 +729,14 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
 
     def expected_distance(y0, max_length, n1, n2, samples):
         # solve the pca equation:
-        time, mode = flow_P.solve_eigenvalue_ode_par(y0, n=n1, length=max_length, num_points=100)
+        time, mode = solve_eigenvalue_ode_par(y0, n=n1, length=max_length, num_points=100)
         # interpolate:
         interp_mode = interp1d(time, mode, kind='cubic', axis=0)
         # compute distances:
         distances = []
         for samp in samples:
             # solve:
-            time2, mode2 = flow_P.solve_eigenvalue_ode_par(samp, n=n2, length=max_length, num_points=100)
+            time2, mode2 = solve_eigenvalue_ode_par(samp, n=n2, length=max_length, num_points=100)
             # interpolate:
             interp_mode2 = interp1d(time2, mode2, kind='cubic', axis=0)
             # minimize distance:
@@ -682,7 +754,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     y0 = maximum_posterior.astype(np.float32)
     length = (flow_P.sigma_to_length(6)).astype(np.float32)
     # minimize for first mode:
-    time_0, start_0 = flow_P.solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=100)
+    time_0, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=100)
     interp_start = interp1d(time_0, start_0, kind='cubic', axis=0)
     num_samples = 100
     samples = flow_P.sample(num_samples)
@@ -690,10 +762,10 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=0, n2=1, samples=samples)
     result_0 = scipy.optimize.minimize(_helper_temp, [0.],
                                        bounds=[[-length, length]], method='L-BFGS-B')
-    pca_mode_0_times, pca_mode_0 = flow_P.solve_eigenvalue_ode_par(interp_start(result_0.x)[0].astype(np.float32), n=0, length=length, num_points=100)
+    pca_mode_0_times, pca_mode_0 = solve_eigenvalue_ode_par(interp_start(result_0.x)[0].astype(np.float32), n=0, length=length, num_points=100)
 
     # minimize for the second mode:
-    time_1, start_1 = flow_P.solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=100)
+    time_1, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=100)
     interp_start = interp1d(time_1, start_1, kind='cubic', axis=0)
     num_samples = 100
     samples = flow_P.sample(num_samples)
@@ -701,7 +773,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=1, n2=0, samples=samples)
     result_1 = scipy.optimize.minimize(_helper_temp, [0.],
                                      bounds=[[-length, length]], method='L-BFGS-B')
-    pca_mode_1_times, pca_mode_1 = flow_P.solve_eigenvalue_ode_par(interp_start(result_1.x)[0].astype(np.float32), n=1, length=length, num_points=100)
+    pca_mode_1_times, pca_mode_1 = solve_eigenvalue_ode_par(interp_start(result_1.x)[0].astype(np.float32), n=1, length=length, num_points=100)
 
     # plot in parameter space:
     plt.figure(figsize=figsize)

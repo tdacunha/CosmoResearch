@@ -25,7 +25,7 @@ import analyze_2d_example
 ###############################################################################
 # run example:
 
-import example_4_generate as example
+import example_5_generate as example
 
 # run posterior:
 analyze_2d_example.run_example_2d(posterior_chain=example.posterior_chain,
