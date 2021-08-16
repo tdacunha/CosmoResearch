@@ -258,7 +258,8 @@ class DiffFlowCallback(Callback):
                 raise ValueError('Input parameter is not in the chain.\n',
                                  'Input parameters ', param_names, '\n'
                                  'Possible parameters', chain_params)
-
+        # save param names:
+        self.param_names = param_names
         # initialize ranges:
         self.parameter_ranges = {}
         for name in param_names:

@@ -20,6 +20,10 @@ from getdist.gaussian_mixtures import GaussianND
 import tensiometer.gaussian_tension as gaussian_tension
 from scipy import optimize
 
+import synthetic_probability
+from tensorflow.keras.callbacks import ReduceLROnPlateau
+callbacks = [ReduceLROnPlateau()]
+
 ###############################################################################
 # initial settings:
 
@@ -27,6 +31,11 @@ from scipy import optimize
 out_folder = './results/example_5/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
+
+# cache for training:
+flow_cache = out_folder+'flow_cache/'
+if not os.path.exists(flow_cache):
+    os.mkdir(flow_cache)
 
 # number of samples:
 n_samples = 100000
@@ -57,6 +66,9 @@ def log_pdf(theta, theta0=mean_1, sigma0=sigma_1, theta1=mean_2, sigma1=sigma_2,
 
 # prior:
 prior = [-2., 2.]
+
+###############################################################################
+# generate the samples:
 
 # if the cache file exists load it, otherwise generate it:
 if os.path.isfile(cache_file):
@@ -127,6 +139,45 @@ else:
     #
     print('Saved generated example in', cache_file)
 
+###############################################################################
+# define the flows:
+
+# if cache exists load training:
+if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
+    # load trained model:
+    temp_MAF = synthetic_probability.SimpleMAF.load(len(posterior_chain.getParamNames().list()), flow_cache+'posterior')
+    # initialize flow:
+    posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=posterior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
+else:
+    # initialize flow:
+    posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, param_names=posterior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
+    # train:
+    posterior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
+    # save trained model:
+    posterior_flow.MAF.save(flow_cache+'posterior')
+
+# if cache exists load training:
+if os.path.isfile(flow_cache+'prior'+'_permutations.pickle'):
+    # load trained model:
+    temp_MAF = synthetic_probability.SimpleMAF.load(len(prior_chain.getParamNames().list()), flow_cache+'prior')
+    # initialize flow:
+    prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=prior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
+else:
+    # initialize flow:
+    prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, param_names=prior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
+    # train:
+    prior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
+    # save trained model:
+    prior_flow.MAF.save(flow_cache+'prior')
+
+
+###############################################################################
+# test plot if called directly:
+if __name__ == '__main__':
+
+    # feedback:
+    print('* plotting generated sample')
+
     # plot distribution:
     g = plots.get_subplot_plotter()
     g.triangle_plot([prior_chain, posterior_chain], filled=True)
@@ -136,6 +187,22 @@ else:
     g.triangle_plot([posterior_chain], filled=True)
     g.export(out_folder+'0_posterior.pdf')
 
+    # plot learned posterior distribution:
+    X_sample = np.array(posterior_flow.sample(n_samples))
+    posterior_flow_chain = MCSamples(samples=X_sample,
+                                     loglikes=-posterior_flow.log_probability(X_sample).numpy(),
+                                     names=posterior_flow.param_names,
+                                     label='Learned distribution')
+    g = plots.get_subplot_plotter()
+    g.triangle_plot([posterior_chain, posterior_flow_chain], filled=True)
+    g.export(out_folder+'0_learned_posterior_distribution.pdf')
 
-
-pass
+    # plot learned prior distribution:
+    X_sample = np.array(prior_flow.sample(n_samples))
+    prior_flow_chain = MCSamples(samples=X_sample,
+                                 loglikes=-prior_flow.log_probability(X_sample).numpy(),
+                                 names=prior_flow.param_names,
+                                 label='Learned distribution')
+    g = plots.get_subplot_plotter()
+    g.triangle_plot([prior_chain, prior_flow_chain], filled=True)
+    g.export(out_folder+'0_learned_prior_distribution.pdf')
