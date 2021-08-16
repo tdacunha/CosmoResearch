@@ -572,7 +572,6 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
     ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
 
-
     # plot geodesics in abstract space:
     for ind, geo in enumerate(geo_list):
         geo = np.array(geo)
@@ -592,6 +591,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     #plt.legend()
     ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
     ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
+    ax2.legend()
 
     plt.tight_layout()
     plt.savefig(outroot+'10_geodesics_around_MAP.pdf')
@@ -701,8 +701,6 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     # lines along the global principal components:
     y0 = maximum_posterior.astype(np.float32)
     length = (flow_P.sigma_to_length(6)).astype(np.float32)
-    from tensiometer import utilities as utils #edited by tara
-    #length = np.sqrt(scipy.stats.chi2.isf(1. - utils.from_sigma_to_confidence(6), flow_P.num_params))
 
     #n = 0
     #num_points = 100
@@ -760,7 +758,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
     ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
-    plt.savefig(outroot+'11_local_pca_flow_abstract.pdf')
+    plt.savefig(outroot+'11_local_pca_flow.pdf')
 
     ###########################################################################
     # Find principal eigenvalue flow:
