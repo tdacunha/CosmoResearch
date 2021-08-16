@@ -60,7 +60,7 @@ prior_distribution = GaussianND(prior_mean, prior_cov,
                                 names=['theta_'+str(i+1) for i in range(len(param_names))],
                                 labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
                                 label='prior')
-prior_chain = prior_distribution.MCSamples(n_samples)
+prior_chain = prior_distribution.MCSamples(n_samples, label='prior')
 
 # posterior distribution:
 posterior_mean = chain.getMeans([chain.index[name] for name in param_names])
@@ -69,7 +69,7 @@ posterior_distribution = GaussianND(posterior_mean, posterior_cov,
                                     names=['theta_'+str(i+1) for i in range(len(param_names))],
                                     labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
                                     label='posterior')
-posterior_chain = posterior_distribution.MCSamples(n_samples)
+posterior_chain = posterior_distribution.MCSamples(n_samples, label='posterior')
 
 
 ###############################################################################

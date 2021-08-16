@@ -11,7 +11,7 @@ import example_5_generate as example
 import example_1_generate as example
 
 
-posterior_chain = example.posterior_chain
+chain = example.posterior_chain
 prior_chain = example.prior_chain
 param_names = posterior_chain.getParamNames().list()
 outroot = example.out_folder
@@ -71,7 +71,7 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
 
 ###############################################################################
 
-def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, train_params={}):
+def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_params={}):
     """
     Run full analysis of 2d example case, as in flow playground
     """
@@ -82,19 +82,12 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
 
     # parameter ranges for plotting from the prior:
     if param_ranges is None:
-        param_ranges = np.array([np.amin(posterior_chain.samples, axis=0), np.amax(posterior_chain.samples, axis=0)]).T
-        param_ranges = param_ranges[[posterior_chain.index[name] for name in param_names], :]
+        param_ranges = np.array([np.amin(chain.samples, axis=0), np.amax(chain.samples, axis=0)]).T
+        param_ranges = param_ranges[[chain.index[name] for name in param_names], :]
 
     # parameter labels:
-    param_labels = [name.label for name in posterior_chain.getParamNames().parsWithNames(param_names)]
+    param_labels = [name.label for name in chain.getParamNames().parsWithNames(param_names)]
     param_labels_latex = ['$'+name+'$' for name in param_labels]
-
-    # obtain the synthetic probability:
-    flow_P = synthetic_probability.DiffFlowCallback(posterior_chain, param_names=param_names, feedback=1, learning_rate=0.01)
-    batch_size = train_params.get('batch_size', 8192)
-    epochs = train_params.get('epochs', 40)
-    steps_per_epoch = train_params.get('steps_per_epoch', 128)
-    flow_P.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
 
     # parameter grids:
     P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 200)
@@ -109,7 +102,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     coarse_X, coarse_Y = np.meshgrid(coarse_x, coarse_y)
 
     # obtain posterior on grid from samples:
-    density = posterior_chain.get2DDensity(param_names[0], param_names[1], normalized=True)
+    density = chain.get2DDensity(param_names[0], param_names[1], normalized=True)
     _X, _Y = np.meshgrid(density.x, density.y)
     density.P = density.P / simps(simps(density.P, density.y), density.x)
 
@@ -125,14 +118,14 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     print('1) learned posterior')
 
     N = 10000
-    X_sample = np.array(flow_P.sample(N))
+    X_sample = np.array(flow.sample(N))
     flow_chain = MCSamples(samples=X_sample,
-                           loglikes = -flow_P.log_probability(X_sample).numpy(),
+                           loglikes=-flow.log_probability(X_sample).numpy(),
                            names=param_names,
                            label='Learned distribution')
 
     g = plots.get_subplot_plotter()
-    g.triangle_plot([posterior_chain, flow_chain], params=param_names, filled=False)
+    g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
     g.export(outroot+'1_learned_posterior_distribution.pdf')
     plt.close('all')
 
@@ -144,7 +137,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     print('2) learned posterior from samples')
 
     # compute flow probability on a grid:
-    log_P = flow_P.log_probability(np.array([X, Y], dtype=np.float32).T)
+    log_P = flow.log_probability(np.array([X, Y], dtype=np.float32).T)
     log_P = np.array(log_P).T
     P = np.exp(log_P)
     P = P / simps(simps(P, y), x)
@@ -165,7 +158,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     ###########################################################################
 
     # transfer samples in abstract space:
-    abstract_samples = flow_P.map_to_abstract_coord(flow_chain.samples)
+    abstract_samples = flow.map_to_abstract_coord(flow_chain.samples)
 
     # in parameter space:
     plt.figure(figsize=(2*figsize[0], figsize[1]))
@@ -190,7 +183,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     print('3) log determinant')
 
     # compute log determinant of metric:
-    log_det = flow_P.log_det_metric(np.array([X, Y], dtype=np.float32).T)
+    log_det = flow.log_det_metric(np.array([X, Y], dtype=np.float32).T)
     log_det = np.array(log_det).T
 
     # plot meshgrid of log determinant
@@ -216,15 +209,14 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     print('4) MAP and mean')
 
     # find the MAP in parameter space:
-    result = flow_P.MAP_finder(disp=True)
+    result = flow.MAP_finder(disp=True)
     maximum_posterior = result.x
     # mean:
-    mean = posterior_chain.getMeans([posterior_chain.index[name] for name in param_names])
+    mean = chain.getMeans([chain.index[name] for name in param_names])
 
     # find in abstract space:
-    maximum_posterior_abs = flow_P.map_to_abstract_coord(maximum_posterior.astype(np.float32))
-    mean_abs = flow_P.map_to_abstract_coord(mean.astype(np.float32))
-
+    maximum_posterior_abs = flow.map_to_abstract_coord(maximum_posterior.astype(np.float32))
+    mean_abs = flow.map_to_abstract_coord(mean.astype(np.float32))
 
     plt.figure(figsize=(2*figsize[0], figsize[1]))
     gs = gridspec.GridSpec(1, 2)
@@ -243,7 +235,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     # plot contours with MAP and mean in abstract space:
 
     # print the iso-contours:
-    origin = [0,0]#flow_P.map_to_abstract_coord(y0)
+    origin = [0,0]#flow.map_to_abstract_coord(y0)
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
@@ -268,11 +260,11 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     print('5) global covariance')
 
     # covariance from samples
-    cov_samples = posterior_chain.cov(pars=param_names)
+    cov_samples = chain.cov(pars=param_names)
 
     # metrics from flow around mean:
-    covariance_metric = flow_P.metric(np.array([mean]).astype(np.float32))[0]
-    fisher_metric = flow_P.inverse_metric(np.array([mean]).astype(np.float32))[0]
+    covariance_metric = flow.metric(np.array([mean]).astype(np.float32))[0]
+    fisher_metric = flow.inverse_metric(np.array([mean]).astype(np.float32))[0]
 
     alpha = np.linspace(-1, 1, 1000)
     plt.figure(figsize=figsize)
@@ -320,16 +312,16 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     print('6) abstract geodesics')
 
     # find where the MAP goes:
-    map_image = flow_P.map_to_abstract_coord(np.array(maximum_posterior, dtype=np.float32))
+    map_image = flow.map_to_abstract_coord(np.array(maximum_posterior, dtype=np.float32))
 
     # compute geodesics aligned with abstract coordinate axes:
     r = np.linspace(-20.0, 20.0, 1000)
     t = 0.0
     geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
-    geo_1 = flow_P.map_to_original_coord(geo.T)
+    geo_1 = flow.map_to_original_coord(geo.T)
     t = np.pi/2.
     geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
-    geo_2 = flow_P.map_to_original_coord(geo.T)
+    geo_2 = flow.map_to_original_coord(geo.T)
 
     # compute geodesics at range of angles:
     r = np.linspace(0.0, 20.0, 1000)
@@ -337,7 +329,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     geodesics = []
     for t in theta:
         geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
-        geodesics.append(flow_P.map_to_original_coord(geo.T))
+        geodesics.append(flow.map_to_original_coord(geo.T))
 
     # plot geodesics
     plt.figure(figsize=figsize)
@@ -380,10 +372,10 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     r = np.linspace(-100000*scale_r, 100000.0*scale_r, 1000)
     t = 0.0
     geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
-    geo_1 = flow_P.map_to_original_coord(geo.T)
+    geo_1 = flow.map_to_original_coord(geo.T)
     t = np.pi/2.
     geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
-    geo_2 = flow_P.map_to_original_coord(geo.T)
+    geo_2 = flow.map_to_original_coord(geo.T)
 
     # compute geodesics at range of angles:
     r = np.linspace(0.0, 100000.0*scale_r, 1000)
@@ -392,7 +384,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     for t in theta:
         geo = np.array([map_image[0] + r*np.cos(t),
                         map_image[1] + r*np.sin(t)], dtype=np.float32)
-        geodesics.append(flow_P.map_to_original_coord(geo.T))
+        geodesics.append(flow.map_to_original_coord(geo.T))
 
     # plot geodesics:
     plt.figure(figsize=figsize)
@@ -436,7 +428,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
 
     # compute the metric at all coordinates
-    local_metrics = flow_P.metric(coords)
+    local_metrics = flow.metric(coords)
 
     # compute the PCA eigenvalues and eigenvectors of each local metric
     PCA_eig, PCA_eigv = np.linalg.eigh(local_metrics)
@@ -483,7 +475,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     coords = np.array([X, Y], dtype=np.float32).reshape(2, -1).T
 
     # compute the metric at all coordinates
-    local_metrics = flow_P.metric(coords)
+    local_metrics = flow.metric(coords)
 
     # compute the PCA eigenvalues and eigenvectors of each local metric
     PCA_eig, PCA_eigv = np.linalg.eigh(local_metrics)
@@ -544,7 +536,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
 
     # initial point as MAP and determine eigenvector (not normalized):
     y_init = maximum_posterior.astype(np.float32)
-    covariance_metric = flow_P.metric(np.array([y_init]).astype(np.float32))[0]
+    covariance_metric = flow.metric(np.array([y_init]).astype(np.float32))[0]
     eig, eigv = np.linalg.eigh(covariance_metric)
     yprime_init = eigv[:, 0]
 
@@ -565,7 +557,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         # normalize vector using metric
         norm = np.sqrt(np.dot(np.dot(yprime,covariance_metric),yprime))
         yprime /= norm
-        results = flow_P.solve_geodesic(y_init, yprime,solution_times)
+        results = flow.solve_geodesic(y_init, yprime,solution_times)
         geo = results.states[:, 0:2]
         geo_list.append(geo)
         #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
@@ -580,11 +572,11 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     # plot geodesics in abstract space:
     for ind, geo in enumerate(geo_list):
         geo = np.array(geo)
-        geo_abs = flow_P.map_to_abstract_coord(geo)
+        geo_abs = flow.map_to_abstract_coord(geo)
         ax2.plot(*np.array(geo_abs).T, ls='--', color=cmap(ind/len(geo_list)))
 
     # plot the iso-contour:
-    origin = flow_P.map_to_abstract_coord(y_init)
+    origin = flow.map_to_abstract_coord(y_init)
     theta = np.linspace(0.0, 2.*np.pi, 200)
     ax2.plot(origin[0]+length*np.sin(theta), origin[1]+length*np.cos(theta), ls='--', lw=1., color='k', label = 'Contour centered at MAP')
     ax2.scatter(origin[0], origin[1], color='k', zorder=999)
@@ -616,9 +608,9 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         # preprocess:
         x = tf.convert_to_tensor([tf.cast(y, tf.float32)])
         # map to original space to compute Jacobian (without inversion):
-        x_par = flow_P.map_to_original_coord(x)
+        x_par = flow.map_to_original_coord(x)
         # precompute Jacobian and its derivative:
-        jac = flow_P.inverse_jacobian(x_par)[0]
+        jac = flow.inverse_jacobian(x_par)[0]
         jac_T = tf.transpose(jac)
         jac_jac_T = tf.matmul(jac, jac_T)
         # compute eigenvalues:
@@ -637,17 +629,17 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         solution_times = tf.linspace(0., length, num_points)
         # compute initial PCA:
         x_abs = tf.convert_to_tensor([y0])
-        x_par = flow_P.map_to_original_coord(x_abs)
-        jac = flow_P.inverse_jacobian(x_par)[0]
+        x_par = flow.map_to_original_coord(x_abs)
+        jac = flow.inverse_jacobian(x_par)[0]
         jac_T = tf.transpose(jac)
         jac_jac_T = tf.matmul(jac, jac_T)
         # compute eigenvalues:
         eig, eigv = tf.linalg.eigh(jac_jac_T)
         # initialize solution:
-        temp_sol_1 = np.zeros((num_points-1, flow_P.num_params))
-        temp_sol_dot_1 = np.zeros((num_points-1, flow_P.num_params))
-        temp_sol_2 = np.zeros((num_points-1, flow_P.num_params))
-        temp_sol_dot_2 = np.zeros((num_points-1, flow_P.num_params))
+        temp_sol_1 = np.zeros((num_points-1, flow.num_params))
+        temp_sol_dot_1 = np.zeros((num_points-1, flow.num_params))
+        temp_sol_2 = np.zeros((num_points-1, flow.num_params))
+        temp_sol_dot_2 = np.zeros((num_points-1, flow.num_params))
         # integrate forward:
         solver = scipy.integrate.ode(eigenvalue_ode)
         solver.set_integrator('lsoda')
@@ -695,21 +687,21 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
         """
         # go to abstract space:
         x_par = tf.convert_to_tensor([y0])
-        x_abs = flow_P.map_to_abstract_coord(x_par)[0]
+        x_abs = flow.map_to_abstract_coord(x_par)[0]
         # call solver:
         times, traj, vel = solve_eigenvalue_ode_abs(x_abs, n, length=length, num_points=num_points, **kwargs)
         # convert back:
-        traj = flow_P.map_to_original_coord(tf.cast(traj, tf.float32))
+        traj = flow.map_to_original_coord(tf.cast(traj, tf.float32))
         #
         return times, traj
 
     # lines along the global principal components:
     y0 = maximum_posterior.astype(np.float32)
-    length = (flow_P.sigma_to_length(6)).astype(np.float32)
+    length = (flow.sigma_to_length(6)).astype(np.float32)
 
     #n = 0
     #num_points = 100
-    #y0 = flow_P.map_to_abstract_coord(y0)
+    #y0 = flow.map_to_abstract_coord(y0)
     _, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
     _, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
 
@@ -746,19 +738,19 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     # plot in abstract space:
     #plt.figure(figsize=figsize)
     for mode in modes_0:
-        mode_abs = flow_P.map_to_abstract_coord(mode)
+        mode_abs = flow.map_to_abstract_coord(mode)
         ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
     for mode in modes_1:
-        mode_abs = flow_P.map_to_abstract_coord(mode)
+        mode_abs = flow.map_to_abstract_coord(mode)
         ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
 
     # print the iso-contours:
-    origin = [0,0]#flow_P.map_to_abstract_coord(y0)
+    origin = [0,0]#flow.map_to_abstract_coord(y0)
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
         ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
-    y0_abs = flow_P.map_to_abstract_coord(y0)
+    y0_abs = flow.map_to_abstract_coord(y0)
     ax2.scatter(y0_abs[0], y0_abs[1], color='k', zorder=999)
 
     ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
@@ -799,12 +791,12 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
 
     # general setup:
     y0 = maximum_posterior.astype(np.float32)
-    length = (flow_P.sigma_to_length(6)).astype(np.float32)
+    length = (flow.sigma_to_length(6)).astype(np.float32)
     # minimize for first mode:
     time_0, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=100)
     interp_start = interp1d(time_0, start_0, kind='cubic', axis=0)
     num_samples = 100
-    samples = flow_P.sample(num_samples)
+    samples = flow.sample(num_samples)
     def _helper_temp(temp):
         return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=0, n2=1, samples=samples)
     result_0 = scipy.optimize.minimize(_helper_temp, [0.],
@@ -815,7 +807,7 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
     time_1, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=100)
     interp_start = interp1d(time_1, start_1, kind='cubic', axis=0)
     num_samples = 100
-    samples = flow_P.sample(num_samples)
+    samples = flow.sample(num_samples)
     def _helper_temp(temp):
         return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=1, n2=0, samples=samples)
     result_1 = scipy.optimize.minimize(_helper_temp, [0.],
@@ -845,18 +837,18 @@ def run_example_2d(posterior_chain, param_names, outroot, param_ranges=None, tra
 
     # plot in abstract space:
     for mode in modes_0:
-        mode_abs = flow_P.map_to_abstract_coord(mode)
+        mode_abs = flow.map_to_abstract_coord(mode)
         ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
-    mode_abs = flow_P.map_to_abstract_coord(pca_mode_0)
+    mode_abs = flow.map_to_abstract_coord(pca_mode_0)
     ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='k')
     for mode in modes_1:
-        mode_abs = flow_P.map_to_abstract_coord(mode)
+        mode_abs = flow.map_to_abstract_coord(mode)
         ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
-    mode_abs = flow_P.map_to_abstract_coord(pca_mode_1)
+    mode_abs = flow.map_to_abstract_coord(pca_mode_1)
     ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='red')
 
     # print the iso-contours:
-    origin = flow_P.map_to_abstract_coord(y0)
+    origin = flow.map_to_abstract_coord(y0)
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
