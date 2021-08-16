@@ -235,16 +235,14 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     # plot contours with MAP and mean in abstract space:
 
     # print the iso-contours:
-    origin = [0,0]#flow.map_to_abstract_coord(y0)
+    origin = [0,0]
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
-        ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='k')
+        ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='-', lw=1., color='k')
     ax2.scatter(maximum_posterior_abs[0], maximum_posterior_abs[1], color='green', label='MAP: (%.3f, %.3f)' %(maximum_posterior_abs[0],maximum_posterior_abs[1]))
     ax2.scatter(mean_abs[0], mean_abs[1], color='red', label='mean: (%.3f, %.3f)' %(mean_abs[0],mean_abs[1]))
     ax2.legend()
-    #ax2.xlim([np.amin(P1), np.amax(P1)])
-    #ax2.ylim([np.amin(P2), np.amax(P2)])
     ax2.set_xlabel(param_labels_latex[0], fontsize=fontsize)
     ax2.set_ylabel(param_labels_latex[1], fontsize=fontsize)
 
@@ -272,23 +270,23 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     # plot PCA of flow covariance metric
     _, eigv = np.linalg.eigh(covariance_metric)
     mode = 0
-    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='k', ls='--', label='flow covariance')
+    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1.5, color='k', ls='--', label='flow covariance')
     mode = 1
-    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='k', ls='--')
+    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1.5, color='k', ls='--')
 
     # plot PCA of flow fisher metric
     _, eigv = np.linalg.eigh(fisher_metric)
     mode = 0
-    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='green', ls='-.', label='flow fisher')
+    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1., color='green', ls='-.', label='flow fisher')
     mode = 1
-    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='green', ls='-.')
+    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1., color='green', ls='-.')
 
     # plot PCA of covariance of samples
     _, eigv = np.linalg.eigh(cov_samples)
     mode = 0
-    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-', label='samples')
+    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1., color='red', ls='--', label='samples')
     mode = 1
-    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], color='red', ls='-')
+    plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1., color='red', ls='--')
 
     # plot contours
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
@@ -364,7 +362,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
 
     # compute geodesics aligned with abstract coordinate axes:
 
-    ## computing a scale in order to observe asyntotic for parameters on different scales
+    # computing a scale in order to observe asyntotic for parameters on different scales
     scale_x = abs(np.amax(P1) - np.amin(P1))
     scale_y = abs(np.amax(P2) - np.amin(P2))
     scale_r = np.linalg.norm([scale_x, scale_y])
