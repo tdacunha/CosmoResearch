@@ -135,6 +135,7 @@ else:
 # if cache exists load training:
 if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
     # load trained model:
+    posterior_chain = cache_results['posterior_chain']
     temp_MAF = synthetic_probability.SimpleMAF.load(len(posterior_chain.getParamNames().list()), flow_cache+'posterior')
     # initialize flow:
     posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=posterior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
@@ -149,6 +150,7 @@ else:
 # if cache exists load training:
 if os.path.isfile(flow_cache+'prior'+'_permutations.pickle'):
     # load trained model:
+    prior_chain = cache_results['prior_chain']
     temp_MAF = synthetic_probability.SimpleMAF.load(len(prior_chain.getParamNames().list()), flow_cache+'prior')
     # initialize flow:
     prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=prior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
