@@ -27,13 +27,11 @@ import analyze_2d_example
 
 import example_3_generate as example
 
-analyze_2d_example.run_example_2d(posterior_chain=example.posterior_chain,
-                                  prior_chain=example.prior_chain,
+# run posterior:
+analyze_2d_example.run_example_2d(chain=example.posterior_chain,
+                                  flow=example.posterior_flow,
                                   param_names=example.posterior_chain.getParamNames().list(),
-                                  train_params={'batch_size': 2*8192,
-                                                'epochs': 80,
-                                                'steps_per_epoch': 128,},
-                                  outroot=example.out_folder)
+                                  outroot=example.out_folder+'posterior_')
 
 
 

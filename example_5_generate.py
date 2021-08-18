@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
 """
-Generate data for example: Gaussian with mean and covariance.
+Generate data for example: multi-modal
 """
 
 ###############################################################################
 # initial imports:
 import os
 import numpy as np
-
+import copy
+import pickle
 import sys
 here = './'
 temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
@@ -16,8 +17,8 @@ sys.path.insert(0, temp_path)
 import getdist
 from getdist import plots, MCSamples
 from getdist.gaussian_mixtures import GaussianND
-import analyze_2d_example
-import importlib
+import tensiometer.gaussian_tension as gaussian_tension
+from scipy import optimize
 
 import synthetic_probability
 from tensorflow.keras.callbacks import ReduceLROnPlateau
@@ -27,7 +28,7 @@ callbacks = [ReduceLROnPlateau()]
 # initial settings:
 
 # output folder:
-out_folder = './results/example_1/'
+out_folder = './results/example_5/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
@@ -39,38 +40,104 @@ if not os.path.exists(flow_cache):
 # number of samples:
 n_samples = 100000
 
+# cache file:
+cache_file = out_folder+'example_5_cache.plk'
+
 ###############################################################################
-# define the pdf from the DES samples:
+# define the pdf:
 
-# load the chains (remove no burn in since the example chains have already been cleaned):
-chains_dir = here+'/tensiometer/test_chains/'
-# the DES chain:
-settings = {'ignore_rows':0, 'smooth_scale_1D':0.3, 'smooth_scale_2D':0.3}
-chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'DES', no_cache=True, settings=settings)
-# the prior chain:
-prior_chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'prior', no_cache=True, settings=settings)
+mean_1 = [+0.5, +0.5]
+mean_2 = [-0.5, -0.5]
+sigma_1 = 0.17
+sigma_2 = 0.17
+weights = [1., 1.]
 
-# select parameters:
-param_names = ['omegam', 'sigma8']
 
-# prior distribution
-prior_mean = prior_chain.getMeans([prior_chain.index[name] for name in param_names])
-prior_cov = prior_chain.cov([prior_chain.index[name] for name in param_names])
-prior_distribution = GaussianND(prior_mean, prior_cov,
-                                names=['theta_'+str(i+1) for i in range(len(param_names))],
-                                labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
-                                label='prior')
-prior_chain = prior_distribution.MCSamples(n_samples, label='prior')
+def log_pdf(theta, theta0=mean_1, sigma0=sigma_1, theta1=mean_2, sigma1=sigma_2, weights=weights):
+    x, y = theta
+    x0, y0 = theta0
+    x1, y1 = theta1
+    r0 = (x-x0)**2+(y-y0)**2
+    r1 = (x-x1)**2+(y-y1)**2
+    p0 = np.exp(-0.5*r0/sigma0**2)/(2.*np.pi*sigma0**2)
+    p1 = np.exp(-0.5*r1/sigma1**2)/(2.*np.pi*sigma1**2)
+    return np.log(weights[0]*p0 + weights[1]*p1)
 
-# posterior distribution:
-posterior_mean = chain.getMeans([chain.index[name] for name in param_names])
-posterior_cov = chain.cov([chain.index[name] for name in param_names])
-posterior_distribution = GaussianND(posterior_mean, posterior_cov,
-                                    names=['theta_'+str(i+1) for i in range(len(param_names))],
-                                    labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
-                                    label='posterior')
-posterior_chain = posterior_distribution.MCSamples(n_samples, label='posterior')
 
+# prior:
+prior = [-2., 2.]
+
+###############################################################################
+# generate the samples:
+
+# if the cache file exists load it, otherwise generate it:
+if os.path.isfile(cache_file):
+
+    # load cache from pickle:
+    cache_results = pickle.load(open(cache_file, 'rb'))
+    # overload attribute to export cache content:
+
+    def __getattr__(name):
+        if name in cache_results.keys():
+            return cache_results[name]
+        raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+else:
+
+    # initialize empty cache:
+    cache_results = {}
+
+    # find maximum posterior:
+    print('Finding maximum posterior')
+    temp_res = optimize.differential_evolution(lambda x: -log_pdf(x), [(prior[0], prior[1]), (prior[0], prior[1])])
+    log_max_p = -temp_res.fun
+    max_P_x = temp_res.x
+
+    cache_results['log_max_p'] = copy.deepcopy(log_max_p)
+    cache_results['max_P_x'] = copy.deepcopy(max_P_x)
+
+    # generate samples from the distribution:
+    print('Generating samples')
+    samples = []
+    likelihood = []
+    num_samples = 0
+    while num_samples < n_samples:
+        xtemp = (prior[1]-prior[0])*np.random.rand(2) + prior[0]
+        log_like = log_pdf(xtemp) - log_max_p
+        if np.random.binomial(1, np.exp(log_like)):
+            samples.append(xtemp)
+            likelihood.append(log_like)
+            num_samples += 1
+    samples = np.array(samples)
+    likelihood = np.array(likelihood)
+    posterior_chain = MCSamples(samples=samples,
+                                loglikes=-likelihood,
+                                names=['theta_1', 'theta_2'],
+                                labels=['\\theta_1', '\\theta_2'],
+                                ranges={'theta_1': [prior[0], prior[1]],
+                                        'theta_2': [prior[0], prior[1]]},
+                                sampler='uncorrelated',
+                                label='posterior')
+    cache_results['posterior_chain'] = copy.deepcopy(posterior_chain)
+
+    # generating prior:
+    prior_samples = []
+    for _min, _max in zip([prior[0], prior[0]], [prior[1], prior[1]]):
+        prior_samples.append(np.random.uniform(_min, _max, size=n_samples))
+    prior_samples = np.array(prior_samples).T
+    prior_chain = MCSamples(samples=prior_samples,
+                            names=['theta_1', 'theta_2'],
+                            labels=['\\theta_1', '\\theta_2'],
+                            ranges={'theta_1': [prior[0], prior[1]],
+                                    'theta_2': [prior[0], prior[1]]},
+                            sampler='uncorrelated',
+                            label='prior')
+    cache_results['prior_chain'] = copy.deepcopy(prior_chain)
+
+    # dump cache to file for later plotting:
+    pickle.dump(cache_results, open(cache_file, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+    #
+    print('Saved generated example in', cache_file)
 
 ###############################################################################
 # define the flows:

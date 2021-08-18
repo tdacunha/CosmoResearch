@@ -1,3 +1,6 @@
 [submodule "tensiometer"]
 	path = tensiometer
 	url = https://github.com/mraveri/tensiometer.git
+[submodule "AI-Feynman"]
+	path = AI-Feynman
+	url = https://github.com/mraveri/AI-Feynman.git
