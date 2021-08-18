@@ -175,6 +175,28 @@ class SimpleMAF(object):
         checkpoint.read(path)
         return maf
 
+
+def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
+    def uniform(a,b):
+        return tfb.Chain([tfb.Shift((a+b)/2), tfb.Scale((b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
+        
+    def normal(mu, sig):
+        return tfb.Chain([tfb.Shift(mu), tfb.Scale(sig)]) 
+    
+    n = len(prior_dict_list) 
+    temp_bijectors = []
+    for i in range(n):
+        if 'lower' in prior_dict_list[i].keys():
+            temp_bijectors.append(uniform(prior_dict_list[i]['lower'], prior_dict_list[i]['upper']))
+        elif 'mean' in prior_dict_list[i].keys():
+            temp_bijectors.append(normal(prior_dict_list[i]['mean'], prior_dict_list[i]['scale']))
+        else:
+            raise ValueError
+    
+    split = tfb.Split(n)
+    
+    return tfb.Chain([tfb.Invert(split), tfb.JointMap(temp_bijectors), split], name=name)
+
 ###############################################################################
 # main class to compute NF-based tension:
 
@@ -235,13 +257,13 @@ class DiffFlowCallback(Callback):
     kwargs={}
     """
 
-    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
+    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', Y2X_is_identity=False, pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
 
         # read in varaiables:
         self.feedback = feedback
 
         # Chain
-        self._init_chain(chain, param_names=param_names, param_ranges=param_ranges, validation_split=validation_split)
+        self._init_chain(chain, param_names=param_names, param_ranges=param_ranges, validation_split=validation_split, Y2X_is_identity=Y2X_is_identity)
 
         # Transformed distribution
         self._init_transf_dist(Z2Y_bijector, learning_rate=learning_rate, **kwargs)
@@ -265,7 +287,7 @@ class DiffFlowCallback(Callback):
         # internal variables:
         self.is_trained = False
 
-    def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1):
+    def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1, Y2X_is_identity=False):
         """
         Add documentation
         """
@@ -313,7 +335,10 @@ class DiffFlowCallback(Callback):
         # Gaussian approximation (full chain)
         mcsamples_gaussian_approx = gaussian_tension.gaussian_approximation(chain, param_names=param_names)
         self.dist_gaussian_approx = tfd.MultivariateNormalTriL(loc=mcsamples_gaussian_approx.means[0].astype(np.float32), scale_tril=tf.linalg.cholesky(mcsamples_gaussian_approx.covs[0].astype(np.float32)))
-        self.Y2X_bijector = self.dist_gaussian_approx.bijector
+        if Y2X_is_identity:
+            self.Y2X_bijector = tfb.Identity()
+        else:
+            self.Y2X_bijector = self.dist_gaussian_approx.bijector
 
         # Samples
         # Split training/test
