@@ -39,6 +39,7 @@ from scipy.optimize import differential_evolution
 import scipy.stats
 import pickle
 from collections.abc import Iterable
+import matplotlib
 from matplotlib import pyplot as plt
 
 #from .. import utilities as utils
@@ -317,6 +318,8 @@ class DiffFlowCallback(Callback):
                                  'Possible parameters', chain_params)
         # save param names:
         self.param_names = param_names
+        # save param labels:
+        self.param_labels = [name.label for name in chain.getParamNames().parsWithNames(param_names)]
         # initialize ranges:
         self.parameter_ranges = {}
         for name in param_names:
@@ -934,7 +937,7 @@ class DiffFlowCallback(Callback):
         """
         This method is used by Keras to show progress during training if `feedback` is True.
         """
-        if self.feedback:
+        if self.feedback and matplotlib.get_backend() != 'agg':
             if isinstance(self.feedback, int):
                 if epoch % self.feedback:
                     return
@@ -949,7 +952,7 @@ class DiffFlowCallback(Callback):
         for k in self.log.keys():
             logs[k] = self.log[k][-1]
 
-        if self.feedback:
+        if self.feedback and matplotlib.get_backend() != 'agg':
             plt.tight_layout()
             plt.show()
             return fig
