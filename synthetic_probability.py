@@ -78,6 +78,7 @@ class shift_and_log_scale_fn_helper(tf.Module):
     def __call__(self, x):
         return tf.exp(-0.05*tf.norm(x, ord=2, axis=-1, keepdims=False)**2)[...,None,None] * self.made(x)
 
+
 class SimpleMAF(object):
     """
     A class to implement a simple Masked AutoRegressive Flow (MAF) using the implementation :class:`tfp.bijectors.AutoregressiveNetwork` from from `Tensorflow Probability <https://www.tensorflow.org/probability/>`_. Additionally, this class provides utilities to load/save models, including random permutations.
@@ -132,7 +133,7 @@ class SimpleMAF(object):
             shift_and_log_scale_fn = shift_and_log_scale_fn_helper(made)
             maf = tfb.MaskedAutoregressiveFlow(shift_and_log_scale_fn=shift_and_log_scale_fn)
             bijectors.append(maf)
-            
+
             if _permutations: # add the inverse permutation
                 inv_perm = np.zeros_like(_permutations[i])
                 inv_perm[_permutations[i]] = np.arange(len(inv_perm))
@@ -193,13 +194,13 @@ def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
     diff = DiffFlowCallback(chain, Z2Y_bijector=prior, Y2X_is_identity=True)
 
     """
-    def uniform(a,b):
+    def uniform(a, b):
         return tfb.Chain([tfb.Shift((a+b)/2), tfb.Scale((b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
-        
+
     def normal(mu, sig):
-        return tfb.Chain([tfb.Shift(mu), tfb.Scale(sig)]) 
-    
-    n = len(prior_dict_list) 
+        return tfb.Chain([tfb.Shift(mu), tfb.Scale(sig)])
+
+    n = len(prior_dict_list)
     temp_bijectors = []
     for i in range(n):
         if 'lower' in prior_dict_list[i].keys():
@@ -208,13 +209,14 @@ def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
             temp_bijectors.append(normal(prior_dict_list[i]['mean'], prior_dict_list[i]['scale']))
         else:
             raise ValueError
-    
+
     split = tfb.Split(n)
-    
+
     return tfb.Chain([tfb.Invert(split), tfb.JointMap(temp_bijectors), split], name=name)
 
 ###############################################################################
 # main class to compute NF-based tension:
+
 
 class DiffFlowCallback(Callback):
     """
