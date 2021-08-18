@@ -177,6 +177,21 @@ class SimpleMAF(object):
 
 
 def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
+    """
+    Example usage
+
+    # uniform on x
+    a = -1
+    b = 3
+
+    # gaussian on y
+    mu = 0.5
+    sig = 3.
+
+    prior = prior_bijector_helper([{'lower':a, 'upper':b}, {'mean':mu, 'scale':sig}])
+    diff = DiffFlowCallback(chain, Z2Y_bijector=prior, Y2X_is_identity=True)
+
+    """
     def uniform(a,b):
         return tfb.Chain([tfb.Shift((a+b)/2), tfb.Scale((b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
         
