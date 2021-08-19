@@ -290,13 +290,13 @@ class DiffFlowCallback(Callback):
     kwargs={}
     """
 
-    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', Y2X_is_identity=False, pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
+    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', Y2X_is_identity=False, use_boundary_bijector=False, pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
 
         # read in varaiables:
         self.feedback = feedback
 
         # Chain
-        self._init_chain(chain, param_names=param_names, param_ranges=param_ranges, validation_split=validation_split, Y2X_is_identity=Y2X_is_identity)
+        self._init_chain(chain, param_names=param_names, param_ranges=param_ranges, validation_split=validation_split, Y2X_is_identity=Y2X_is_identity, use_boundary_bijector=use_boundary_bijector)
 
         # Transformed distribution
         self._init_transf_dist(Z2Y_bijector, learning_rate=learning_rate, **kwargs)
@@ -320,7 +320,7 @@ class DiffFlowCallback(Callback):
         # internal variables:
         self.is_trained = False
 
-    def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1, Y2X_is_identity=False):
+    def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1, Y2X_is_identity=False, use_boundary_bijector=False):
         """
         Add documentation
         """
@@ -362,18 +362,28 @@ class DiffFlowCallback(Callback):
                     temp_range.append(np.amax(chain.samples[:, chain.index[name]]))
                 # save:
                 self.parameter_ranges[name] = copy.deepcopy(temp_range)
+        if use_boundary_bijector:
+            assert not Y2X_is_identity # just avoiding confusion between options...
+            boundary_bijector = prior_bijector_helper([{'lower':self.parameter_ranges[name][0] ,'upper':self.parameter_ranges[name][1]} for name in param_names])
 
         # indexes:
         ind = [chain.index[name] for name in param_names]
         self.num_params = len(ind)
 
         # Gaussian approximation (full chain)
-        mcsamples_gaussian_approx = gaussian_tension.gaussian_approximation(chain, param_names=param_names)
-        self.dist_gaussian_approx = tfd.MultivariateNormalTriL(loc=mcsamples_gaussian_approx.means[0].astype(np.float32), scale_tril=tf.linalg.cholesky(mcsamples_gaussian_approx.covs[0].astype(np.float32)))
         if Y2X_is_identity:
             self.Y2X_bijector = tfb.Identity()
         else:
-            self.Y2X_bijector = self.dist_gaussian_approx.bijector
+            if use_boundary_bijector:
+                temp_X = boundary_bijector.inverse(chain.samples).numpy()
+                temp_chain = MCSamples(samples=temp_X, weights=chain.weights, names=param_names)
+                temp_gaussian_approx = gaussian_tension.gaussian_approximation(temp_chain, param_names=param_names) 
+                temp_dist = tfd.MultivariateNormalTriL(loc=temp_gaussian_approx.means[0].astype(np.float32), scale_tril=tf.linalg.cholesky(temp_gaussian_approx.covs[0].astype(np.float32)))
+                self.Y2X_bijector = tfb.Chain([boundary_bijector, temp_dist.bijector])
+            else:
+                mcsamples_gaussian_approx = gaussian_tension.gaussian_approximation(chain, param_names=param_names)
+                self.dist_gaussian_approx = tfd.MultivariateNormalTriL(loc=mcsamples_gaussian_approx.means[0].astype(np.float32), scale_tril=tf.linalg.cholesky(mcsamples_gaussian_approx.covs[0].astype(np.float32)))
+                self.Y2X_bijector = self.dist_gaussian_approx.bijector
 
         # Samples
         # Split training/test
