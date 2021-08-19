@@ -137,8 +137,6 @@ class SimpleMAF(object):
             if _permutations: # add the inverse permutation
                 inv_perm = np.zeros_like(_permutations[i])
                 inv_perm[_permutations[i]] = np.arange(len(inv_perm))
-                print(_permutations[i])
-                print(inv_perm)
                 bijectors.append(tfb.Permute(inv_perm.astype(np.int32)))
 
         self.bijector = tfb.Chain(bijectors)
