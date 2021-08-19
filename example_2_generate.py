@@ -87,8 +87,8 @@ posterior_chain = MCSamples(samples=posterior_chain.samples[:, [posterior_chain.
 _mins = np.amin(prior_chain.samples[:, [prior_chain.index[name] for name in param_names]], axis=0)
 _maxs = np.amax(prior_chain.samples[:, [prior_chain.index[name] for name in param_names]], axis=0)
 
-_mins = [0.0, 0.0]
-_maxs = [0.7, 1.7]
+_mins = np.array([0.0, 0.0])
+_maxs = np.array([0.7, 1.7])
 
 prior_samples = []
 for _min, _max in zip(_mins, _maxs):
@@ -117,27 +117,12 @@ else:
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 
-prior_bij = synthetic_probability.prior_bijector_helper([{'mean':.25, 'scale':.3}, {'mean':.85, 'scale':.3}])
-prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=prior_bij, Y2X_is_identity=True)
-#
-# # if cache exists load training:
-# if os.path.isfile(flow_cache+'prior'+'_permutations.pickle'):
-#     # load trained model:
-#     #temp_MAF = synthetic_probability.SimpleMAF.load(len(prior_chain.getParamNames().list()), flow_cache+'prior')
-#     # initialize flow:
-#     prior_bij = synthetic_probability.prior_bijector_helper([{'mean':.25, 'scale':.2}, {'mean':.85, 'scale':.2}])
-#     prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=prior_bij, Y2X_is_identity=True)
-#     #prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=prior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
-# else:
-#     # initialize flow:
-#     prior_bij = synthetic_probability.prior_bijector_helper([{'mean':.25, 'scale':.2}, {'mean':.85, 'scale':.2}])
-#     prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=prior_bij, Y2X_is_identity=True)
-#     #prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, param_names=prior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
-#     # train:
-#     #prior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
-#     # save trained model:
-#     #prior_flow.MAF.save(flow_cache+'prior')
-
+# posterior:
+temp = []
+for lower, upper in zip(_mins, _maxs):
+    temp.append({'lower': lower.astype(np.float32), 'upper': upper.astype(np.float32)})
+temp_MAF = synthetic_probability.prior_bijector_helper(temp)
+prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF, Y2X_is_identity=True, param_names=prior_chain.getParamNames().list(), feedback=1)
 
 ###############################################################################
 # test plot if called directly:
@@ -174,16 +159,3 @@ if __name__ == '__main__':
     g = plots.get_subplot_plotter()
     g.triangle_plot([prior_chain, prior_flow_chain], filled=True)
     g.export(out_folder+'0_learned_prior_distribution.pdf')
-
-
-# Testing to see if local metric problem starts here:
-param_ranges = [[0,.6],[.6,1.3]]
-coarse_P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 20)
-coarse_P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 20)
-coarse_x, coarse_y = coarse_P1, coarse_P2
-coarse_X, coarse_Y = np.meshgrid(coarse_x, coarse_y)
-
-coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
-#print(coords)
-local_metrics = posterior_flow.metric(coords)
-print(local_metrics)
