@@ -10,13 +10,11 @@ import example_2_generate as example
 import example_5_generate as example
 import example_1_generate as example
 
-
-chain = example.posterior_chain
-prior_chain = example.prior_chain
-param_names = posterior_chain.getParamNames().list()
+chain = example.prior_chain
+flow=example.prior_flow
+param_names = example.prior_chain.getParamNames().list()
 outroot = example.out_folder
-train_params = {}
-param_ranges = None #[[-1.5, 1.5], [-1.5, 1.5]] #None # [[0.0, 0.6], [0.4, 1.5]]
+param_ranges=[[-20, 25], [-3, 4]]
 """
 
 ###############################################################################
@@ -71,7 +69,7 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
 
 ###############################################################################
 
-def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_params={}):
+def run_example_2d(chain, flow, param_names, outroot, param_ranges=None):
     """
     Run full analysis of 2d example case, as in flow playground
     """
