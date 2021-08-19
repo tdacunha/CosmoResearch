@@ -153,3 +153,27 @@
             vel = tf.concat([temp_sol_2.y[flow_P.num_params:, 1:][:, ::-1], temp_sol_1.y[flow_P.num_params:, :]], axis=1)
             #
             return times, traj, vel
+
+
+
+
+
+
+
+KL_eig = np.zeros((400,2))
+KL_eigv = np.zeros((400,2,2))
+print(len(local_metrics))
+for i in range(len(local_metrics)):
+
+    KL_eig_i, KL_eigv_i = tf_KL_decomposition(prior_local_metrics[i], local_metrics[i])
+    KL_eig[i] = KL_eig_i
+    norm  = np.linalg.norm(KL_eigv_i,axis = 1)
+    norm_tile = np.tile(norm,(2,1)).T
+    KL_eigv[i] = KL_eigv_i/norm_tile
+    # if i == 0:
+    #     print(KL_eigv_i)
+    #     print(norm)
+    #     print(KL_eigv_i/norm_tile)
+    #     print(np.linalg.norm(KL_eigv_i/norm_tile,axis = 1))
+#print(np.shape(KL_eigv))
+# sort PCA so first mode is index 0

@@ -28,8 +28,7 @@ callbacks = [ReduceLROnPlateau()]
 # initial settings:
 
 # output folder:
-out_folder = '/Users/TaraD/Desktop/'
-#out_folder = './results/example_3/'
+out_folder = './results/example_3/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 

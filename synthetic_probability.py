@@ -131,7 +131,8 @@ class SimpleMAF(object):
             if _permutations:
                 bijectors.append(tfb.Permute(_permutations[i].astype(np.int32)))
             made = tfb.AutoregressiveNetwork(params=2, event_shape=event_shape, hidden_units=hidden_units, activation=activation, kernel_initializer=kernel_initializer, **kwargs)
-            shift_and_log_scale_fn = shift_and_log_scale_fn_helper(made)
+            # shift_and_log_scale_fn = shift_and_log_scale_fn_helper(made) # not ready yet...
+            shift_and_log_scale_fn = made
             maf = tfb.MaskedAutoregressiveFlow(shift_and_log_scale_fn=shift_and_log_scale_fn)
             bijectors.append(maf)
 
