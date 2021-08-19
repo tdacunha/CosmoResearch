@@ -290,7 +290,12 @@ def eigenvalue_ode(t, y, reference):
     #print('shape=',np.shape(np.array([x_par])[0]),np.shape(metric))
     # compute eigenvalues:
     eig, eigv = tf_KL_decomposition(prior_metric[0], metric[0])
-    temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))
+    #norm = np.dot(np.dot(eigv,metric[0]),eigv)
+    #eigv = eigv/norm
+    eigv = eigv/np.linalg.norm(eigv,axis = 0)
+    print(np.linalg.norm(eigv,axis = 0))
+    temp = tf.matmul(tf.matmul(eigv,metric[0]),tf.transpose([reference]))
+    #temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))
     idx = tf.math.argmax(tf.abs(temp))[0]
     w = tf.convert_to_tensor([tf.math.sign(temp[idx]) * eigv[:, idx]])
     #
@@ -316,7 +321,9 @@ def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
     #print(metric)
     #print(prior_metric)
     eig, eigv = tf_KL_decomposition(prior_metric[0], metric[0])
-
+    eigv = eigv/np.linalg.norm(eigv,axis = 0)
+    #norm = np.dot(np.dot(eigv,metric[0]),eigv)
+    #eigv = eigv/norm
     # initialize solution:
     temp_sol_1 = np.zeros((num_points-1, flow.num_params))
     temp_sol_dot_1 = np.zeros((num_points-1, flow.num_params))
@@ -326,7 +333,8 @@ def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
     solver = scipy.integrate.ode(eigenvalue_ode)
     solver.set_integrator('lsoda')
     solver.set_initial_value(tf.convert_to_tensor(y0), 0.)
-    reference = eigv[:, n]
+    reference = eigv[:, n]/np.linalg.norm(eigv[:,n])
+    print(np.linalg.norm(reference))
     for ind, t in enumerate(solution_times[1:]):
         # set the reference:
         solver.set_f_params(reference)
@@ -390,10 +398,10 @@ gs = gridspec.GridSpec(1, 2)
 ax1 = plt.subplot(gs[0, 0])
 ax2 = plt.subplot(gs[0, 1])
 
-for mode in [modes_0[8]]:
+for mode in modes_0:
     ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
-#for mode in modes_1:
-    #ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
+for mode in modes_1:
+    ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
 
 #ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
 #ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
