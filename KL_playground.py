@@ -38,7 +38,7 @@ from getdist.gaussian_mixtures import GaussianND
 import tensiometer.gaussian_tension as gaussian_tension
 from scipy import optimize
 
-import example_2_generate as example
+import example_1_generate as example
 
 chain=example.posterior_chain
 flow=example.posterior_flow
