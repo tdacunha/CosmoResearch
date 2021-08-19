@@ -10,6 +10,12 @@ import example_2_generate as example
 import example_5_generate as example
 import example_1_generate as example
 
+chain = example.posterior_chain
+flow=example.posterior_flow
+param_names = example.posterior_chain.getParamNames().list()
+outroot = example.out_folder
+param_ranges=[[-20, 25], [-3, 4]]
+
 chain = example.prior_chain
 flow=example.prior_flow
 param_names = example.prior_chain.getParamNames().list()
