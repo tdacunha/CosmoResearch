@@ -209,7 +209,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     print('4) MAP and mean')
 
     # find the MAP in parameter space:
-    result = flow.MAP_finder(disp=True)
+    result = flow.MAP_finder(disp=False)
     maximum_posterior = result.x
     # mean:
     mean = chain.getMeans([chain.index[name] for name in param_names])

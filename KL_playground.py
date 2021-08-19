@@ -104,6 +104,32 @@ log_P = np.array(log_P).T
 P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
+
+
+# feedback:
+
+N = 10000
+X_sample = np.array(flow.sample(N))
+flow_chain = MCSamples(samples=X_sample,
+                       #loglikes=-prior_flow.log_probability(X_sample).numpy(),
+                       names=param_names,
+                       label='Learned distribution')
+
+g = plots.get_subplot_plotter()
+g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
+
+X_sample = np.array(prior_flow.sample(N))
+prior_flow_chain = MCSamples(samples=X_sample,
+                       #loglikes=-prior_flow.log_probability(X_sample).numpy(),
+                       names=param_names,
+                       label='Learned distribution')
+
+g = plots.get_subplot_plotter()
+g.triangle_plot([prior_chain, prior_flow_chain], params=param_names, filled=False)
+#g.export(outroot+'1_learned_posterior_distribution.pdf')
+#plt.close('all')
+
+
 # find the MAP in parameter space:
 result = flow.MAP_finder(disp=True)
 maximum_posterior = result.x
@@ -207,10 +233,12 @@ plt.show()
 r = np.linspace(-1, 1, 1000)
 
 coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
-
+print(coords)
 # compute the metric at all coordinates
 local_metrics = flow.metric(coords)
 prior_local_metrics = prior_flow.metric(coords)
+print(local_metrics)
+print(prior_local_metrics)
 
 # compute the PCA eigenvalues and eigenvectors of each local metric
 #PCA_eig, PCA_eigv = np.linalg.eigh(local_metrics)
@@ -219,6 +247,7 @@ KL_eig = np.zeros((400,2))
 KL_eigv = np.zeros((400,2,2))
 print(len(local_metrics))
 for i in range(len(local_metrics)):
+
     KL_eig_i, KL_eigv_i = utilities.KL_decomposition(prior_local_metrics[i], local_metrics[i])
     KL_eig[i] = KL_eig_i
     norm  = np.linalg.norm(KL_eigv_i,axis = 1)

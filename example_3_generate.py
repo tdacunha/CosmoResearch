@@ -198,3 +198,16 @@ if __name__ == '__main__':
     g = plots.get_subplot_plotter()
     g.triangle_plot([prior_chain, prior_flow_chain], filled=True)
     g.export(out_folder+'0_learned_prior_distribution.pdf')
+
+# # Testing to see if local metric problem is also here:
+#
+# param_ranges = [[-1.,1.],[-1.,1.]]
+# coarse_P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 20)
+# coarse_P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 20)
+# coarse_x, coarse_y = coarse_P1, coarse_P2
+# coarse_X, coarse_Y = np.meshgrid(coarse_x, coarse_y)
+#
+# coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
+# print(coords)
+# local_metrics = posterior_flow.metric(coords)
+# print(local_metrics)

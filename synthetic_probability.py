@@ -39,6 +39,7 @@ from scipy.optimize import differential_evolution
 import scipy.stats
 import pickle
 from collections.abc import Iterable
+import matplotlib
 from matplotlib import pyplot as plt
 
 #from .. import utilities as utils
@@ -68,6 +69,14 @@ except ModuleNotFoundError:
 ###############################################################################
 # helper class to build a masked-autoregressive flow:
 
+
+class shift_and_log_scale_fn_helper(tf.Module):
+    def __init__(self, made, name=None):
+        super(shift_and_log_scale_fn_helper, self).__init__(name=name)
+        self.made = made
+        self._made_variables = made.variables
+    def __call__(self, x):
+        return tf.exp(-0.05*tf.norm(x, ord=2, axis=-1, keepdims=False)**2)[...,None,None] * self.made(x)
 
 class SimpleMAF(object):
     """
@@ -113,11 +122,23 @@ class SimpleMAF(object):
 
         # Build transformed distribution
         bijectors = []
+
+        mafs = []
+        mades = []
         for i in range(n_maf):
             if _permutations:
                 bijectors.append(tfb.Permute(_permutations[i].astype(np.int32)))
             made = tfb.AutoregressiveNetwork(params=2, event_shape=event_shape, hidden_units=hidden_units, activation=activation, kernel_initializer=kernel_initializer, **kwargs)
-            bijectors.append(tfb.MaskedAutoregressiveFlow(shift_and_log_scale_fn=made))
+            shift_and_log_scale_fn = shift_and_log_scale_fn_helper(made)
+            maf = tfb.MaskedAutoregressiveFlow(shift_and_log_scale_fn=shift_and_log_scale_fn)
+            bijectors.append(maf)
+
+            if _permutations: # add the inverse permutation
+                inv_perm = np.zeros_like(_permutations[i])
+                inv_perm[_permutations[i]] = np.arange(len(inv_perm))
+                print(_permutations[i])
+                print(inv_perm)
+                bijectors.append(tfb.Permute(inv_perm.astype(np.int32)))
 
         self.bijector = tfb.Chain(bijectors)
 
@@ -154,6 +175,43 @@ class SimpleMAF(object):
         checkpoint = tf.train.Checkpoint(bijector=maf.bijector)
         checkpoint.read(path)
         return maf
+
+
+def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
+    """
+    Example usage
+
+    # uniform on x
+    a = -1
+    b = 3
+
+    # gaussian on y
+    mu = 0.5
+    sig = 3.
+
+    prior = prior_bijector_helper([{'lower':a, 'upper':b}, {'mean':mu, 'scale':sig}])
+    diff = DiffFlowCallback(chain, Z2Y_bijector=prior, Y2X_is_identity=True)
+
+    """
+    def uniform(a,b):
+        return tfb.Chain([tfb.Shift((a+b)/2), tfb.Scale((b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
+
+    def normal(mu, sig):
+        return tfb.Chain([tfb.Shift(mu), tfb.Scale(sig)])
+
+    n = len(prior_dict_list)
+    temp_bijectors = []
+    for i in range(n):
+        if 'lower' in prior_dict_list[i].keys():
+            temp_bijectors.append(uniform(prior_dict_list[i]['lower'], prior_dict_list[i]['upper']))
+        elif 'mean' in prior_dict_list[i].keys():
+            temp_bijectors.append(normal(prior_dict_list[i]['mean'], prior_dict_list[i]['scale']))
+        else:
+            raise ValueError
+
+    split = tfb.Split(n)
+
+    return tfb.Chain([tfb.Invert(split), tfb.JointMap(temp_bijectors), split], name=name)
 
 ###############################################################################
 # main class to compute NF-based tension:
@@ -215,13 +273,13 @@ class DiffFlowCallback(Callback):
     kwargs={}
     """
 
-    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
+    def __init__(self, chain, param_names=None, param_ranges=None, Z2Y_bijector='MAF', Y2X_is_identity=False, pregauss_bijector=None, learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
 
         # read in varaiables:
         self.feedback = feedback
 
         # Chain
-        self._init_chain(chain, param_names=param_names, param_ranges=param_ranges, validation_split=validation_split)
+        self._init_chain(chain, param_names=param_names, param_ranges=param_ranges, validation_split=validation_split, Y2X_is_identity=Y2X_is_identity)
 
         # Transformed distribution
         self._init_transf_dist(Z2Y_bijector, learning_rate=learning_rate, **kwargs)
@@ -245,7 +303,7 @@ class DiffFlowCallback(Callback):
         # internal variables:
         self.is_trained = False
 
-    def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1):
+    def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1, Y2X_is_identity=False):
         """
         Add documentation
         """
@@ -260,6 +318,8 @@ class DiffFlowCallback(Callback):
                                  'Possible parameters', chain_params)
         # save param names:
         self.param_names = param_names
+        # save param labels:
+        self.param_labels = [name.label for name in chain.getParamNames().parsWithNames(param_names)]
         # initialize ranges:
         self.parameter_ranges = {}
         for name in param_names:
@@ -293,7 +353,10 @@ class DiffFlowCallback(Callback):
         # Gaussian approximation (full chain)
         mcsamples_gaussian_approx = gaussian_tension.gaussian_approximation(chain, param_names=param_names)
         self.dist_gaussian_approx = tfd.MultivariateNormalTriL(loc=mcsamples_gaussian_approx.means[0].astype(np.float32), scale_tril=tf.linalg.cholesky(mcsamples_gaussian_approx.covs[0].astype(np.float32)))
-        self.Y2X_bijector = self.dist_gaussian_approx.bijector
+        if Y2X_is_identity:
+            self.Y2X_bijector = tfb.Identity()
+        else:
+            self.Y2X_bijector = self.dist_gaussian_approx.bijector
 
         # Samples
         # Split training/test
@@ -874,7 +937,7 @@ class DiffFlowCallback(Callback):
         """
         This method is used by Keras to show progress during training if `feedback` is True.
         """
-        if self.feedback:
+        if self.feedback and matplotlib.get_backend() != 'agg':
             if isinstance(self.feedback, int):
                 if epoch % self.feedback:
                     return
@@ -889,7 +952,7 @@ class DiffFlowCallback(Callback):
         for k in self.log.keys():
             logs[k] = self.log[k][-1]
 
-        if self.feedback:
+        if self.feedback and matplotlib.get_backend() != 'agg':
             plt.tight_layout()
             plt.show()
             return fig
