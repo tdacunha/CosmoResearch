@@ -78,6 +78,7 @@ class shift_and_log_scale_fn_helper(tf.Module):
     def __call__(self, x):
         return tf.exp(-0.05*tf.norm(x, ord=2, axis=-1, keepdims=False)**2)[...,None,None] * self.made(x)
 
+
 class SimpleMAF(object):
     """
     A class to implement a simple Masked AutoRegressive Flow (MAF) using the implementation :class:`tfp.bijectors.AutoregressiveNetwork` from from `Tensorflow Probability <https://www.tensorflow.org/probability/>`_. Additionally, this class provides utilities to load/save models, including random permutations.
@@ -193,7 +194,7 @@ def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
     diff = DiffFlowCallback(chain, Z2Y_bijector=prior, Y2X_is_identity=True)
 
     """
-    def uniform(a,b):
+    def uniform(a, b):
         return tfb.Chain([tfb.Shift((a+b)/2), tfb.Scale((b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
 
     def normal(mu, sig):
@@ -215,6 +216,7 @@ def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
 
 ###############################################################################
 # main class to compute NF-based tension:
+
 
 class DiffFlowCallback(Callback):
     """
