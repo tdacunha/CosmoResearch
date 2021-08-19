@@ -55,7 +55,7 @@ param_names = ['omegam', 'sigma8']
 
 # prior distribution
 prior_mean = prior_chain.getMeans([prior_chain.index[name] for name in param_names])
-prior_cov = prior_chain.cov([prior_chain.index[name] for name in param_names])
+prior_cov = np.diag(np.diag(prior_chain.cov([prior_chain.index[name] for name in param_names])))
 prior_distribution = GaussianND(prior_mean, prior_cov,
                                 names=['theta_'+str(i+1) for i in range(len(param_names))],
                                 labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
@@ -75,6 +75,7 @@ posterior_chain = posterior_distribution.MCSamples(n_samples, label='posterior')
 ###############################################################################
 # define the flows:
 
+# posterior:
 # if cache exists load training:
 if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
     # load trained model:
@@ -89,20 +90,12 @@ else:
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 
-# if cache exists load training:
-if os.path.isfile(flow_cache+'prior'+'_permutations.pickle'):
-    # load trained model:
-    temp_MAF = synthetic_probability.SimpleMAF.load(len(prior_chain.getParamNames().list()), flow_cache+'prior')
-    # initialize flow:
-    prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=prior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
-else:
-    # initialize flow:
-    prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, param_names=prior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
-    # train:
-    prior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
-    # save trained model:
-    prior_flow.MAF.save(flow_cache+'prior')
-
+# exact prior:
+temp = []
+for mean, scale in zip(prior_mean, np.diag(prior_cov)):
+    temp.append({'mean': mean.astype(np.float32), 'scale': np.sqrt(scale).astype(np.float32)})
+temp_MAF = synthetic_probability.prior_bijector_helper(temp)
+prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF, Y2X_is_identity=True,  param_names=prior_chain.getParamNames().list(), feedback=1)
 
 ###############################################################################
 # test plot if called directly:

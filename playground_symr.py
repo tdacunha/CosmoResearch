@@ -7,8 +7,16 @@ x = np.linspace(0.1, 1.0, 1000)
 y = 5*x**-0.6
 
 ###############################################################################
+# Deep Symbolic Regression
+
+from dso import DeepSymbolicRegressor
+
+model = DeepSymbolicRegressor()
+
+###############################################################################
 # GPlearn
 
+"""
 from gplearn.genetic import SymbolicRegressor
 from gplearn import functions
 
@@ -55,7 +63,7 @@ locals = {
     'log': lambda x    : sympy.log(x),
 }
 simplify(sympify(str(est_gp._program), locals=locals))
-
+"""
 
 ###############################################################################
 # AI-feynman

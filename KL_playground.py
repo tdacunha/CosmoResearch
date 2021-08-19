@@ -38,7 +38,7 @@ from getdist.gaussian_mixtures import GaussianND
 import tensiometer.gaussian_tension as gaussian_tension
 from scipy import optimize
 
-import example_2_generate as example
+import example_1_generate as example
 
 chain=example.posterior_chain
 flow=example.posterior_flow
@@ -103,6 +103,32 @@ log_P = flow.log_probability(np.array([X, Y], dtype=np.float32).T)
 log_P = np.array(log_P).T
 P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
+
+
+
+# feedback:
+
+N = 10000
+X_sample = np.array(flow.sample(N))
+flow_chain = MCSamples(samples=X_sample,
+                       #loglikes=-prior_flow.log_probability(X_sample).numpy(),
+                       names=param_names,
+                       label='Learned distribution')
+
+g = plots.get_subplot_plotter()
+g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
+
+X_sample = np.array(prior_flow.sample(N))
+prior_flow_chain = MCSamples(samples=X_sample,
+                       #loglikes=-prior_flow.log_probability(X_sample).numpy(),
+                       names=param_names,
+                       label='Learned distribution')
+
+g = plots.get_subplot_plotter()
+g.triangle_plot([prior_chain, prior_flow_chain], params=param_names, filled=False)
+#g.export(outroot+'1_learned_posterior_distribution.pdf')
+#plt.close('all')
+
 
 # find the MAP in parameter space:
 result = flow.MAP_finder(disp=True)
@@ -207,10 +233,12 @@ plt.show()
 r = np.linspace(-1, 1, 1000)
 
 coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
-
+print(coords)
 # compute the metric at all coordinates
 local_metrics = flow.metric(coords)
 prior_local_metrics = prior_flow.metric(coords)
+print(local_metrics)
+print(prior_local_metrics)
 
 # compute the PCA eigenvalues and eigenvectors of each local metric
 #PCA_eig, PCA_eigv = np.linalg.eigh(local_metrics)
@@ -219,6 +247,7 @@ KL_eig = np.zeros((400,2))
 KL_eigv = np.zeros((400,2,2))
 print(len(local_metrics))
 for i in range(len(local_metrics)):
+
     KL_eig_i, KL_eigv_i = utilities.KL_decomposition(prior_local_metrics[i], local_metrics[i])
     KL_eig[i] = KL_eig_i
     norm  = np.linalg.norm(KL_eigv_i,axis = 1)
@@ -272,35 +301,40 @@ def eigenvalue_ode(t, y, reference):
     Solve the dynamical equation for eigenvalues.
     """
     # preprocess:
-    x = tf.convert_to_tensor([tf.cast(y, tf.float32)])
+    x_par = tf.convert_to_tensor([tf.cast(y, tf.float32)])
     # map to original space to compute Jacobian (without inversion):
-    x_par = flow.map_to_original_coord(x)
+    #x_par = flow.map_to_original_coord(x)
     # precompute Jacobian and its derivative:
-    jac = flow.inverse_jacobian(x_par)[0]
-    jac_T = tf.transpose(jac)
-    jac_jac_T = tf.matmul(jac, jac_T)
+    # jac = flow.inverse_jacobian(x_par)[0]
+    # jac_T = tf.transpose(jac)
+    # jac_jac_T = tf.matmul(jac, jac_T)
+    metric = flow.metric(x_par)
+    prior_metric = prior_flow.metric(x_par)
     # compute eigenvalues:
-    eig, eigv = tf.linalg.eigh(jac_jac_T)
+    eig, eigv = utilities.KL_decomposition(prior_metric, metric)
     temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))
     idx = tf.math.argmax(tf.abs(temp))[0]
     w = tf.convert_to_tensor([tf.math.sign(temp[idx]) * eigv[:, idx]])
     #
     return w
 
-def solve_eigenvalue_ode_abs(y0, n, length=1.5, num_points=100, **kwargs):
+def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
     """
     Solve eigenvalue problem in abstract space
     """
     # define solution points:
     solution_times = tf.linspace(0., length, num_points)
     # compute initial PCA:
-    x_abs = tf.convert_to_tensor([y0])
-    x_par = flow.map_to_original_coord(x_abs)
-    jac = flow.inverse_jacobian(x_par)[0]
-    jac_T = tf.transpose(jac)
-    jac_jac_T = tf.matmul(jac, jac_T)
+    x_par = tf.convert_to_tensor([y0])
+    #x_par = flow.map_to_original_coord(x_abs)
+    # jac = flow.inverse_jacobian(x_par)[0]
+    # jac_T = tf.transpose(jac)
+    # jac_jac_T = tf.matmul(jac, jac_T)
     # compute eigenvalues:
-    eig, eigv = tf.linalg.eigh(jac_jac_T)
+    metric  = flow.metric(x_par)#[0]
+    prior_metric = prior_flow.metric(x_par)#[0]
+    eig, eigv = utilities.KL_decomposition(prior_metric, metric)
+
     # initialize solution:
     temp_sol_1 = np.zeros((num_points-1, flow.num_params))
     temp_sol_dot_1 = np.zeros((num_points-1, flow.num_params))
@@ -346,27 +380,27 @@ def solve_eigenvalue_ode_abs(y0, n, length=1.5, num_points=100, **kwargs):
     vel = np.concatenate((-temp_sol_dot_2[::-1], [eigv[:, n].numpy()], temp_sol_dot_1))
     #
     return times, traj, vel
-
-def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
-    """
-    Solve eigenvalue ODE in parameter space
-    """
-    # go to abstract space:
-    x_par = tf.convert_to_tensor([y0])
-    x_abs = flow.map_to_abstract_coord(x_par)[0]
-    # call solver:
-    times, traj, vel = solve_eigenvalue_ode_abs(x_abs, n, length=length, num_points=num_points, **kwargs)
-    # convert back:
-    traj = flow.map_to_original_coord(tf.cast(traj, tf.float32))
-    #
-    return times, traj
+#
+# def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
+#     """
+#     Solve eigenvalue ODE in parameter space
+#     """
+#     # go to abstract space:
+#     x_par = tf.convert_to_tensor([y0])
+#     x_abs = flow.map_to_abstract_coord(x_par)[0]
+#     # call solver:
+#     times, traj, vel = solve_eigenvalue_ode_abs(x_abs, n, length=length, num_points=num_points, **kwargs)
+#     # convert back:
+#     traj = flow.map_to_original_coord(tf.cast(traj, tf.float32))
+#     #
+#     return times, traj
 
 # lines along the global principal components:
 y0 = maximum_posterior.astype(np.float32)
 length = (flow.sigma_to_length(6)).astype(np.float32)
 
-_, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
-_, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
+_, start_1 = solve_eigenvalue_ode_par([y0], n=0, length=length, num_points=5)
+_, start_0 = solve_eigenvalue_ode_par([y0], n=1, length=length, num_points=5)
 
 # solve:
 modes_0, modes_1 = [], []
@@ -403,16 +437,5 @@ for mode in modes_1:
     mode_abs = flow.map_to_abstract_coord(mode)
     ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
 
-# print the iso-contours:
-origin = [0,0]
-theta = np.linspace(0.0, 2.*np.pi, 200)
-for i in range(4):
-    _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
-    ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
-y0_abs = flow.map_to_abstract_coord(y0)
-ax2.scatter(y0_abs[0], y0_abs[1], color='k', zorder=999)
-
-ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
-ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
 plt.tight_layout()
-plt.savefig(outroot+'11_local_pca_flow.pdf')
+plt.show()
