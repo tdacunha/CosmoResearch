@@ -195,10 +195,10 @@ def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
 
     """
     def uniform(a, b):
-        return tfb.Chain([tfb.Shift(((a+b)/2.).astype(np.float32)), tfb.Scale((b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
+        return tfb.Chain([tfb.Shift(np.float32((a+b)/2)), tfb.Scale(np.float32(b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
 
     def normal(mu, sig):
-        return tfb.Chain([tfb.Shift(mu), tfb.Scale(sig)])
+        return tfb.Chain([tfb.Shift(np.float32(mu)), tfb.Scale(np.float32(sig))])
 
     n = len(prior_dict_list)
     temp_bijectors = []
@@ -210,7 +210,7 @@ def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
         else:
             raise ValueError
 
-    split = tfb.Split(n)
+    split = tfb.Split(n, axis=-1)
 
     return tfb.Chain([tfb.Invert(split), tfb.JointMap(temp_bijectors), split], name=name)
 
@@ -535,7 +535,10 @@ class DiffFlowCallback(Callback):
         Computes the log determinant of the metric
         """
         log_det = self.Z2X_bijector.inverse_log_det_jacobian(coord, event_ndims=1)
-        return 2.*log_det
+        if len(log_det.shape)==0:
+            return 2.*log_det*tf.ones_like(coord[...,0])
+        else:
+            return 2.*log_det
 
     @tf.function()
     def direct_jacobian(self, coord):
