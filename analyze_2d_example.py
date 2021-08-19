@@ -144,11 +144,10 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
 
     # plot learned contours
     plt.figure(figsize=figsize)
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5], label='flow')
-    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_5), linewidths=1., linestyles='--', colors=['red' for i in levels_5], label='samples')
+    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    plt.contour(_X, _Y, density.P, get_levels(density.P, density.x, density.y, levels_5), linewidths=1., linestyles='--', colors=['red' for i in levels_5])
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-    plt.legend()
     plt.tight_layout()
     plt.savefig(outroot+'2_log_prob_distribution.pdf')
     plt.close('all')
