@@ -104,33 +104,16 @@ log_P = np.array(log_P).T
 P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
+log_Pi = prior_flow.log_probability(np.array([X, Y], dtype=np.float32).T)
+log_Pi = np.array(log_Pi).T
+Pi = np.exp(log_Pi)
+Pi = Pi / simps(simps(Pi, y), x)
 
+log_L = log_P - log_Pi
+Like = np.exp(log_L)
+Like = Like / simps(simps(Like, y), x)
 
-# feedback:
-
-N = 10000
-X_sample = np.array(flow.sample(N))
-flow_chain = MCSamples(samples=X_sample,
-                       #loglikes=-prior_flow.log_probability(X_sample).numpy(),
-                       names=param_names,
-                       label='Learned distribution')
-
-g = plots.get_subplot_plotter()
-g.triangle_plot([chain, flow_chain], params=param_names, filled=False)
-
-X_sample = np.array(prior_flow.sample(N))
-prior_flow_chain = MCSamples(samples=X_sample,
-                       #loglikes=-prior_flow.log_probability(X_sample).numpy(),
-                       names=param_names,
-                       label='Learned distribution')
-
-g = plots.get_subplot_plotter()
-g.triangle_plot([prior_chain, prior_flow_chain], params=param_names, filled=False)
-#g.export(outroot+'1_learned_posterior_distribution.pdf')
-#plt.close('all')
-
-
-# find the MAP in parameter space:
+# find the MAPS:
 result = flow.MAP_finder(disp=True)
 maximum_posterior = result.x
 # mean:
@@ -139,7 +122,6 @@ mean = chain.getMeans([chain.index[name] for name in param_names])
 cov_samples = chain.cov(pars=param_names)
 prior_cov_samples = prior_chain.cov(pars=param_names)
 
-
 # metrics from flow around mean:
 covariance_metric = flow.metric(np.array([mean]).astype(np.float32))[0]
 fisher_metric = flow.inverse_metric(np.array([mean]).astype(np.float32))[0]
@@ -147,6 +129,38 @@ fisher_metric = flow.inverse_metric(np.array([mean]).astype(np.float32))[0]
 prior_covariance_metric = prior_flow.metric(np.array([mean]).astype(np.float32))[0]
 prior_fisher_metric = prior_flow.inverse_metric(np.array([mean]).astype(np.float32))[0]
 
+###############################################################################
+# Plot posterior and likelihood:
+
+plt.figure(figsize=figsize)
+plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+plt.contour(X, Y, Like, get_levels(Like, x, y, levels_5), linewidths=1., linestyles='-', colors=['red' for i in levels_5])
+plt.xlabel(param_labels_latex[0], fontsize=fontsize)
+plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+plt.tight_layout()
+
+###############################################################################
+# TF KL decomposition:
+
+@tf.function
+def tf_KL_decomposition(matrix_a, matrix_b):
+    """
+    """
+    # compute the eigenvalues of b, lambda_b:
+    _lambda_b, _phi_b = tf.linalg.eigh(matrix_b)
+    _sqrt_lambda_b = tf.linalg.diag(1./tf.math.sqrt(_lambda_b))
+    _phib_prime = tf.matmul(_phi_b, _sqrt_lambda_b)
+    #
+    trailing_axes = [-1, -2]
+    leading = tf.range(tf.rank(_phib_prime) - len(trailing_axes))
+    trailing = trailing_axes + tf.rank(_phib_prime)
+    new_order = tf.concat([leading, trailing], axis=0)
+    _phib_prime_T = tf.transpose(_phib_prime, new_order)
+    #
+    _a_prime = tf.matmul(tf.matmul(_phib_prime_T, matrix_a), _phib_prime)
+    _lambda, _phi_a = tf.linalg.eigh(_a_prime)
+    _phi = tf.matmul(tf.matmul(_phi_b, _sqrt_lambda_b), _phi_a)
+    return _lambda, _phi
 
 ###############################################################################
 
@@ -154,8 +168,8 @@ alpha = np.linspace(-1, 1, 1000)
 plt.figure(figsize=figsize)
 
 # plot KL of flow covariance metric
-eig, eigv = utilities.KL_decomposition(prior_covariance_metric, covariance_metric)
-print(eigv)
+eig, eigv = tf_KL_decomposition(prior_covariance_metric, covariance_metric)
+eig, eigv = eig.numpy(), eigv.numpy()
 # inds = (np.argsort(eig)[::-1])
 # param_directions = np.linalg.inv(eigv.T)
 # eigv = (param_directions.T[inds]).T
@@ -168,7 +182,8 @@ norm1 = np.linalg.norm(eigv[:,1])
 plt.plot(mean[0]+alpha*eigv[0, mode]/norm1, mean[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='k', ls='--',alpha = .5)
 
 # plot KL of flow fisher metric
-eig, eigv = utilities.KL_decomposition(prior_fisher_metric, fisher_metric)
+eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
+eig, eigv = eig.numpy(), eigv.numpy()
 inds = (np.argsort(eig)[::-1])
 param_directions = np.linalg.inv(eigv.T)
 eigv = (param_directions.T[inds]).T
@@ -181,7 +196,8 @@ norm1 = np.linalg.norm(eigv[:,1])
 plt.plot(mean[0]+alpha*eigv[0, mode]/norm1, mean[1]+alpha*eigv[1, mode]/norm1, lw=1., color='green', ls='-.',alpha = .5)
 
 # plot KL of covariance of samples
-eig, eigv = utilities.KL_decomposition(prior_cov_samples, cov_samples)
+eig, eigv = tf_KL_decomposition(prior_cov_samples, cov_samples)
+eig, eigv = eig.numpy(), eigv.numpy()
 inds = (np.argsort(eig)[::-1])
 param_directions = np.linalg.inv(eigv.T)
 eigv = (param_directions.T[inds]).T
@@ -191,27 +207,6 @@ plt.plot(mean[0]+alpha*eigv[0, mode]/norm0, mean[1]+alpha*eigv[1, mode]/norm0, l
 mode = 1
 norm1 = np.linalg.norm(eigv[:,1])
 plt.plot(mean[0]+alpha*eigv[0, mode]/norm1, mean[1]+alpha*eigv[1, mode]/norm1, lw=1., color='red', ls='--',alpha = .5)
-
-# plot PCA of flow covariance metric
-_, eigv = np.linalg.eigh(covariance_metric)
-mode = 0
-plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1.5, color='k', ls='--', label='PCA flow covariance')
-mode = 1
-plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1.5, color='k', ls='--')
-
-# plot PCA of flow fisher metric
-_, eigv = np.linalg.eigh(fisher_metric)
-mode = 0
-plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1., color='green', ls='-.', label='PCA flow fisher')
-mode = 1
-plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1., color='green', ls='-.')
-
-# # plot PCA of covariance of samples
-# _, eigv = np.linalg.eigh(cov_samples)
-# mode = 0
-# plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1., color='red', ls='--', label='samples')
-# mode = 1
-# plt.plot(mean[0]+alpha*eigv[0, mode], mean[1]+alpha*eigv[1, mode], lw=1., color='red', ls='--')
 
 # plot contours
 plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
@@ -233,36 +228,14 @@ plt.show()
 r = np.linspace(-1, 1, 1000)
 
 coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
-print(coords)
 # compute the metric at all coordinates
 local_metrics = flow.metric(coords)
 prior_local_metrics = prior_flow.metric(coords)
-print(local_metrics)
-print(prior_local_metrics)
-
-# compute the PCA eigenvalues and eigenvectors of each local metric
-#PCA_eig, PCA_eigv = np.linalg.eigh(local_metrics)
-#KL_eig, KL_eigv = utilities.KL_decomposition(prior_local_metrics, local_metrics)
-KL_eig = np.zeros((400,2))
-KL_eigv = np.zeros((400,2,2))
-print(len(local_metrics))
-for i in range(len(local_metrics)):
-
-    KL_eig_i, KL_eigv_i = utilities.KL_decomposition(prior_local_metrics[i], local_metrics[i])
-    KL_eig[i] = KL_eig_i
-    norm  = np.linalg.norm(KL_eigv_i,axis = 1)
-    norm_tile = np.tile(norm,(2,1)).T
-    KL_eigv[i] = KL_eigv_i/norm_tile
-    # if i == 0:
-    #     print(KL_eigv_i)
-    #     print(norm)
-    #     print(KL_eigv_i/norm_tile)
-    #     print(np.linalg.norm(KL_eigv_i/norm_tile,axis = 1))
-#print(np.shape(KL_eigv))
-# sort PCA so first mode is index 0
+# compute KL decomposition:
+KL_eig, KL_eigv = tf_KL_decomposition(prior_local_metrics, local_metrics)
 idx = np.argsort(KL_eig, axis=1)[0]
-KL_eig = KL_eig[:, idx]
-KL_eigv = KL_eigv[:, :, idx]
+KL_eig = KL_eig.numpy()[:, idx]
+KL_eigv = KL_eigv.numpy()[:, :, idx]
 
 # plot PCA eigenvectors
 mode = 0
@@ -276,7 +249,8 @@ plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-
 plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
 # compute and plot eigenvectors of covariance of samples
-eig, eigv = utilities.KL_decomposition(prior_cov_samples, cov_samples)
+eig, eigv = tf_KL_decomposition(prior_cov_samples, cov_samples)
+eig, eigv = eig.numpy(), eigv.numpy()
 inds = (np.argsort(eig)[::-1])
 param_directions = np.linalg.inv(eigv.T)
 eigv = (param_directions.T[inds]).T
@@ -295,6 +269,9 @@ plt.ylabel(param_labels_latex[1], fontsize=fontsize)
 plt.tight_layout()
 plt.show()
 
+##########################################################################
+# KL eigenvalue flow
+##########################################################################
 
 def eigenvalue_ode(t, y, reference):
     """
@@ -308,10 +285,11 @@ def eigenvalue_ode(t, y, reference):
     # jac = flow.inverse_jacobian(x_par)[0]
     # jac_T = tf.transpose(jac)
     # jac_jac_T = tf.matmul(jac, jac_T)
-    metric = flow.metric(x_par)
-    prior_metric = prior_flow.metric(x_par)
+    metric = flow.metric(np.array([np.array([x_par])[0][0]]))
+    prior_metric = prior_flow.metric(np.array([np.array([x_par])[0][0]]))
+    #print('shape=',np.shape(np.array([x_par])[0]),np.shape(metric))
     # compute eigenvalues:
-    eig, eigv = utilities.KL_decomposition(prior_metric, metric)
+    eig, eigv = tf_KL_decomposition(prior_metric[0], metric[0])
     temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))
     idx = tf.math.argmax(tf.abs(temp))[0]
     w = tf.convert_to_tensor([tf.math.sign(temp[idx]) * eigv[:, idx]])
@@ -325,15 +303,19 @@ def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
     # define solution points:
     solution_times = tf.linspace(0., length, num_points)
     # compute initial PCA:
-    x_par = tf.convert_to_tensor([y0])
+    x_par = tf.convert_to_tensor(y0)
     #x_par = flow.map_to_original_coord(x_abs)
     # jac = flow.inverse_jacobian(x_par)[0]
     # jac_T = tf.transpose(jac)
     # jac_jac_T = tf.matmul(jac, jac_T)
     # compute eigenvalues:
-    metric  = flow.metric(x_par)#[0]
-    prior_metric = prior_flow.metric(x_par)#[0]
-    eig, eigv = utilities.KL_decomposition(prior_metric, metric)
+    metric  = flow.metric(np.array([x_par]))
+    prior_metric = prior_flow.metric(np.array([x_par]))
+    #print(y0)
+    #print(x_par[0])
+    #print(metric)
+    #print(prior_metric)
+    eig, eigv = tf_KL_decomposition(prior_metric[0], metric[0])
 
     # initialize solution:
     temp_sol_1 = np.zeros((num_points-1, flow.num_params))
@@ -343,7 +325,7 @@ def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
     # integrate forward:
     solver = scipy.integrate.ode(eigenvalue_ode)
     solver.set_integrator('lsoda')
-    solver.set_initial_value(y0, 0.)
+    solver.set_initial_value(tf.convert_to_tensor(y0), 0.)
     reference = eigv[:, n]
     for ind, t in enumerate(solution_times[1:]):
         # set the reference:
@@ -376,54 +358,45 @@ def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
         temp_sol_dot_2[ind] = yprime.numpy().copy()
     # patch solutions:
     times = np.concatenate((-solution_times[::-1], solution_times[1:]))
-    traj = np.concatenate((temp_sol_2[::-1], x_abs.numpy(), temp_sol_1))
+    traj = np.concatenate((temp_sol_2[::-1], np.array([x_par]), temp_sol_1))
     vel = np.concatenate((-temp_sol_dot_2[::-1], [eigv[:, n].numpy()], temp_sol_dot_1))
     #
     return times, traj, vel
-#
-# def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
-#     """
-#     Solve eigenvalue ODE in parameter space
-#     """
-#     # go to abstract space:
-#     x_par = tf.convert_to_tensor([y0])
-#     x_abs = flow.map_to_abstract_coord(x_par)[0]
-#     # call solver:
-#     times, traj, vel = solve_eigenvalue_ode_abs(x_abs, n, length=length, num_points=num_points, **kwargs)
-#     # convert back:
-#     traj = flow.map_to_original_coord(tf.cast(traj, tf.float32))
-#     #
-#     return times, traj
 
 # lines along the global principal components:
 y0 = maximum_posterior.astype(np.float32)
 length = (flow.sigma_to_length(6)).astype(np.float32)
 
-_, start_1 = solve_eigenvalue_ode_par([y0], n=0, length=length, num_points=5)
-_, start_0 = solve_eigenvalue_ode_par([y0], n=1, length=length, num_points=5)
-
+#print((solve_eigenvalue_ode_par([y0], n=0, length=length, num_points=5)))
+_, start_1, __ = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
+_, start_0, __ = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
+#print(start_1)
 # solve:
 modes_0, modes_1 = [], []
+print(start_0)
 for start in start_0:
-    _, mode = solve_eigenvalue_ode_par(start, n=0, length=length, num_points=100)
+    _, mode,_ = solve_eigenvalue_ode_par(start.astype(np.float32), n=0, length=length, num_points=100)
     modes_0.append(mode)
 for start in start_1:
-    _, mode = solve_eigenvalue_ode_par(start, n=1, length=length, num_points=100)
+    _, mode,_ = solve_eigenvalue_ode_par(start.astype(np.float32), n=1, length=length, num_points=100)
     modes_1.append(mode)
-
+print(np.shape(modes_0))
+print(np.shape(modes_1))
+print(modes_0[4])
 # plot:
+import matplotlib.gridspec as gridspec
 plt.figure(figsize=(2*figsize[0], figsize[1]))
 gs = gridspec.GridSpec(1, 2)
 ax1 = plt.subplot(gs[0, 0])
 ax2 = plt.subplot(gs[0, 1])
 
-for mode in modes_0:
+for mode in [modes_0[8]]:
     ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
-for mode in modes_1:
-    ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
+#for mode in modes_1:
+    #ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
 
-ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
-ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+#ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+#ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
 ax1.set_xlim([np.amin(P1), np.amax(P1)])
 ax1.set_ylim([np.amin(P2), np.amax(P2)])
@@ -431,10 +404,10 @@ ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
 ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
 
 for mode in modes_0:
-    mode_abs = flow.map_to_abstract_coord(mode)
+    mode_abs = flow.map_to_abstract_coord(mode.astype(np.float32))
     ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
 for mode in modes_1:
-    mode_abs = flow.map_to_abstract_coord(mode)
+    mode_abs = flow.map_to_abstract_coord(mode.astype(np.float32))
     ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
 
 plt.tight_layout()
