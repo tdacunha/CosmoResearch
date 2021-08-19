@@ -28,7 +28,8 @@ callbacks = [ReduceLROnPlateau()]
 # initial settings:
 
 # output folder:
-out_folder = './results/example_3/'
+out_folder = '/Users/TaraD/Desktop/'
+#out_folder = './results/example_3/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
@@ -134,6 +135,7 @@ else:
 
 # if cache exists load training:
 if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
+    print('yes')
     # load trained model:
     posterior_chain = cache_results['posterior_chain']
     temp_MAF = synthetic_probability.SimpleMAF.load(len(posterior_chain.getParamNames().list()), flow_cache+'posterior')
@@ -143,7 +145,7 @@ else:
     # initialize flow:
     posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, param_names=posterior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
     # train:
-    posterior_flow.train(batch_size=8192, epochs=100, steps_per_epoch=128, callbacks=callbacks)
+    posterior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 
@@ -158,7 +160,7 @@ else:
     # initialize flow:
     prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, param_names=prior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
     # train:
-    prior_flow.train(batch_size=8192, epochs=100, steps_per_epoch=128, callbacks=callbacks)
+    prior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
     # save trained model:
     prior_flow.MAF.save(flow_cache+'prior')
 
