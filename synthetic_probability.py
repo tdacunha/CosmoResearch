@@ -178,7 +178,7 @@ class SimpleMAF(object):
         return maf
 
 
-def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
+def prior_bijector_helper(prior_dict_list=None, name=None, loc=None, cov=None, **kwargs):
     """
     Example usage
 
@@ -200,19 +200,34 @@ def prior_bijector_helper(prior_dict_list, name=None, **kwargs):
     def normal(mu, sig):
         return tfb.Chain([tfb.Shift(np.float32(mu)), tfb.Scale(np.float32(sig))])
 
-    n = len(prior_dict_list)
-    temp_bijectors = []
-    for i in range(n):
-        if 'lower' in prior_dict_list[i].keys():
-            temp_bijectors.append(uniform(prior_dict_list[i]['lower'], prior_dict_list[i]['upper']))
-        elif 'mean' in prior_dict_list[i].keys():
-            temp_bijectors.append(normal(prior_dict_list[i]['mean'], prior_dict_list[i]['scale']))
-        else:
-            raise ValueError
+    def multivariate_normal(loc, cov):
+        return tfd.MultivariateNormalTriL(loc=loc.astype(np.float32), scale_tril=tf.linalg.cholesky(cov.astype(np.float32))).bijector
 
-    split = tfb.Split(n, axis=-1)
+    if prior_dict_list is not None: # Mix of uniform and gaussian one-dimensional priors
 
-    return tfb.Chain([tfb.Invert(split), tfb.JointMap(temp_bijectors), split], name=name)
+        # Build one-dimensional bijectors
+        n = len(prior_dict_list)
+        temp_bijectors = []
+        for i in range(n):
+            if 'lower' in prior_dict_list[i].keys():
+                temp_bijectors.append(uniform(prior_dict_list[i]['lower'], prior_dict_list[i]['upper']))
+            elif 'mean' in prior_dict_list[i].keys():
+                temp_bijectors.append(normal(prior_dict_list[i]['mean'], prior_dict_list[i]['scale']))
+            else:
+                raise ValueError
+
+        # Need Split() to split/merge inputs
+        split = tfb.Split(n, axis=-1)
+        
+        # Chain all
+        return tfb.Chain([tfb.Invert(split), tfb.JointMap(temp_bijectors), split], name=name)
+
+    elif loc is not None: # Multivariate Gaussian prior
+        assert cov is not None
+        return multivariate_normal(loc, cov)
+
+    else:
+        raise ValueError
 
 ###############################################################################
 # main class to compute NF-based tension:
