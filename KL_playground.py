@@ -290,10 +290,13 @@ def eigenvalue_ode(t, y, reference):
     #print('shape=',np.shape(np.array([x_par])[0]),np.shape(metric))
     # compute eigenvalues:
     eig, eigv = tf_KL_decomposition(prior_metric[0], metric[0])
-    #norm = np.dot(np.dot(eigv,metric[0]),eigv)
-    #eigv = eigv/norm
-    eigv = eigv/np.linalg.norm(eigv,axis = 0)
-    print(np.linalg.norm(eigv,axis = 0))
+    norm = 20*np.linalg.norm(eigv,axis = 0)
+    eigv/= norm
+    #metric_norm = (np.dot(np.dot(tf.transpose(eigv),metric[0]),(eigv)))
+    #eigv /= tf.sqrt(metric_norm)
+    print('current norm',norm)
+    #print('metric norm',metric_norm)
+    #print(np.linalg.norm(eigv,axis = 0))
     temp = tf.matmul(tf.matmul(eigv,metric[0]),tf.transpose([reference]))
     #temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))
     idx = tf.math.argmax(tf.abs(temp))[0]
@@ -321,7 +324,10 @@ def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
     #print(metric)
     #print(prior_metric)
     eig, eigv = tf_KL_decomposition(prior_metric[0], metric[0])
-    eigv = eigv/np.linalg.norm(eigv,axis = 0)
+    norm = 20*np.linalg.norm(eigv,axis = 0)
+    eigv/= norm
+    #metric_norm = tf.sqrt(np.dot(np.dot(tf.transpose(eigv),metric[0]),(eigv)))
+    #eigv /= metric_norm
     #norm = np.dot(np.dot(eigv,metric[0]),eigv)
     #eigv = eigv/norm
     # initialize solution:
@@ -333,8 +339,8 @@ def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
     solver = scipy.integrate.ode(eigenvalue_ode)
     solver.set_integrator('lsoda')
     solver.set_initial_value(tf.convert_to_tensor(y0), 0.)
-    reference = eigv[:, n]/np.linalg.norm(eigv[:,n])
-    print(np.linalg.norm(reference))
+    reference = eigv[:, n]#/np.linalg.norm(eigv[:,n])
+    #print(np.linalg.norm(reference))
     for ind, t in enumerate(solution_times[1:]):
         # set the reference:
         solver.set_f_params(reference)
@@ -388,9 +394,9 @@ for start in start_0:
 for start in start_1:
     _, mode,_ = solve_eigenvalue_ode_par(start.astype(np.float32), n=1, length=length, num_points=100)
     modes_1.append(mode)
-print(np.shape(modes_0))
-print(np.shape(modes_1))
-print(modes_0[4])
+#print(np.shape(modes_0))
+#print(np.shape(modes_1))
+#print(modes_0[4])
 # plot:
 import matplotlib.gridspec as gridspec
 plt.figure(figsize=(2*figsize[0], figsize[1]))
@@ -403,8 +409,8 @@ for mode in modes_0:
 for mode in modes_1:
     ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
 
-#ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
-#ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
 ax1.set_xlim([np.amin(P1), np.amax(P1)])
 ax1.set_ylim([np.amin(P2), np.amax(P2)])
@@ -417,6 +423,18 @@ for mode in modes_0:
 for mode in modes_1:
     mode_abs = flow.map_to_abstract_coord(mode.astype(np.float32))
     ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
+
+# print the iso-contours:
+origin = [0,0]
+theta = np.linspace(0.0, 2.*np.pi, 200)
+for i in range(4):
+    _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
+    ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
+y0_abs = flow.map_to_abstract_coord(y0)
+ax2.scatter(y0_abs[0], y0_abs[1], color='k', zorder=999)
+
+ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
+ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
 
 plt.tight_layout()
 plt.show()
