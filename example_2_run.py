@@ -38,6 +38,7 @@ analyze_2d_example.run_example_2d(chain=example.posterior_chain,
 analyze_2d_example.run_example_2d(chain=example.prior_chain,
                                   flow=example.prior_flow,
                                   param_names=example.prior_chain.getParamNames().list(),
+                                  param_ranges=[[0.0, 0.7], [0, 1.7]],
                                   outroot=example.out_folder+'prior_')
 
 

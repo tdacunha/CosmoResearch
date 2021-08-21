@@ -94,8 +94,8 @@ else:
 temp = []
 for mean, scale in zip(prior_mean, np.diag(prior_cov)):
     temp.append({'mean': mean.astype(np.float32), 'scale': np.sqrt(scale).astype(np.float32)})
-temp_MAF = synthetic_probability.prior_bijector_helper(temp)
-prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF, Y2X_is_identity=True,  param_names=prior_chain.getParamNames().list(), feedback=1)
+prior_bij = synthetic_probability.prior_bijector_helper(temp)
+prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=prior_bij, Y2X_is_identity=True,  param_names=prior_chain.getParamNames().list(), feedback=1)
 
 ###############################################################################
 # test plot if called directly:

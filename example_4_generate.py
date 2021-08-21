@@ -135,30 +135,39 @@ else:
 # if cache exists load training:
 if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
     # load trained model:
+    posterior_chain = cache_results['posterior_chain']
     temp_MAF = synthetic_probability.SimpleMAF.load(len(posterior_chain.getParamNames().list()), flow_cache+'posterior')
     # initialize flow:
     posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=posterior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
 else:
     # initialize flow:
+    posterior_chain = cache_results['posterior_chain']
     posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, param_names=posterior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
     # train:
     posterior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 
+# if cache exists load prior chain:
+if os.path.isfile(cache_file):
+    prior_chain = cache_results['prior_chain']
+
+prior_bij = synthetic_probability.prior_bijector_helper([{'lower':prior[0], 'upper':prior[1]}, {'lower':prior[0], 'upper':prior[1]}])
+prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=prior_bij, Y2X_is_identity=True)
+
 # if cache exists load training:
-if os.path.isfile(flow_cache+'prior'+'_permutations.pickle'):
-    # load trained model:
-    temp_MAF = synthetic_probability.SimpleMAF.load(len(prior_chain.getParamNames().list()), flow_cache+'prior')
-    # initialize flow:
-    prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=prior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
-else:
-    # initialize flow:
-    prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, param_names=prior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
-    # train:
-    prior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
-    # save trained model:
-    prior_flow.MAF.save(flow_cache+'prior')
+# if os.path.isfile(flow_cache+'prior'+'_permutations.pickle'):
+#     # load trained model:
+#     temp_MAF = synthetic_probability.SimpleMAF.load(len(prior_chain.getParamNames().list()), flow_cache+'prior')
+#     # initialize flow:
+#     prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=prior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
+# else:
+#     # initialize flow:
+#     prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, param_names=prior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
+#     # train:
+#     prior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
+#     # save trained model:
+#     prior_flow.MAF.save(flow_cache+'prior')
 
 
 ###############################################################################
