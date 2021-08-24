@@ -854,7 +854,35 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     ###########################################################################
     # Plot probability along principal eigenvalue flow:
     ###########################################################################
-    #print(np.shape(pca_mode_0))
+    plt.figure(figsize=figsize)
+
+    points = pca_mode_0
+    probs = flow.log_probability(points)
+    points_abs = flow.map_to_abstract_coord(points)
+    v = points_abs - maximum_posterior_abs
+    dists = np.linalg.norm(v, axis = 1)
+    dists[:np.argmin(dists)] *= -1
+    plt.plot(dists, probs, label = 'Mode 0', c = 'k')
+
+    points = pca_mode_1
+    probs = flow.log_probability(points)
+    points_abs = flow.map_to_abstract_coord(points)
+    v = points_abs - maximum_posterior_abs
+    dists = np.linalg.norm(v, axis = 1)
+    dists[:np.argmin(dists)] *= -1
+    plt.plot(dists, probs, label = 'Mode 1', c = 'r')
+    
+    plt.xlabel('Distance from Maximum Posterior along principal mode', fontsize=fontsize)
+    plt.ylabel('Log Probability', fontsize=fontsize)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    plt.savefig(outroot+'4_maximum_posterior_and_sample_mean.pdf')
+    plt.close('all')
+
+
+
+
     ###########################################################################
     # Run AI Feynman
     ###########################################################################
