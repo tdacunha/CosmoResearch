@@ -871,7 +871,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     dists = np.linalg.norm(v, axis = 1)
     dists[:np.argmin(dists)] *= -1
     plt.plot(dists, probs, label = 'Mode 1', c = 'r')
-    
+
     plt.xlabel('Distance from Maximum Posterior along principal mode', fontsize=fontsize)
     plt.ylabel('Log Probability', fontsize=fontsize)
     plt.legend()
