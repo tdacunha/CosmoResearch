@@ -27,12 +27,12 @@ import analyze_2d_example
 
 import example_1_generate as example
 
-#run posterior:
+# run posterior:
 analyze_2d_example.run_example_2d(chain=example.posterior_chain,
-                                 flow=example.posterior_flow,
-                                 param_names=example.posterior_chain.getParamNames().list(),
-                                 param_ranges=[[0.0, 0.5], [0.3, 1.5]],
-                                 outroot=example.out_folder+'posterior_')
+                                  flow=example.posterior_flow,
+                                  param_names=example.posterior_chain.getParamNames().list(),
+                                  param_ranges=[[0.0, 0.5], [0.3, 1.5]],
+                                  outroot=example.out_folder+'posterior_')
 
 # run prior:
 analyze_2d_example.run_example_2d(chain=example.prior_chain,

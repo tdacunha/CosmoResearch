@@ -45,7 +45,7 @@ n_samples = 100000
 # load the chains (remove no burn in since the example chains have already been cleaned):
 chains_dir = here+'/tensiometer/test_chains/'
 # the DES chain:
-settings = {'ignore_rows':0, 'smooth_scale_1D':0.3, 'smooth_scale_2D':0.3}
+settings = {'ignore_rows': 0, 'smooth_scale_1D': 0.3, 'smooth_scale_2D': 0.3}
 chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'DES', no_cache=True, settings=settings)
 # the prior chain:
 prior_chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'prior', no_cache=True, settings=settings)
@@ -55,7 +55,7 @@ param_names = ['omegam', 'sigma8']
 
 # prior distribution
 prior_mean = prior_chain.getMeans([prior_chain.index[name] for name in param_names])
-prior_cov = np.diag(np.diag(prior_chain.cov([prior_chain.index[name] for name in param_names])))
+prior_cov = prior_chain.cov([prior_chain.index[name] for name in param_names])
 prior_distribution = GaussianND(prior_mean, prior_cov,
                                 names=['theta_'+str(i+1) for i in range(len(param_names))],
                                 labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
@@ -91,10 +91,7 @@ else:
     posterior_flow.MAF.save(flow_cache+'posterior')
 
 # exact prior:
-temp = []
-for mean, scale in zip(prior_mean, np.diag(prior_cov)):
-    temp.append({'mean': mean.astype(np.float32), 'scale': np.sqrt(scale).astype(np.float32)})
-prior_bij = synthetic_probability.prior_bijector_helper(temp)
+prior_bij = synthetic_probability.prior_bijector_helper(loc=prior_mean.astype(np.float32), cov=prior_cov.astype(np.float32))
 prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=prior_bij, Y2X_is_identity=True,  param_names=prior_chain.getParamNames().list(), feedback=1)
 
 ###############################################################################

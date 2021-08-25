@@ -218,7 +218,7 @@ def prior_bijector_helper(prior_dict_list=None, name=None, loc=None, cov=None, *
 
         # Need Split() to split/merge inputs
         split = tfb.Split(n, axis=-1)
-        
+
         # Chain all
         return tfb.Chain([tfb.Invert(split), tfb.JointMap(temp_bijectors), split], name=name)
 
@@ -377,7 +377,7 @@ class DiffFlowCallback(Callback):
             if use_boundary_bijector:
                 temp_X = boundary_bijector.inverse(chain.samples).numpy()
                 temp_chain = MCSamples(samples=temp_X, weights=chain.weights, names=param_names)
-                temp_gaussian_approx = gaussian_tension.gaussian_approximation(temp_chain, param_names=param_names) 
+                temp_gaussian_approx = gaussian_tension.gaussian_approximation(temp_chain, param_names=param_names)
                 temp_dist = tfd.MultivariateNormalTriL(loc=temp_gaussian_approx.means[0].astype(np.float32), scale_tril=tf.linalg.cholesky(temp_gaussian_approx.covs[0].astype(np.float32)))
                 self.Y2X_bijector = tfb.Chain([boundary_bijector, temp_dist.bijector])
             else:
