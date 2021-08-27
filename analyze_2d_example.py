@@ -18,6 +18,15 @@ param_names = example.posterior_chain.getParamNames().list()
 outroot = example.out_folder
 train_params = {}
 param_ranges = None #[[-1.5, 1.5], [-1.5, 1.5]] #None # [[0.0, 0.6], [0.4, 1.5]]
+
+# for testing prior run
+chain = example.prior_chain
+prior_chain = example.prior_chain
+flow = example.prior_flow
+param_names = example.prior_chain.getParamNames().list()
+outroot = example.out_folder
+train_params = {}
+param_ranges=[[0.0, 0.7], [0, 1.7]]# None #[[-1.5, 1.5], [-1.5, 1.5]] #None # [[0.0, 0.6], [0.4, 1.5]]
 """
 
 ###############################################################################
@@ -65,8 +74,22 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
         return simps(simps(_P, y), x)
     levs = []
     for c in conf:
-        res = optimize.brentq(lambda x: _helper(x)-c, np.amin(P), np.amax(P))
-        levs.append(res)
+        # res = optimize.brentq(lambda x: _helper(x)-c, np.amin(P), np.amax(P))
+        # levs.append(res)
+
+        # print('get_levels entered')
+        try:
+            res = optimize.brentq(lambda x: _helper(x)-c, np.amin(P), np.amax(P))
+            levs.append(res)
+        except:
+            print('Cannot generate proper levels')
+            levs = len(conf)
+            break
+            # if len(levs) == 0:
+            #     levs.append(.85)
+            # else:
+            #     levs.append(1.1*levs[-1])
+
     return levs
 
 
@@ -142,7 +165,6 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     log_P = np.array(log_P).T
     P = np.exp(log_P)
     P = P / simps(simps(P, y), x)
-
     # plot learned contours
     plt.figure(figsize=figsize)
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5], label='flow')
