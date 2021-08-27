@@ -74,10 +74,6 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
         return simps(simps(_P, y), x)
     levs = []
     for c in conf:
-        # res = optimize.brentq(lambda x: _helper(x)-c, np.amin(P), np.amax(P))
-        # levs.append(res)
-
-        # print('get_levels entered')
         try:
             res = optimize.brentq(lambda x: _helper(x)-c, np.amin(P), np.amax(P))
             levs.append(res)
@@ -85,10 +81,6 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
             print('Cannot generate proper levels')
             levs = len(conf)
             break
-            # if len(levs) == 0:
-            #     levs.append(.85)
-            # else:
-            #     levs.append(1.1*levs[-1])
 
     return levs
 
