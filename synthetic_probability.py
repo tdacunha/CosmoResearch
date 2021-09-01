@@ -2,11 +2,6 @@
 
 TODO:
 
-- implement MAP finder
-- implement base geometry methods
-- clean up used modules
-- add method to save to file (and cache) the learned distributrion
-
 For testing purposes:
 
 import getdist
@@ -56,6 +51,7 @@ try:
     from tensorflow.keras.layers import Input
     from tensorflow.keras.callbacks import Callback
     HAS_FLOW = True
+    prec = tf.float32
 except Exception as e:
     print("Could not import tensorflow or tensorflow_probability: ", e)
     Callback = object
@@ -102,6 +98,7 @@ class SimpleMAF(object):
     """
 
     def __init__(self, num_params, n_maf=None, hidden_units=None, permutations=True, activation=tf.math.asinh, kernel_initializer='glorot_uniform', feedback=0, **kwargs):
+
         if n_maf is None:
             n_maf = 2*num_params
         event_shape = (num_params,)
@@ -284,6 +281,7 @@ class DiffFlowCallback(Callback):
     feedback=1
     validation_split=0.1
     kwargs={}
+    param_ranges = None
     """
 
     def __init__(self, chain, param_names=None, param_ranges=None, prior_bijector='ranges', apply_pregauss=True, trainable_bijector='MAF', learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
@@ -362,41 +360,38 @@ class DiffFlowCallback(Callback):
                 # save:
                 self.parameter_ranges[name] = copy.deepcopy(temp_range)
 
-        print(self.parameter_ranges)
-
-        # Prior bijector
-        if prior_bijector=='ranges':
-            self.prior_bijector = prior_bijector_helper([{'lower':self.parameter_ranges[name][0] ,'upper':self.parameter_ranges[name][1]} for name in param_names])
+        # Prior bijector setup:
+        if prior_bijector == 'ranges':
+            self.prior_bijector = prior_bijector_helper([{'lower': tf.cast(self.parameter_ranges[name][0], prec), 'upper': tf.cast(self.parameter_ranges[name][1], prec)} for name in param_names])
         elif isinstance(prior_bijector, tfp.bijectors.Bijector):
             self.prior_bijector = prior_bijector
-        elif prior_bijector is None or prior_bijector==False:
+        elif prior_bijector is None or prior_bijector is False:
             self.prior_bijector = tfb.Identity()
 
         self.bijectors = [self.prior_bijector]
 
+        # Samples indices:
+        ind = [chain.index[name] for name in param_names]
+        self.num_params = len(ind)
+
         # Gaussian approximation (full chain)
         if apply_pregauss:
-            temp_X = self.prior_bijector.inverse(chain.samples).numpy()
+            temp_X = self.prior_bijector.inverse(chain.samples[:, ind]).numpy()
             temp_chain = MCSamples(samples=temp_X, weights=chain.weights, names=param_names)
             temp_gaussian_approx = gaussian_tension.gaussian_approximation(temp_chain, param_names=param_names)
-            temp_dist = tfd.MultivariateNormalTriL(loc=temp_gaussian_approx.means[0].astype(np.float32), scale_tril=tf.linalg.cholesky(temp_gaussian_approx.covs[0].astype(np.float32)))
+            temp_dist = tfd.MultivariateNormalTriL(loc=tf.cast(temp_gaussian_approx.means[0], prec), scale_tril=tf.linalg.cholesky(tf.cast(temp_gaussian_approx.covs[0], prec)))
             self.bijectors.append(temp_dist.bijector)
 
         self.fixed_bijector = tfb.Chain(self.bijectors)
 
-        # Samples
-        # Indices
-        ind = [chain.index[name] for name in param_names]
-        self.num_params = len(ind)
-
-        # Split training/test
+        # Split training/test:
         n = chain.samples.shape[0]
         indices = np.random.permutation(n)
         n_split = int(validation_split*n)
         test_idx, training_idx = indices[:n_split], indices[n_split:]
 
-        # Training
-        self.samples = self.fixed_bijector.inverse(chain.samples[training_idx,:][:,ind]).numpy().astype(np.float32)
+        # Training:
+        self.samples = self.fixed_bijector.inverse(chain.samples[training_idx, :][:, ind]).numpy().astype(np.float32)
         self.weights = chain.weights[training_idx]
         self.weights *= len(self.weights) / np.sum(self.weights)  # weights normalized to number of samples
         self.has_weights = np.any(self.weights != self.weights[0])
@@ -405,15 +400,15 @@ class DiffFlowCallback(Callback):
         self.num_samples = len(self.samples)
 
         # Test
-        self.samples_test = self.fixed_bijector.inverse(chain.samples[test_idx,:][:,ind]).numpy().astype(np.float32)
+        self.samples_test = self.fixed_bijector.inverse(chain.samples[test_idx, :][:, ind]).numpy().astype(np.float32)
         # self.Y_test = np.array(self.Y2X_bijector.inverse(self.samples_test.astype(np.float32)))
         self.weights_test = chain.weights[test_idx]
         self.weights_test *= len(self.weights_test) / np.sum(self.weights_test)  # weights normalized to number of samples
 
         # Training sample generator
-        self.training_dataset = tf.data.Dataset.from_tensor_slices((self.samples.astype(np.float32),     # input
-                                                   np.zeros(self.num_samples, dtype=np.float32),         # output (dummy zero)
-                                                   self.weights.astype(np.float32),))                    # weights
+        self.training_dataset = tf.data.Dataset.from_tensor_slices((tf.cast(self.samples, prec),     # input
+                                                                    tf.zeros(self.num_samples),      # output (dummy zero)
+                                                                    tf.cast(self.weights, prec),))   # weights
         self.training_dataset = self.training_dataset.prefetch(tf.data.experimental.AUTOTUNE).cache()
         self.training_dataset = self.training_dataset.shuffle(self.num_samples, reshuffle_each_iteration=True).repeat()
 
@@ -434,7 +429,7 @@ class DiffFlowCallback(Callback):
             self.trainable_bijector = self.MAF.bijector
         elif isinstance(trainable_bijector, tfp.bijectors.Bijector):
             self.trainable_bijector = trainable_bijector
-        elif trainable_bijector is None or trainable_bijector==False:
+        elif trainable_bijector is None or trainable_bijector is False:
             self.trainable_bijector = tfb.Identity()
         else:
             raise ValueError
@@ -444,18 +439,17 @@ class DiffFlowCallback(Callback):
         self.bijector = tfb.Chain(self.bijectors)
 
         # Full distribution
-        base_distribution = tfd.MultivariateNormalDiag(np.zeros(self.num_params, dtype=np.float32), np.ones(self.num_params, dtype=np.float32))
-        self.distribution = tfd.TransformedDistribution(distribution=base_distribution, bijector=self.bijector) # samples from std gaussian mapped to original space
+        base_distribution = tfd.MultivariateNormalDiag(tf.zeros(self.num_params), tf.ones(self.num_params))
+        self.distribution = tfd.TransformedDistribution(distribution=base_distribution, bijector=self.bijector)  # samples from std gaussian mapped to original space
 
         # Construct model (using only trainable bijector)
-        x_ = Input(shape=(self.num_params,), dtype=tf.float32)
+        x_ = Input(shape=(self.num_params,), dtype=prec)
         log_prob_ = tfd.TransformedDistribution(distribution=base_distribution, bijector=self.trainable_bijector).log_prob(x_)
         self.model = Model(x_, log_prob_)
 
         loss = lambda _, log_prob: -log_prob
 
         self.model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate), loss=loss)
-
 
     def train(self, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, **kwargs):
         """
@@ -496,7 +490,7 @@ class DiffFlowCallback(Callback):
                               batch_size=batch_size,
                               epochs=epochs,
                               steps_per_epoch=steps_per_epoch,
-                              validation_data=(self.samples_test, np.zeros(len(self.samples_test), dtype=np.float32), self.weights_test),
+                              validation_data=(self.samples_test, tf.zeros(len(self.samples_test)), self.weights_test),
                               verbose=verbose,
                               callbacks=[tf.keras.callbacks.TerminateOnNaN(), self]+callbacks,
                               **kwargs)
@@ -527,7 +521,7 @@ class DiffFlowCallback(Callback):
         Function that uses scipy differential evolution to find the global maximum of the synthetic posterior.
         """
         # main call to differential evolution:
-        result = differential_evolution(lambda x: -self.distribution.log_prob(np.array(x, dtype=np.float32)),
+        result = differential_evolution(lambda x: -self.distribution.log_prob(tf.cast(x, prec)),
                                         bounds=list(self.parameter_ranges.values()),
                                         **kwargs)
         # cache MAP value:
@@ -566,8 +560,8 @@ class DiffFlowCallback(Callback):
         Computes the log determinant of the metric
         """
         log_det = self.bijector.inverse_log_det_jacobian(coord, event_ndims=1)
-        if len(log_det.shape)==0:
-            return 2.*log_det*tf.ones_like(coord[...,0])
+        if len(log_det.shape) == 0:
+            return 2.*log_det*tf.ones_like(coord[..., 0])
         else:
             return 2.*log_det
 
