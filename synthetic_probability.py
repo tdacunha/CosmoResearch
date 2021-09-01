@@ -233,7 +233,7 @@ def prior_bijector_helper(prior_dict_list=None, name=None, loc=None, cov=None, *
 # main class to compute NF-based tension:
 
 
-class FlowCallback(Callback):
+class DiffFlowCallback(Callback):
     """
     A class to compute the normalizing flow interpolation of a probability density given the samples.
 
@@ -963,7 +963,7 @@ class FlowCallback(Callback):
 
             ax2 = ax.twinx()
             ln2 = ax2.plot(self.log["chi2Z_ks"], ls='--', label='$D_n$')
-            ax2.set_ylabel('r$D_n$')
+            ax2.set_ylabel(r'$D_n$')
 
             lns = ln1+ln2
             labs = [l.get_label() for l in lns]

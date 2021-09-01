@@ -81,7 +81,7 @@ if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
     # load trained model:
     temp_MAF = synthetic_probability.SimpleMAF.load(len(posterior_chain.getParamNames().list()), flow_cache+'posterior')
     # initialize flow:
-    posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, Z2Y_bijector=temp_MAF.bijector, param_names=posterior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
+    posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, trainable_bijector=temp_MAF.bijector, param_names=posterior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
 else:
     # initialize flow:
     posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, param_names=posterior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
@@ -92,7 +92,7 @@ else:
 
 # exact prior:
 prior_bij = synthetic_probability.prior_bijector_helper(loc=prior_mean.astype(np.float32), cov=prior_cov.astype(np.float32))
-prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, Z2Y_bijector=prior_bij, Y2X_is_identity=True,  param_names=prior_chain.getParamNames().list(), feedback=1)
+prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, prior_bijector=prior_bij, apply_pregauss=False, trainable_bijector=None, param_names=prior_chain.getParamNames().list(), feedback=1)
 
 ###############################################################################
 # test plot if called directly:
