@@ -1,7 +1,4 @@
 """
-
-TODO:
-
 For testing purposes:
 
 import getdist
@@ -219,7 +216,7 @@ def prior_bijector_helper(prior_dict_list=None, name=None, loc=None, cov=None, *
         # Chain all
         return tfb.Chain([tfb.Invert(split), tfb.JointMap(temp_bijectors), split], name=name)
 
-    elif loc is not None: # Multivariate Gaussian prior
+    elif loc is not None:  # Multivariate Gaussian prior
         assert cov is not None
         return multivariate_normal(loc, cov)
 
@@ -447,9 +444,8 @@ class DiffFlowCallback(Callback):
         log_prob_ = tfd.TransformedDistribution(distribution=base_distribution, bijector=self.trainable_bijector).log_prob(x_)
         self.model = Model(x_, log_prob_)
 
-        loss = lambda _, log_prob: -log_prob
-
-        self.model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate), loss=loss)
+        # compile model:
+        self.model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate), loss=lambda _, log_prob: -log_prob)
 
     def train(self, epochs=100, batch_size=None, steps_per_epoch=None, callbacks=[], verbose=1, **kwargs):
         """
@@ -484,8 +480,7 @@ class DiffFlowCallback(Callback):
         else:
             if steps_per_epoch is None:
                 steps_per_epoch = int(self.num_samples/batch_size)
-
-        # Run !
+        # Run training:
         hist = self.model.fit(x=self.training_dataset.batch(batch_size),
                               batch_size=batch_size,
                               epochs=epochs,
