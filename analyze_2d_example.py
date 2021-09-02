@@ -5,11 +5,7 @@ General code to analyze examples
 
 For testing purposes:
 
-import example_3_generate as example
-import example_2_generate as example
-import example_5_generate as example
 import example_1_generate as example
-
 
 chain = example.posterior_chain
 prior_chain = example.prior_chain
@@ -230,8 +226,8 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     mean = chain.getMeans([chain.index[name] for name in param_names])
 
     # find in abstract space:
-    maximum_posterior_abs = flow.map_to_abstract_coord(maximum_posterior.astype(np.float32))
-    mean_abs = flow.map_to_abstract_coord(mean.astype(np.float32))
+    maximum_posterior_abs = flow.map_to_abstract_coord(flow.cast(maximum_posterior))
+    mean_abs = flow.map_to_abstract_coord(flow.cast(mean))
 
     plt.figure(figsize=(2*figsize[0], figsize[1]))
     gs = gridspec.GridSpec(1, 2)
@@ -250,7 +246,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     # plot contours with MAP and mean in abstract space:
 
     # print the iso-contours:
-    origin = [0,0]
+    origin = [0, 0]
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
@@ -276,8 +272,8 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     cov_samples = chain.cov(pars=param_names)
 
     # metrics from flow around mean:
-    covariance_metric = flow.metric(np.array([mean]).astype(np.float32))[0]
-    fisher_metric = flow.inverse_metric(np.array([mean]).astype(np.float32))[0]
+    covariance_metric = flow.metric(flow.cast([mean]))[0]
+    fisher_metric = flow.inverse_metric(flow.cast([mean]))[0]
 
     alpha = np.linspace(-1, 1, 1000)
     plt.figure(figsize=figsize)
@@ -325,10 +321,10 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     print('6) abstract geodesics')
 
     # find where the MAP goes:
-    map_image = flow.map_to_abstract_coord(np.array(maximum_posterior, dtype=np.float32))
+    map_image = flow.map_to_abstract_coord(flow.cast(maximum_posterior))
 
     # compute geodesics aligned with abstract coordinate axes:
-    r = np.linspace(-20.0, 20.0, 1000)
+    r = np.linspace(-flow.sigma_to_length(4.), flow.sigma_to_length(4.), 1000)
     t = 0.0
     geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
     geo_1 = flow.map_to_original_coord(geo.T)
@@ -337,7 +333,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     geo_2 = flow.map_to_original_coord(geo.T)
 
     # compute geodesics at range of angles:
-    r = np.linspace(0.0, 20.0, 1000)
+    r = np.linspace(0.0, flow.sigma_to_length(4.), 1000)
     theta = np.linspace(0.0, 2.0*np.pi, 30)
     geodesics = []
     for t in theta:
@@ -381,8 +377,9 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     scale_x = abs(np.amax(P1) - np.amin(P1))
     scale_y = abs(np.amax(P2) - np.amin(P2))
     scale_r = np.linalg.norm([scale_x, scale_y])
+    scale_r = 100
 
-    r = np.linspace(-100000*scale_r, 100000.0*scale_r, 1000)
+    r = np.linspace(-scale_r, scale_r, 1000)
     t = 0.0
     geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
     geo_1 = flow.map_to_original_coord(geo.T)
@@ -391,7 +388,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     geo_2 = flow.map_to_original_coord(geo.T)
 
     # compute geodesics at range of angles:
-    r = np.linspace(0.0, 100000.0*scale_r, 1000)
+    r = np.linspace(0.0, scale_r, 1000)
     theta = np.linspace(0.0, 2.0*np.pi, 1000)
     geodesics = []
     for t in theta:
@@ -407,22 +404,15 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
         plt.plot(*np.array(geo).T, color=cmap(ind/len(geodesics)), zorder=-10)
     plt.plot(*np.array(geo_1).T, color='k', ls='--', zorder=-10, label='$\\theta=0$')
     plt.plot(*np.array(geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
-    #plt.scatter(*np.array(geo_2).T, color='k', zorder=-10, label='$\\theta=\\pi/2$')
 
-    #print(np.array(geo_2).T)
     # plot PCA of covariance of samples
-    r = np.linspace(-100000*scale_r, 100000.0*scale_r, 1000)
-    mode = 0
-    plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
-    mode = 1
-    plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+    for mode in [0, 1]:
+        plt.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], ls='-', color='k')
 
     # plot contours and MAP
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
 
-    plt.xlim([-1000*scale_x, 1000.0*scale_x])
-    plt.ylim([-1000*scale_y, 1000.0*scale_y])
     plt.legend()
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
@@ -464,10 +454,8 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
 
     # compute and plot eigenvectors of covariance of samples
     eig, eigv = np.linalg.eigh(cov_samples)
-    mode = 0
-    plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
-    mode = 1
-    plt.plot(maximum_posterior[0] + r*eigv[0, mode], maximum_posterior[1] + r*eigv[1, mode], ls='-', color='k')
+    for mode in [0, 1]:
+        plt.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], ls='-', color='k')
 
     plt.legend()
     plt.xlim([np.amin(P1), np.amax(P1)])
@@ -861,58 +849,33 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
     plt.tight_layout()
     plt.savefig(outroot+'12_local_pca_abstract.pdf')
-
-
-
+    plt.close('all')
 
     ###########################################################################
     # Plot probability along principal eigenvalue flow:
     ###########################################################################
+
     plt.figure(figsize=figsize)
 
     points = pca_mode_0
     probs = flow.log_probability(points)
     points_abs = flow.map_to_abstract_coord(points)
     v = points_abs - maximum_posterior_abs
-    dists = np.linalg.norm(v, axis = 1)
+    dists = np.linalg.norm(v, axis=1)
     dists[:np.argmin(dists)] *= -1
-    plt.plot(dists, probs, label = 'Mode 0', c = 'k')
+    plt.plot(dists, probs, label='Mode 0', c='k')
 
     points = pca_mode_1
     probs = flow.log_probability(points)
     points_abs = flow.map_to_abstract_coord(points)
     v = points_abs - maximum_posterior_abs
-    dists = np.linalg.norm(v, axis = 1)
+    dists = np.linalg.norm(v, axis=1)
     dists[:np.argmin(dists)] *= -1
-    plt.plot(dists, probs, label = 'Mode 1', c = 'r')
+    plt.plot(dists, probs, label='Mode 1', c='r')
 
     plt.xlabel('Distance from Maximum Posterior along principal mode', fontsize=fontsize)
     plt.ylabel('Log Probability', fontsize=fontsize)
     plt.legend()
     plt.tight_layout()
-    plt.show()
-    plt.savefig(outroot+'4_maximum_posterior_and_sample_mean.pdf')
+    plt.savefig(outroot+'13_probability_local_pca.pdf')
     plt.close('all')
-
-
-
-
-    ###########################################################################
-    # Run AI Feynman
-    ###########################################################################
-
-    ## save to file the first PCA mode:
-    #with open('temp.txt', "w") as f:
-    #    np.savetxt(f, pca_mode_0.numpy())
-    #import aifeynman
-    #aifeynman.run_aifeynman("./", "temp.txt", 60, "19ops.txt", polyfit_deg=2, NN_epochs=500)
-    #plt.figure(figsize=figsize)
-    #plt.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=1., ls='-', color='k')
-    #plt.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=1., ls='-', color='red')
-    #plt.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=1., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
-    #plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    #plt.xlim([np.amin(P1), np.amax(P1)])
-    #plt.ylim([np.amin(P2), np.amax(P2)])
-    #plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    #plt.ylabel(param_labels_latex[1], fontsize=fontsize)
-    #plt.tight_layout()

@@ -75,24 +75,29 @@ posterior_chain = posterior_distribution.MCSamples(n_samples, label='posterior')
 ###############################################################################
 # define the flows:
 
-# posterior:
-# if cache exists load training:
-if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
-    # load trained model:
-    temp_MAF = synthetic_probability.SimpleMAF.load(len(posterior_chain.getParamNames().list()), flow_cache+'posterior')
-    # initialize flow:
-    posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, trainable_bijector=temp_MAF.bijector, param_names=posterior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
-else:
-    # initialize flow:
-    posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, param_names=posterior_chain.getParamNames().list(), feedback=1, learning_rate=0.01)
-    # train:
-    posterior_flow.train(batch_size=8192, epochs=40, steps_per_epoch=128, callbacks=callbacks)
-    # save trained model:
-    posterior_flow.MAF.save(flow_cache+'posterior')
-
 # exact prior:
 prior_bij = synthetic_probability.prior_bijector_helper(loc=prior_mean.astype(np.float32), cov=prior_cov.astype(np.float32))
 prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, prior_bijector=prior_bij, apply_pregauss=False, trainable_bijector=None, param_names=prior_chain.getParamNames().list(), feedback=1)
+
+# posterior:
+num_params = len(param_names)
+n_maf = 3*num_params
+hidden_units = [num_params*2]*3
+
+# if cache exists load training:
+if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
+    # load trained model:
+    temp_MAF = synthetic_probability.SimpleMAF.load(len(posterior_chain.getParamNames().list()), flow_cache+'posterior', n_maf=n_maf, hidden_units=hidden_units)
+    # initialize flow:
+    posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, prior_bijector=prior_bij, trainable_bijector=temp_MAF.bijector, param_names=posterior_chain.getParamNames().list(), feedback=0, learning_rate=0.01)
+else:
+    # initialize flow:
+    posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, prior_bijector=prior_bij, param_names=posterior_chain.getParamNames().list(), feedback=1, learning_rate=0.01, n_maf=n_maf, hidden_units=hidden_units)
+    # train:
+    posterior_flow.train(batch_size=8192, epochs=80, steps_per_epoch=128, callbacks=callbacks)
+    # save trained model:
+    posterior_flow.MAF.save(flow_cache+'posterior')
+
 
 ###############################################################################
 # test plot if called directly:

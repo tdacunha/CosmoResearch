@@ -528,9 +528,16 @@ class DiffFlowCallback(Callback):
 
     def sigma_to_length(self, nsigma):
         """
-        Approximate proper length of events separated by given number of sigmas
+        Approximate proper length of events separated by given number of sigmas.
+        This is the inverse of from_chi2_to_sigma, should implement it as such, with the inverse of the asynth expansion.
         """
         return np.sqrt(scipy.stats.chi2.isf(1. - utils.from_sigma_to_confidence(nsigma), self.num_params))
+
+    def cast(self, v):
+        """
+        Cast vector to internal precision of the flow. Converts to tensorflow tensor.
+        """
+        return tf.cast(v, dtype=prec)
 
     ###############################################################################
     # Information geometry methods:
