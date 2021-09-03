@@ -31,7 +31,8 @@ import example_4_generate as example
 analyze_2d_example.run_example_2d(chain=example.posterior_chain,
                                   flow=example.posterior_flow,
                                   param_names=example.posterior_chain.getParamNames().list(),
-                                  outroot=example.out_folder+'posterior_')
+                                  outroot=example.out_folder+'posterior_',
+                                  param_ranges = [[-0.999,0.999],[-0.999,0.999]])
 
 
 pass
