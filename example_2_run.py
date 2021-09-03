@@ -31,14 +31,14 @@ import example_2_generate as example
 analyze_2d_example.run_example_2d(chain=example.posterior_chain,
                                   flow=example.posterior_flow,
                                   param_names=example.posterior_chain.getParamNames().list(),
-                                  param_ranges=[[0.0, 0.6], [0.4, 1.5]],
+                                  param_ranges=[[0.01, 0.6], [0.4, 1.5]],
                                   outroot=example.out_folder+'posterior_')
 
 # run prior:
 analyze_2d_example.run_example_2d(chain=example.prior_chain,
                                   flow=example.prior_flow,
                                   param_names=example.prior_chain.getParamNames().list(),
-                                  param_ranges=[[0.0, 0.7], [0, 1.7]],
+                                  param_ranges=[[0.01, 0.7], [0, 1.7]],
                                   outroot=example.out_folder+'prior_')
 
 
