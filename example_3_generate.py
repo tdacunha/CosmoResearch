@@ -38,7 +38,7 @@ if not os.path.exists(flow_cache):
     os.mkdir(flow_cache)
 
 # number of samples:
-n_samples = 100000
+n_samples = 1000000
 
 # cache file:
 cache_file = out_folder+'example_3_cache.plk'
@@ -146,6 +146,9 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 num_params = 2
 n_maf = 4*num_params
 hidden_units = [num_params*4]*4
+batch_size = 2*8192
+epochs = 120
+steps_per_epoch = 128
 
 # if cache exists load training:
 if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
@@ -163,7 +166,7 @@ else:
                                                             param_ranges=param_ranges, param_names=posterior_chain.getParamNames().list(),
                                                             feedback=1, learning_rate=0.01, n_maf=n_maf, hidden_units=hidden_units)
     # train:
-    posterior_flow.train(batch_size=8192, epochs=120, steps_per_epoch=128, callbacks=callbacks)
+    posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 

@@ -37,7 +37,7 @@ if not os.path.exists(flow_cache):
     os.mkdir(flow_cache)
 
 # number of samples:
-n_samples = 100000
+n_samples = 1000000
 
 ###############################################################################
 # define the pdf from the DES samples:
@@ -83,6 +83,9 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, prior_bijector=
 num_params = len(param_names)
 n_maf = 3*num_params
 hidden_units = [num_params*2]*3
+batch_size = 2*8192
+epochs = 80
+steps_per_epoch = 128
 
 # if cache exists load training:
 if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
@@ -94,7 +97,7 @@ else:
     # initialize flow:
     posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain, prior_bijector=prior_bij, param_names=posterior_chain.getParamNames().list(), feedback=1, learning_rate=0.01, n_maf=n_maf, hidden_units=hidden_units)
     # train:
-    posterior_flow.train(batch_size=8192, epochs=80, steps_per_epoch=128, callbacks=callbacks)
+    posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 

@@ -38,8 +38,9 @@ analyze_2d_example.run_example_2d(chain=example.posterior_chain,
 analyze_2d_example.run_example_2d(chain=example.prior_chain,
                                   flow=example.prior_flow,
                                   param_names=example.prior_chain.getParamNames().list(),
-                                  param_ranges=[[0.01, 0.7], [0, 1.7]],
-                                  outroot=example.out_folder+'prior_')
+                                  param_ranges=[[0.01, 0.7-0.01], [0.01, 1.7-0.01]],
+                                  outroot=example.out_folder+'prior_',
+                                  use_MAP=False)
 
 
 pass

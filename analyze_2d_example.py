@@ -10,25 +10,23 @@ import example_2_generate as example
 chain=example.posterior_chain
 flow=example.posterior_flow
 param_names=example.posterior_chain.getParamNames().list()
-param_ranges=[[0.0, 0.6], [0.4, 1.5]]
+param_ranges=[[0.01, 0.6], [0.4, 1.5]]
 outroot=example.out_folder+'posterior_'
-train_params = {}
 
 # for testing prior run
-chain = example.prior_chain
-prior_chain = example.prior_chain
-flow = example.prior_flow
-param_names = example.prior_chain.getParamNames().list()
-outroot = example.out_folder
-train_params = {}
-param_ranges=[[0.0, 0.7], [0, 1.7]]# None #[[-1.5, 1.5], [-1.5, 1.5]] #None # [[0.0, 0.6], [0.4, 1.5]]
+chain=example.prior_chain
+flow=example.prior_flow
+param_names=example.prior_chain.getParamNames().list()
+param_ranges=[[0.01, 0.7-0.01], [0.01, 1.7-0.01]]
+outroot=example.out_folder+'prior_'
+use_MAP=False
 """
 
 ###############################################################################
 # initial imports:
 import os
 import numpy as np
-
+import copy
 import sys
 here = './'
 temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
@@ -76,13 +74,13 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
             print('Cannot generate proper levels')
             levs = len(conf)
             break
-
+    levs = np.sort(levs)
     return levs
 
 
 ###############################################################################
 
-def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_params={}):
+def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP=True):
     """
     Run full analysis of 2d example case, as in flow playground
     """
@@ -152,6 +150,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     log_P = np.array(log_P).T
     P = np.exp(log_P)
     P = P / simps(simps(P, y), x)
+
     # plot learned contours
     plt.figure(figsize=figsize)
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
@@ -223,6 +222,11 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     # mean:
     mean = chain.getMeans([chain.index[name] for name in param_names])
 
+    if use_MAP:
+        reference_point = maximum_posterior
+    else:
+        reference_point = mean
+
     # find in abstract space:
     maximum_posterior_abs = flow.map_to_abstract_coord(flow.cast(maximum_posterior))
     mean_abs = flow.map_to_abstract_coord(flow.cast(mean))
@@ -250,7 +254,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
         ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='-', lw=1., color='k')
     ax2.scatter(maximum_posterior_abs[0], maximum_posterior_abs[1], color='green', label='MAP: (%.3f, %.3f)' %(maximum_posterior_abs[0],maximum_posterior_abs[1]))
-    ax2.scatter(mean_abs[0], mean_abs[1], color='red', label='mean: (%.3f, %.3f)' %(mean_abs[0],mean_abs[1]))
+    ax2.scatter(mean_abs[0], mean_abs[1], color='red', label='mean: (%.3f, %.3f)' %(mean_abs[0], mean_abs[1]))
     ax2.legend()
     ax2.set_xlabel(param_labels_latex[0], fontsize=fontsize)
     ax2.set_ylabel(param_labels_latex[1], fontsize=fontsize)
@@ -316,47 +320,69 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     ###########################################################################
 
     # feedback:
-    print('6) abstract geodesics')
+    print('6) geodesics')
 
     # find where the MAP goes:
-    map_image = flow.map_to_abstract_coord(flow.cast(maximum_posterior))
+    reference_image = flow.map_to_abstract_coord(flow.cast(reference_point))
 
     # compute geodesics aligned with abstract coordinate axes:
-    r = np.linspace(-flow.sigma_to_length(4.), flow.sigma_to_length(4.), 1000)
+    length = flow.sigma_to_length(4.)
+    r = np.linspace(-length, length, 1000)
     t = 0.0
-    geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
+    geo = np.array([reference_image[0] + r*np.cos(t), reference_image[1] + r*np.sin(t)], dtype=np.float32)
     geo_1 = flow.map_to_original_coord(geo.T)
+    abs_geo_1 = copy.deepcopy(geo.T)
     t = np.pi/2.
-    geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
+    geo = np.array([reference_image[0] + r*np.cos(t), reference_image[1] + r*np.sin(t)], dtype=np.float32)
     geo_2 = flow.map_to_original_coord(geo.T)
+    abs_geo_2 = copy.deepcopy(geo.T)
 
     # compute geodesics at range of angles:
     r = np.linspace(0.0, flow.sigma_to_length(4.), 1000)
     theta = np.linspace(0.0, 2.0*np.pi, 30)
-    geodesics = []
+    geodesics, abs_geodesics = [], []
     for t in theta:
-        geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
+        geo = np.array([reference_image[0] + r*np.cos(t), reference_image[1] + r*np.sin(t)], dtype=np.float32)
         geodesics.append(flow.map_to_original_coord(geo.T))
+        abs_geodesics.append(geo.T)
 
     # plot geodesics
-    plt.figure(figsize=figsize)
+    plt.figure(figsize=(2*figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 2)
+    ax1 = plt.subplot(gs[0, 0])
+    ax2 = plt.subplot(gs[0, 1])
+
     cmap = cm.get_cmap('Spectral')
     for ind, geo in enumerate(geodesics):
-        plt.plot(*np.array(geo).T, color=cmap(ind/len(geodesics)), zorder=-10)
-    plt.plot(*np.array(geo_1).T, color='k', ls='--', zorder=-10, label='$\\theta=0$')
-    plt.plot(*np.array(geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
+        ax1.plot(*np.array(geo).T, color=cmap(ind/len(geodesics)), zorder=-10)
+    ax1.plot(*np.array(geo_1).T, color='k', ls='--', zorder=-10, label='$\\theta=0$')
+    ax1.plot(*np.array(geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
+
+    for ind, geo in enumerate(abs_geodesics):
+        ax2.plot(*np.array(geo).T, color=cmap(ind/len(geodesics)), zorder=-10)
+    ax2.plot(*np.array(abs_geo_1).T, color='k', ls='--', zorder=-10, label='$\\theta=0$')
+    ax2.plot(*np.array(abs_geo_2).T, color='k', ls='-.', zorder=-10, label='$\\theta=\\pi/2$')
 
     # plot contours
-    plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
+    ax1.scatter(reference_point[0], reference_point[1], color='k')
 
-    plt.xlim([np.amin(P1), np.amax(P1)])
-    plt.ylim([np.amin(P2), np.amax(P2)])
-    plt.legend()
-    plt.xlabel(param_labels_latex[0], fontsize=fontsize)
-    plt.ylabel(param_labels_latex[1], fontsize=fontsize)
+    theta = np.linspace(0.0, 2.*np.pi, 200)
+    ax2.plot(reference_image[0] + length*np.sin(theta), reference_image[1]+length*np.cos(theta), ls='--', lw=1., color='k', label='Contour centered at MAP')
+    ax2.scatter(reference_image[0], reference_image[1], color='k', zorder=999)
+    ax2.plot(length*np.sin(theta), length*np.cos(theta), ls='--', lw=1., color='k', alpha=.3, label='Contour centered at zero')
+
+    ax1.set_xlim([np.amin(P1), np.amax(P1)])
+    ax1.set_ylim([np.amin(P2), np.amax(P2)])
+    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+    ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
+    ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
+
+    ax1.legend()
+    ax2.legend()
     plt.tight_layout()
-    plt.savefig(outroot+'6_abstract_geodesics_in_parameter_space.pdf')
+    plt.savefig(outroot+'6_geodesics.pdf')
     plt.close('all')
 
     ###############################################################################
@@ -379,10 +405,10 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
 
     r = np.linspace(-scale_r, scale_r, 1000)
     t = 0.0
-    geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
+    geo = np.array([reference_image[0] + r*np.cos(t), reference_image[1] + r*np.sin(t)], dtype=np.float32)
     geo_1 = flow.map_to_original_coord(geo.T)
     t = np.pi/2.
-    geo = np.array([map_image[0] + r*np.cos(t), map_image[1] + r*np.sin(t)], dtype=np.float32)
+    geo = np.array([reference_image[0] + r*np.cos(t), reference_image[1] + r*np.sin(t)], dtype=np.float32)
     geo_2 = flow.map_to_original_coord(geo.T)
 
     # compute geodesics at range of angles:
@@ -390,8 +416,8 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     theta = np.linspace(0.0, 2.0*np.pi, 1000)
     geodesics = []
     for t in theta:
-        geo = np.array([map_image[0] + r*np.cos(t),
-                        map_image[1] + r*np.sin(t)], dtype=np.float32)
+        geo = np.array([reference_image[0] + r*np.cos(t),
+                        reference_image[1] + r*np.sin(t)], dtype=np.float32)
         geodesics.append(flow.map_to_original_coord(geo.T))
 
     # plot geodesics:
@@ -491,8 +517,8 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     ax2 = plt.subplot(gs[0, 1])
 
     mode = 0
-    pc = ax1.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='First mode')
-    colorbar = plt.colorbar(pc, ax = ax1)
+    pc = ax1.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200, 200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r', label='First mode')
+    colorbar = plt.colorbar(pc, ax=ax1)
     # plot contours
     ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
@@ -503,8 +529,8 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     ax1.set_title('Mode 0')
 
     mode = 1
-    pc = ax2.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r',label='Second mode')
-    colorbar = plt.colorbar(pc, ax = ax2)
+    pc = ax2.pcolormesh(X, Y, np.log10(PCA_eig[:, mode].reshape(200, 200)), linewidth=0, rasterized=True, shading='auto', cmap='BrBG_r', label='Second mode')
+    colorbar = plt.colorbar(pc, ax=ax2)
     # plot contours
     ax2.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     ax2.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
@@ -519,84 +545,11 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     plt.close('all')
 
     ###########################################################################
-    # Plot geodesics around MAP:
-    ###########################################################################
-
-    # feedback:
-    print('10) geodesics around MAP')
-
-    # define function to rotate vector by set angle theta:
-    def rot(v, theta):
-        rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-        v_new = np.dot(rot, v)
-        return v_new
-
-    # initial point as MAP and determine eigenvector (not normalized):
-    y_init = maximum_posterior.astype(np.float32)
-    covariance_metric = flow.metric(np.array([y_init]).astype(np.float32))[0]
-    eig, eigv = np.linalg.eigh(covariance_metric)
-    yprime_init = eigv[:, 0]
-
-    # define length to travel along geodesic using chi2
-    length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(3), 2))
-    solution_times = np.linspace(0., length, 200)
-
-    # loop through angles and plot:
-    geo_list = []
-    plt.figure(figsize=(2*figsize[0], figsize[1]))
-    gs = gridspec.GridSpec(1, 2)
-    ax1 = plt.subplot(gs[0, 0])
-    ax2 = plt.subplot(gs[0, 1])
-
-    theta_arr = np.linspace(0.0, 2.0*np.pi, 30)
-    for ind, theta in enumerate(theta_arr):
-        yprime = rot(yprime_init, theta).astype(np.float32)
-        # normalize vector using metric
-        norm = np.sqrt(np.dot(np.dot(yprime,covariance_metric),yprime))
-        yprime /= norm
-        results = flow.solve_geodesic(y_init, yprime,solution_times)
-        geo = results.states[:, 0:2]
-        geo_list.append(geo)
-        #plt.quiver(results.states[:,0], results.states[:,1], results.states[:, 2], results.states[:, 3], color=cmap(ind/len(theta_arr)), angles = 'xy')
-        ax1.plot(results.states[:, 0], results.states[:, 1], ls='--', color=cmap(ind/len(theta_arr)))
-    ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    ax1.set_xlim([np.amin(P1), np.amax(P1)])
-    ax1.set_ylim([np.amin(P2), np.amax(P2)])
-    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
-    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
-
-    # plot geodesics in abstract space:
-    for ind, geo in enumerate(geo_list):
-        geo = np.array(geo)
-        geo_abs = flow.map_to_abstract_coord(geo)
-        ax2.plot(*np.array(geo_abs).T, ls='--', color=cmap(ind/len(geo_list)))
-
-    # plot the iso-contour:
-    origin = flow.map_to_abstract_coord(y_init)
-    theta = np.linspace(0.0, 2.*np.pi, 200)
-    ax2.plot(origin[0]+length*np.sin(theta), origin[1]+length*np.cos(theta), ls='--', lw=1., color='k', label = 'Contour centered at MAP')
-    ax2.scatter(origin[0], origin[1], color='k', zorder=999)
-
-    # now also plot the iso-contours centered at zero:
-    origin = [0,0]
-    ax2.plot(origin[0]+length*np.sin(theta), origin[1]+length*np.cos(theta), ls='--', lw=1., color='k', alpha = .3, label = 'Contour centered at zero')
-
-    #plt.legend()
-    ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
-    ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
-    ax2.legend()
-
-    plt.tight_layout()
-    plt.savefig(outroot+'10_geodesics_around_MAP.pdf')
-    plt.close('all')
-
-    ###########################################################################
     # Plot eigenvalue network:
     ###########################################################################
 
     # feedback:
-    print('11) PCA flow')
+    print('10) PCA flow')
 
     def eigenvalue_ode(t, y, reference):
         """
@@ -642,11 +595,15 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
         solver.set_integrator('lsoda')
         solver.set_initial_value(y0, 0.)
         reference = eigv[:, n]
+        yt = y0.numpy()
         for ind, t in enumerate(solution_times[1:]):
             # set the reference:
             solver.set_f_params(reference)
             # advance solver:
-            yt = solver.integrate(t)
+            try:
+                yt = solver.integrate(t)
+            except:
+                pass
             # compute derivative after time-step:
             yprime = eigenvalue_ode(t, yt, reference)
             # update reference:
@@ -659,11 +616,15 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
         #solver.set_integrator()
         solver.set_initial_value(y0, 0.)
         reference = - eigv[:, n]
+        yt = y0.numpy()
         for ind, t in enumerate(solution_times[1:]):
             # set the reference:
             solver.set_f_params(reference)
             # advance solver:
-            yt = solver.integrate(t)
+            try:
+                yt = solver.integrate(t)
+            except:
+                pass
             # compute derivative after time-step:
             yprime = eigenvalue_ode(t, yt, reference)
             # update reference:
@@ -693,7 +654,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
         return times, traj
 
     # lines along the global principal components:
-    y0 = maximum_posterior.astype(np.float32)
+    y0 = flow.cast(reference_point)
     length = (flow.sigma_to_length(6)).astype(np.float32)
 
     _, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
@@ -735,7 +696,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
         ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
 
     # print the iso-contours:
-    origin = [0,0]
+    origin = [0, 0]
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
@@ -780,7 +741,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
         return np.mean(distances)
 
     # general setup:
-    y0 = maximum_posterior.astype(np.float32)
+    y0 = flow.cast(reference_point)
     length = (flow.sigma_to_length(6)).astype(np.float32)
     # minimize for first mode:
     time_0, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=100)
@@ -789,9 +750,13 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     samples = flow.sample(num_samples)
     def _helper_temp(temp):
         return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=0, n2=1, samples=samples)
-    result_0 = scipy.optimize.minimize(_helper_temp, [0.],
-                                       bounds=[[-length, length]], method='L-BFGS-B')
-    pca_mode_0_times, pca_mode_0 = solve_eigenvalue_ode_par(interp_start(result_0.x)[0].astype(np.float32), n=0, length=length, num_points=100)
+    if use_MAP:
+        result_0 = scipy.optimize.minimize(_helper_temp, [0.],
+                                           bounds=[[-length, length]], method='L-BFGS-B')
+        result_0 = result_0.x
+    else:
+        result_0 = 0.0
+    pca_mode_0_times, pca_mode_0 = solve_eigenvalue_ode_par(interp_start(result_0)[0].astype(np.float32), n=0, length=length, num_points=100)
 
     # minimize for the second mode:
     time_1, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=100)
@@ -800,9 +765,13 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     samples = flow.sample(num_samples)
     def _helper_temp(temp):
         return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=1, n2=0, samples=samples)
-    result_1 = scipy.optimize.minimize(_helper_temp, [0.],
-                                     bounds=[[-length, length]], method='L-BFGS-B')
-    pca_mode_1_times, pca_mode_1 = solve_eigenvalue_ode_par(interp_start(result_1.x)[0].astype(np.float32), n=1, length=length, num_points=100)
+    if use_MAP:
+        result_1 = scipy.optimize.minimize(_helper_temp, [0.],
+                                         bounds=[[-length, length]], method='L-BFGS-B')
+        result_1 = result_1.x
+    else:
+        result_1 = 0.0
+    pca_mode_1_times, pca_mode_1 = solve_eigenvalue_ode_par(interp_start(result_1)[0].astype(np.float32), n=1, length=length, num_points=100)
 
     # plot in parameter space:
     plt.figure(figsize=(2*figsize[0], figsize[1]))
@@ -836,12 +805,13 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, train_p
     ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='red')
 
     # print the iso-contours:
-    origin = [0,0] #flow.map_to_abstract_coord(y0)
+    origin = [0, 0]  # flow.map_to_abstract_coord(y0)
     theta = np.linspace(0.0, 2.*np.pi, 200)
     for i in range(4):
         _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
         ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
-    ax2.scatter(origin[0], origin[1], color='k', zorder=999)
+    y0_abs = flow.map_to_abstract_coord(y0)
+    ax2.scatter(y0_abs[0], y0_abs[1], color='k', zorder=999)
 
     ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
     ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
