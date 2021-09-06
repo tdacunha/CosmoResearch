@@ -17,12 +17,33 @@ import matplotlib.gridspec as gridspec
 from matplotlib.patches import Rectangle
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
+import tensorflow as tf
 
 # add path for correct version of tensiometer:
 here = './'
 temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 from tensiometer import utilities
+
+@tf.function
+def tf_KL_decomposition(matrix_a, matrix_b):
+    """
+    """
+    # compute the eigenvalues of b, lambda_b:
+    _lambda_b, _phi_b = tf.linalg.eigh(matrix_b)
+    _sqrt_lambda_b = tf.linalg.diag(1./tf.math.sqrt(_lambda_b))
+    _phib_prime = tf.matmul(_phi_b, _sqrt_lambda_b)
+    #
+    trailing_axes = [-1, -2]
+    leading = tf.range(tf.rank(_phib_prime) - len(trailing_axes))
+    trailing = trailing_axes + tf.rank(_phib_prime)
+    new_order = tf.concat([leading, trailing], axis=0)
+    _phib_prime_T = tf.transpose(_phib_prime, new_order)
+    #
+    _a_prime = tf.matmul(tf.matmul(_phib_prime_T, matrix_a), _phib_prime)
+    _lambda, _phi_a = tf.linalg.eigh(_a_prime)
+    _phi = tf.matmul(tf.matmul(_phi_b, _sqrt_lambda_b), _phi_a)
+    return _lambda, _phi
 
 ###############################################################################
 # initial settings:
@@ -39,6 +60,7 @@ out_folder = './results/paper_plots/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
+
 ###############################################################################
 # plot:
 
@@ -47,11 +69,6 @@ x_size = 8.54
 y_size = 7.0
 main_fontsize = 10.0
 
-# start the plot:
-fig = plt.gcf()
-fig.set_size_inches(x_size/2.54, y_size/2.54)
-gs = gridspec.GridSpec(1, 1)
-ax1 = plt.subplot(gs[0])
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
 param_ranges = [[0.0, 0.5], [0.3, 1.5]]
@@ -68,7 +85,49 @@ log_P = np.array(log_P).T
 P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
-ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(0) for i in levels])
+# compute maximum posterior and metric:
+result = example.posterior_flow.MAP_finder(disp=True)
+maximum_posterior = result.x
+fisher_metric = example.posterior_flow.metric(example.posterior_flow.cast([maximum_posterior]))[0]
+prior_fisher_metric = example.prior_flow.metric(example.prior_flow.cast([maximum_posterior]))[0]
+
+# start the plot:
+fig = plt.gcf()
+fig.set_size_inches(x_size/2.54, y_size/2.54)
+gs = gridspec.GridSpec(1, 1)
+ax1 = plt.subplot(gs[0])
+
+ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
+
+
+eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
+eig, eigv = eig.numpy(), eigv.numpy()
+
+alpha = np.linspace(-1, 1, 1000)
+mode = 0
+norm0 = np.linalg.norm(eigv[:,0])
+plt.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm0, maximum_posterior[1]+alpha*eigv[1, mode]/norm0, lw=1.5, color='cadetblue', ls='-', label='KL flow covariance')
+mode = 1
+norm1 = np.linalg.norm(eigv[:,1])
+plt.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm1, maximum_posterior[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='firebrick', ls='-')
+
+A = np.array([[1,-1],[0,1]])
+fisher_metric_tilde = np.dot(np.dot(np.linalg.inv(A.T), fisher_metric), np.linalg.inv(A))
+prior_fisher_metric_tilde = np.dot(np.dot(np.linalg.inv(A.T), prior_fisher_metric), np.linalg.inv(A))
+
+eig, eigv = tf_KL_decomposition(prior_fisher_metric_tilde, fisher_metric_tilde)
+eig, eigv = eig.numpy(), eigv.numpy()
+eigv = np.dot(A.T,eigv)
+
+alpha = np.linspace(-1, 1, 1000)
+mode = 0
+#norm0 = np.linalg.norm(eigv[:,0])
+plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], lw=1.5, color='cadetblue', ls=':', label='KL flow covariance')
+mode = 1
+#norm1 = np.linalg.norm(eigv[:,1])
+plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], lw=1.5, color='firebrick', ls=':')
+
+
 
 # limits:
 ax1.set_xlim([param_ranges[0][0], param_ranges[0][1]])

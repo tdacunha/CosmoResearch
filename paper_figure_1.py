@@ -47,11 +47,6 @@ x_size = 8.54
 y_size = 7.0
 main_fontsize = 10.0
 
-# start the plot:
-fig = plt.gcf()
-fig.set_size_inches(x_size/2.54, y_size/2.54)
-gs = gridspec.GridSpec(1, 1)
-ax1 = plt.subplot(gs[0])
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
 param_ranges = [[0.0, 0.5], [0.3, 1.5]]
@@ -68,7 +63,39 @@ log_P = np.array(log_P).T
 P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
-ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(0) for i in levels])
+# compute maximum posterior and metric:
+result = example.posterior_flow.MAP_finder(disp=True)
+maximum_posterior = result.x
+fisher_metric = example.posterior_flow.metric(example.posterior_flow.cast([maximum_posterior]))[0]
+
+# start the plot:
+fig = plt.gcf()
+fig.set_size_inches(x_size/2.54, y_size/2.54)
+gs = gridspec.GridSpec(1, 1)
+ax1 = plt.subplot(gs[0])
+
+
+ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
+
+alpha = np.linspace(-1, 1, 1000)
+# plot PCA of flow fisher metric modes:
+eig, eigv = np.linalg.eigh(fisher_metric)
+mode = 1
+ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], lw=1.5, color='firebrick', ls='-', label='Original Basis')
+mode = 0
+ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], lw=1.5, color='cadetblue', ls='-')
+
+# Transform parameter basis:
+A = np.array([[1,-1],[0,1]])
+fisher_metric_tilde = np.dot(np.dot(np.linalg.inv(A.T), fisher_metric), np.linalg.inv(A))
+# plot PCA of transformed flow fisher metric modes:
+_, eigv = np.linalg.eigh(fisher_metric_tilde)
+eigv = np.dot(A.T,eigv)
+mode = 1
+ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], lw=1.5, color='firebrick', ls=':', label='Transformed Basis')
+mode = 0
+ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], lw=1.5, color='cadetblue', ls=':')
+
 
 # limits:
 ax1.set_xlim([param_ranges[0][0], param_ranges[0][1]])
@@ -91,14 +118,14 @@ ax1.get_yticklabels()[-1].set_verticalalignment('top')
 ax1.set_xlabel(r'$\theta_1$', fontsize=main_fontsize);
 ax1.set_ylabel(r'$\theta_2$', fontsize=main_fontsize);
 
-## legend:
-#legend_labels = [r'$\mathcal{P}_1$', r'$\mathcal{P}_2$', r'$\mathcal{P}(\Delta \theta)$', r'$\mathcal{P}(0)$']
-#leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color=cols[0]),
+# ## legend:
+# legend_labels = [r'$\mathcal{P}_1$', r'$\mathcal{P}_2$', r'$\mathcal{P}(\Delta \theta)$', r'$\mathcal{P}(0)$']
+# leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color=cols[0]),
 #                mlines.Line2D([], [], lw=1., ls='-', color=cols[2]),
 #                mlines.Line2D([], [], lw=1., ls='-', color=cols[1]),
 #                mlines.Line2D([], [], lw=1., ls='-', color=cols[3])]
-
-#leg = fig.legend(handles=leg_handlers,
+#
+# leg = fig.legend(handles=leg_handlers,
 #                 labels=legend_labels,
 #                 fontsize=0.9*main_fontsize,
 #                 frameon=True,
@@ -112,7 +139,7 @@ ax1.set_ylabel(r'$\theta_2$', fontsize=main_fontsize);
 #                 loc = 'lower center', mode='expand',
 #                 bbox_to_anchor=(0.0, 0.0, 0.9, 0.9),
 #                 )
-#leg.get_frame().set_linewidth('0.8')
+# leg.get_frame().set_linewidth('0.8')
 
 # update dimensions:
 bottom = 0.17
