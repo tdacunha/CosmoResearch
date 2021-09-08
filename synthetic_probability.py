@@ -738,24 +738,24 @@ class DiffFlowCallback(Callback):
         return tf.linalg.norm(abs_coord_1 - abs_coord_2)
 
     @tf.function()
-    def _naive_eigenvalue_ode(self, t, y, n, side=1.):
+    def fast_geodesic_ivp(self, pos, velocity):
         """
-        Parametrized in proper time, in parameter space
         """
-        # compute metric:
-        metric = self.metric(tf.convert_to_tensor([y]))
-        # compute eigenvalues:
-        eig, eigv = tf.linalg.eigh(metric[0])
-        #
-        return side * eigv[:, n] / tf.sqrt(eig[n])
+        pass
 
     @tf.function()
-    def _naive_eigenvalue_ode_abs(self, t, y, n, side=1.):
+    def fast_geodesic_bvp(self, pos, velocity):
         """
-        Parametrized in proper time, in abstract space
+        """
+        pass
+
+    @tf.function()
+    def _naive_eigenvalue_ode_abs(self, t, y, reference):
+        """
+        Solve naively the dynamical equation for eigenvalues in abstract space.
         """
         # preprocess:
-        x = tf.convert_to_tensor([y])
+        x = tf.convert_to_tensor([tf.cast(y, tf.float32)])
         # map to original space to compute Jacobian (without inversion):
         x_par = self.map_to_original_coord(x)
         # precompute Jacobian and its derivative:
@@ -764,138 +764,11 @@ class DiffFlowCallback(Callback):
         jac_jac_T = tf.matmul(jac, jac_T)
         # compute eigenvalues:
         eig, eigv = tf.linalg.eigh(jac_jac_T)
-        w = eigv[:, n]
-        #
-        return side * w
-
-    @tf.function()
-    def eigenvalue_ode(self, t, y):
-        """
-        Solve the dynamical equation for eigenvalues.
-        """
-        # unpack y:
-        x = tf.convert_to_tensor([y[:self.num_params]])
-        w = tf.convert_to_tensor([y[self.num_params:]])
-        # map to original space to compute Jacobian (without inversion):
-        x_par = self.map_to_original_coord(x)
-        # precompute Jacobian and its derivative:
-        jac = self.inverse_jacobian(x_par)[0]
-        djac = self.inverse_jacobian_coord_derivative(x_par)[0]
-        jacm1 = self.direct_jacobian(x_par)[0]
-        jac_T = tf.transpose(jac)
-        jac_jac_T = tf.matmul(jac, jac_T)
-        Identity = tf.eye(self.num_params)
-        # select the eigenvector that we want to follow based on the solution to the continuity equation:
-        eig, eigv = tf.linalg.eigh(jac_jac_T)
-        temp = tf.matmul(tf.transpose(eigv), tf.transpose(w))
+        temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))
         idx = tf.math.argmax(tf.abs(temp))[0]
-        tilde_w = tf.convert_to_tensor([tf.math.sign(temp[idx]) * eigv[:, idx]])
-        dot_J = tf.einsum('k, lk, ijl -> ji', tilde_w[0], jacm1, djac)
-        # equation for alpha:
-        alpha_dot = 2.*tf.matmul(tf.matmul(tilde_w, jac), tf.matmul(dot_J, tf.transpose(tilde_w)))
-        # equation for wdot:
-        wdot_lhs = (jac_jac_T - tf.matmul(tf.matmul(tilde_w, jac_jac_T), tf.transpose(tilde_w))*Identity)
-        wdot_rhs = tf.matmul(alpha_dot - tf.matmul(dot_J, jac_T) - tf.matmul(jac, tf.transpose(dot_J)), tf.transpose(tilde_w))
-        w_dot = tf.linalg.lstsq(wdot_lhs, wdot_rhs, fast=False)
-        w_dot = tf.matmul((Identity - tf.einsum('i,j->ij', tilde_w[0], tf.transpose(tilde_w[0]))), w_dot)
-        # equation for w:
-        x_dot = tf.transpose(tilde_w)
+        w = tf.convert_to_tensor([tf.math.sign(temp[idx]) * eigv[:, idx]])
         #
-        return tf.transpose(tf.concat([x_dot, w_dot], axis=0))[0]
-
-    @tf.function()
-    def solve_eigenvalue_ode_abs(self, y0, n, length=1.5, num_points=100, **kwargs):
-        """
-        Solve eigenvalue ODE in abstract space
-        """
-        # define solution points:
-        solution_times = tf.linspace(0., length, num_points)
-        # compute initial PCA:
-        x_abs = tf.convert_to_tensor([y0])
-        x_par = self.map_to_original_coord(x_abs)
-        jac = self.inverse_jacobian(x_par)[0]
-        jac_T = tf.transpose(jac)
-        jac_jac_T = tf.matmul(jac, jac_T)
-        # compute eigenvalues:
-        eig, eigv = tf.linalg.eigh(jac_jac_T)
-        w = eigv[:, n]
-        # solve on one side:
-        yinit = tf.concat([x_abs[0], w], axis=0)
-        temp_sol_1 = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(self.eigenvalue_ode, initial_time=0., initial_state=yinit, solution_times=solution_times, **kwargs)
-        # solve on the other side:
-        yinit = tf.concat([x_abs[0], -w], axis=0)
-        temp_sol_2 = tfp.math.ode.DormandPrince(rtol=1.e-4).solve(self.eigenvalue_ode, initial_time=0., initial_state=yinit, solution_times=solution_times, **kwargs)
-        # merge
-        times = tf.concat([-temp_sol_2.times[1:][::-1], temp_sol_1.times], axis=0)
-        traj = tf.concat([temp_sol_2.states[1:][:, :self.num_params][::-1], temp_sol_1.states[:, :self.num_params]], axis=0)
-        vel = tf.concat([temp_sol_2.states[1:][:, self.num_params:][::-1], temp_sol_1.states[:, self.num_params:]], axis=0)
-        #
-        return times, traj, vel
-
-    @tf.function()
-    def solve_eigenvalue_ode_par(self, y0, n, length=1.5, num_points=100, **kwargs):
-        """
-        Solve eigenvalue ODE in parameter space
-        """
-        # go to abstract space:
-        x_par = tf.convert_to_tensor([y0])
-        x_abs = self.map_to_abstract_coord(x_par)[0]
-        # call solver:
-        times, traj, vel = self.solve_eigenvalue_ode_abs(x_abs, n, length=length, num_points=num_points, **kwargs)
-        # convert back:
-        traj = self.map_to_original_coord(traj)
-        #
-        return times, traj
-
-    def solve_eigenvalue_ode_abs_scipy(self, y0, n, length=1.5, num_points=100, **kwargs):
-        """
-        Solve eigenvalue ODE in abstract space, with scipy
-        """
-        # define solution points:
-        solution_times = tf.linspace(0., length, num_points)
-        # compute initial PCA:
-        x_abs = tf.convert_to_tensor([y0.astype(np.float32)])
-        x_par = self.map_to_original_coord(x_abs)
-        jac = self.inverse_jacobian(x_par)[0]
-        jac_T = tf.transpose(jac)
-        jac_jac_T = tf.matmul(jac, jac_T)
-        # compute eigenvalues:
-        eig, eigv = tf.linalg.eigh(jac_jac_T)
-        w = eigv[:, n]
-        # solve on one side:
-        yinit = tf.concat([x_abs[0], w], axis=0)
-        temp_sol_1 = scipy.integrate.solve_ivp(self.eigenvalue_ode,
-                                               t_span=(0.0, length),
-                                               y0=yinit,
-                                               t_eval=solution_times,
-                                               **kwargs)
-        # solve on the other side:
-        yinit = tf.concat([x_abs[0], -w], axis=0)
-        temp_sol_2 = scipy.integrate.solve_ivp(self.eigenvalue_ode,
-                                               t_span=(0.0, length),
-                                               y0=yinit,
-                                               t_eval=solution_times,
-                                               **kwargs)
-        # merge
-        times = tf.concat([-temp_sol_2.t[1:][::-1], temp_sol_1.t], axis=0)
-        traj = tf.concat([temp_sol_2.y[1:][:, :self.num_params][::-1], temp_sol_1.y[:, :self.num_params]], axis=0)
-        vel = tf.concat([temp_sol_2.y[1:][:, self.num_params:][::-1], temp_sol_1.y[:, self.num_params:]], axis=0)
-        #
-        return times, traj, vel
-
-    def solve_eigenvalue_ode_par_scipy(self, y0, n, length=1.5, num_points=100, **kwargs):
-        """
-        Solve eigenvalue ODE in parameter space
-        """
-        # go to abstract space:
-        x_par = tf.convert_to_tensor([y0])
-        x_abs = self.map_to_abstract_coord(x_par)[0]
-        # call solver:
-        times, traj, vel = self.solve_eigenvalue_ode_abs_scipy(x_abs, n, length=length, num_points=num_points, **kwargs)
-        # convert back:
-        traj = self.map_to_original_coord(traj)
-        #
-        return times, traj
+        return w
 
     ###############################################################################
     # Training statistics:
