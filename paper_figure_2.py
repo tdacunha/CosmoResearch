@@ -88,8 +88,13 @@ P = P / simps(simps(P, y), x)
 # compute maximum posterior and metric:
 result = example.posterior_flow.MAP_finder(disp=True)
 maximum_posterior = result.x
-fisher_metric = example.posterior_flow.metric(example.posterior_flow.cast([maximum_posterior]))[0]
-prior_fisher_metric = example.prior_flow.metric(example.prior_flow.cast([maximum_posterior]))[0]
+
+#fisher_metric = example.posterior_flow.metric(example.posterior_flow.cast([maximum_posterior]))[0]
+#prior_fisher_metric = example.prior_flow.metric(example.prior_flow.cast([maximum_posterior]))[0]
+
+# get fisher from samples:
+fisher_metric = np.linalg.inv(example.posterior_chain.cov())
+prior_fisher_metric = np.linalg.inv(example.prior_chain.cov())
 
 # start the plot:
 fig = plt.gcf()
@@ -99,34 +104,44 @@ ax1 = plt.subplot(gs[0])
 
 ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
 
-
+alpha = np.linspace(-1, 1, 10000)
+# plot KL:
 eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
 eig, eigv = eig.numpy(), eigv.numpy()
+param_directions = np.linalg.inv(eigv.T)
+inds = (np.argsort(eig)[::-1])
+param_directions_best = ((param_directions.T[inds]).T)#[:,:2]
 
-alpha = np.linspace(-1, 1, 1000)
+print(np.shape(param_directions_best))
 mode = 0
 norm0 = np.linalg.norm(eigv[:,0])
-plt.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm0, maximum_posterior[1]+alpha*eigv[1, mode]/norm0, lw=1.5, color='cadetblue', ls='-', label='KL flow covariance')
+ax1.plot(maximum_posterior[0]+alpha*param_directions_best[0,mode], maximum_posterior[1]+alpha*param_directions_best[1,mode], color='firebrick', lw=1.5, ls='-', marker = 'o',label='KL flow covariance')
+#ax1.plot(maximum_posterior[0]+alpha*eigv[0,mode]/eig[mode], maximum_posterior[1]+alpha*eigv[1,mode]/eig[mode], lw=1.5, color='firebrick', ls='-', label='KL flow covariance')
+#ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(1), ls='-')
+
 mode = 1
 norm1 = np.linalg.norm(eigv[:,1])
-plt.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm1, maximum_posterior[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='firebrick', ls='-')
+ax1.plot(maximum_posterior[0]+alpha*param_directions_best[0,mode], maximum_posterior[1]+alpha*param_directions_best[1,mode], lw=1.5, color='cadetblue', ls='-', marker = 'o')
+#ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(2), ls='-')
 
-A = np.array([[1,-1],[0,1]])
-fisher_metric_tilde = np.dot(np.dot(np.linalg.inv(A.T), fisher_metric), np.linalg.inv(A))
-prior_fisher_metric_tilde = np.dot(np.dot(np.linalg.inv(A.T), prior_fisher_metric), np.linalg.inv(A))
-
-eig, eigv = tf_KL_decomposition(prior_fisher_metric_tilde, fisher_metric_tilde)
-eig, eigv = eig.numpy(), eigv.numpy()
-eigv = np.dot(A.T,eigv)
-
-alpha = np.linspace(-1, 1, 1000)
-mode = 0
-#norm0 = np.linalg.norm(eigv[:,0])
-plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], lw=1.5, color='cadetblue', ls=':', label='KL flow covariance')
-mode = 1
-#norm1 = np.linalg.norm(eigv[:,1])
-plt.plot(maximum_posterior[0]+alpha*eigv[0, mode], maximum_posterior[1]+alpha*eigv[1, mode], lw=1.5, color='firebrick', ls=':')
-
+# A = np.array([[1,-1],[0,1]])
+# fisher_metric_tilde = np.dot(np.dot((A.T), fisher_metric), (A))
+# prior_fisher_metric_tilde = np.dot(np.dot((A.T), prior_fisher_metric), (A))
+#
+# eig, eigv = tf_KL_decomposition(prior_fisher_metric_tilde, fisher_metric_tilde)
+# eig, eigv = eig.numpy(), eigv.numpy()
+# eigv = np.dot(A,eigv)
+#
+# alpha = np.linspace(-1, 1, 1000)
+# mode = 0
+# norm0 = np.linalg.norm(eigv[:,0])
+# ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm0, maximum_posterior[1]+alpha*eigv[1, mode]/norm0, lw=1.5, color='firebrick', ls=':', label='KL flow covariance')
+# #ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(0), ls=':')
+# mode = 1
+# norm1 = np.linalg.norm(eigv[:,1])
+# ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm1, maximum_posterior[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='cadetblue', ls=':')
+# #ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
+#
 
 
 # limits:
@@ -183,6 +198,6 @@ hspace = 0.3
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 #leg.set_bbox_to_anchor( ( left, 0.005, right-left, right ) )
-
+plt.show()
 plt.savefig(out_folder+'/figure_2.pdf')
 plt.close('all')
