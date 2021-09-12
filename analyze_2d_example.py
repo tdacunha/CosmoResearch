@@ -592,7 +592,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
         temp_sol_dot_2 = np.zeros((num_points-1, flow.num_params))
         # integrate forward:
         solver = scipy.integrate.ode(eigenvalue_ode)
-        solver.set_integrator('lsoda')
+        #solver.set_integrator('lsoda')
         solver.set_initial_value(y0, 0.)
         reference = eigv[:, n]
         yt = y0.numpy()

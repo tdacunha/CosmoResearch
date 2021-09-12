@@ -65,9 +65,20 @@ maximum_posterior = result.x
 mean = example.posterior_chain.getMeans([example.posterior_chain.index[name] for name in example.posterior_chain.getParamNames().list()])
 
 # compute the two base eigenvalues trajectories:
+y0 = example.posterior_flow.cast(maximum_posterior)
+length_1 = (example.posterior_flow.sigma_to_length(2)).astype(np.float32)
+length_2 = (example.posterior_flow.sigma_to_length(4)).astype(np.float32)
+ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=100)
+ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=100)
 
 # compute eigenvalue network:
-
+modes_0, modes_1 = [], []
+for start in ref_start_2[::20]:
+    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=0, length=length_1, num_points=100)
+    modes_0.append(mode)
+for start in ref_start_1[::20]:
+    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=1, length=length_2, num_points=100)
+    modes_1.append(mode)
 
 # plot size in cm. Has to match to draft to make sure font sizes are consistent
 x_size = 18.0
@@ -82,12 +93,26 @@ ax1 = plt.subplot(gs[0])
 ax2 = plt.subplot(gs[1])
 
 # plot the pdf:
-ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
+ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=999., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
 
 theta = np.linspace(0.0, 2.*np.pi, 200)
 for i in range(4):
     _length = np.sqrt(stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
-    ax2.plot(_length*np.sin(theta), _length*np.cos(theta), ls='-', zorder=-1., lw=1., color='k')
+    ax2.plot(_length*np.sin(theta), _length*np.cos(theta), ls='-', zorder=999., lw=1., color='k')
+
+# plot the principal PCA:
+ax1.plot(*ref_start_1.numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(1))
+ax2.plot(*example.posterior_flow.map_to_abstract_coord(ref_start_1).numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(1))
+
+ax1.plot(*ref_start_2.numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(2))
+ax2.plot(*example.posterior_flow.map_to_abstract_coord(ref_start_2).numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(2))
+
+for mode in modes_0:
+    ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(1))
+    ax2.plot(*example.posterior_flow.map_to_abstract_coord(mode).numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(1))
+for mode in modes_1:
+    ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(2))
+    ax2.plot(*example.posterior_flow.map_to_abstract_coord(mode).numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(2))
 
 # MAP:
 ax1.scatter(*maximum_posterior, s=5.0, color='k')
