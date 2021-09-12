@@ -55,7 +55,7 @@ def log_pdf(theta, theta0=[0.0, -0.5], sigma0=0.5):
 
 
 # prior:
-prior = [-1., 1.]
+prior = [-2., 2.]
 
 ###############################################################################
 # generate the samples:
@@ -144,10 +144,10 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 
 # posterior:
 num_params = 2
-n_maf = 4*num_params
-hidden_units = [num_params*4]*4
-batch_size = 2*8192
-epochs = 120
+n_maf = 2*num_params
+hidden_units = [num_params*2]*2
+batch_size = 8192
+epochs = 200
 steps_per_epoch = 128
 
 # if cache exists load training:

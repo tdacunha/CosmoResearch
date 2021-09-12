@@ -43,7 +43,7 @@ if not os.path.exists(out_folder):
 # plot:
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
-param_ranges = [[-0.999, 0.999], [-0.999, 0.999]]
+param_ranges = [[-1.999, 1.999], [-1.999, 1.999]]
 
 # define the grid:
 P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 300)
@@ -67,16 +67,21 @@ mean = example.posterior_chain.getMeans([example.posterior_chain.index[name] for
 # compute the two base eigenvalues trajectories:
 y0 = example.posterior_flow.cast(maximum_posterior)
 length_1 = (example.posterior_flow.sigma_to_length(2)).astype(np.float32)
-length_2 = (example.posterior_flow.sigma_to_length(4)).astype(np.float32)
+length_2 = (example.posterior_flow.sigma_to_length(6)).astype(np.float32)
 ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=100)
 ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=100)
 
+start_1 = np.concatenate((example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=10, side='-')[1].numpy()[1:],
+                          example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=10, side='+')[1].numpy()[1:]))
+start_2 = np.concatenate((example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=5, side='-')[1].numpy()[1:],
+                          example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=5, side='+')[1].numpy()[1:]))
+
 # compute eigenvalue network:
 modes_0, modes_1 = [], []
-for start in ref_start_2[::20]:
+for start in start_2:
     _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=0, length=length_1, num_points=100)
     modes_0.append(mode)
-for start in ref_start_1[::20]:
+for start in start_1:
     _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=1, length=length_2, num_points=100)
     modes_1.append(mode)
 
@@ -100,6 +105,14 @@ for i in range(4):
     _length = np.sqrt(stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
     ax2.plot(_length*np.sin(theta), _length*np.cos(theta), ls='-', zorder=999., lw=1., color='k')
 
+# MAP:
+ax1.scatter(*maximum_posterior, s=5.0, color='k', zorder=999)
+ax2.scatter(*example.posterior_flow.map_to_abstract_coord(example.posterior_flow.cast(maximum_posterior)), s=5.0, color='k', zorder=999)
+
+# mean:
+ax1.scatter(*mean, s=20.0, marker='x', color='k', zorder=999)
+ax2.scatter(*example.posterior_flow.map_to_abstract_coord(example.posterior_flow.cast(mean)), s=20.0, marker='x', color='k', zorder=999)
+
 # plot the principal PCA:
 ax1.plot(*ref_start_1.numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(1))
 ax2.plot(*example.posterior_flow.map_to_abstract_coord(ref_start_1).numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(1))
@@ -114,43 +127,40 @@ for mode in modes_1:
     ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(2))
     ax2.plot(*example.posterior_flow.map_to_abstract_coord(mode).numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(2))
 
-# MAP:
-ax1.scatter(*maximum_posterior, s=5.0, color='k')
-ax2.scatter(*example.posterior_flow.map_to_abstract_coord(example.posterior_flow.cast(maximum_posterior)), s=5.0, color='k')
-
-# mean:
-ax1.scatter(*mean, s=20.0, marker='x', color='k')
-ax2.scatter(*example.posterior_flow.map_to_abstract_coord(example.posterior_flow.cast(mean)), s=20.0, marker='x', color='k')
-
 # prior:
-ax1.axvspan(1., 1.2, alpha=0.2, ec=None, color='k')
-ax1.axvspan(-1., -1.2, alpha=0.2, ec=None, color='k')
-ax1.fill_between([-1., 1.], [1., 1.], [1.2, 1.2], alpha=0.2, ec=None, lw=0.0, color='k')
-ax1.fill_between([-1., 1.], [-1., -1.], [-1.2, -1.2], alpha=0.2, ec=None, lw=0.0, color='k')
-ax1.add_patch(Rectangle((-1., -1.), 2.0, 2.0, fill=None, alpha=1, color='k', ls='--', lw=1.))
+ax1.axvspan(2., 2.2, alpha=0.2, ec=None, color='k')
+ax1.axvspan(-2., -2.2, alpha=0.2, ec=None, color='k')
+ax1.fill_between([-2., 2.], [2., 2.], [2.2, 2.2], alpha=0.2, ec=None, lw=0.0, color='k')
+ax1.fill_between([-2., 2.], [-2., -2.], [-2.2, -2.2], alpha=0.2, ec=None, lw=0.0, color='k')
+ax1.add_patch(Rectangle((-2., -2.), 4.0, 4.0, fill=None, alpha=1, color='k', ls='--', lw=1.))
 
 # limits:
-ax1.set_xlim([-1.1, 1.1])
-ax1.set_ylim([-1.1, 1.1])
+ax1.set_xlim([-1.5, 1.5])
+ax1.set_ylim([-1.1, 2.1])
 
 ax2.set_xlim([-4.0, 4.0])
 ax2.set_ylim([-4.0, 4.0])
 
-## ticks:
-#ticks = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
-#for ax in [ax1, ax2]:
-#    ax.set_xticks(ticks)
-#ax1.set_xticklabels([], fontsize=0.9*main_fontsize);
-#ax2.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
-#ax2.get_xticklabels()[0].set_horizontalalignment('left')
-#ax2.get_xticklabels()[-1].set_horizontalalignment('right')
+# ticks:
+ticks = [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5]
+ax1.set_xticks(ticks)
+ax1.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
+ticks = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
+ax2.set_xticks(ticks)
+ax2.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
+for ax in [ax1, ax2]:
+    ax.get_xticklabels()[0].set_horizontalalignment('left')
+    ax.get_xticklabels()[-1].set_horizontalalignment('right')
 
-#ticks = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
-#for ax in [ax1, ax2]:
-#    ax.set_yticks(ticks)
-#    ax.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
-#    ax.get_yticklabels()[0].set_verticalalignment('bottom')
-#    ax.get_yticklabels()[-1].set_verticalalignment('top')
+ticks = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
+ax1.set_yticks(ticks)
+ax1.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
+ticks = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
+ax2.set_yticks(ticks)
+ax2.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
+ax2.get_yticklabels()[0].set_verticalalignment('bottom')
+ax2.get_yticklabels()[-1].set_verticalalignment('top')
+
 
 # axes labels:
 ax1.set_xlabel(r'$\theta_1$', fontsize=main_fontsize);
@@ -158,17 +168,17 @@ ax1.set_ylabel(r'$\theta_2$', fontsize=main_fontsize);
 ax2.set_xlabel(r'$Z_1$', fontsize=main_fontsize);
 ax2.set_ylabel(r'$Z_2$', fontsize=main_fontsize);
 
-## title:
-#ax1.text( 0.01, 1.03, 'a) PCA of covariance matrix', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax1.transAxes)
-#ax2.text( 0.01, 1.03, 'b) PCA of correlation matrix', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax2.transAxes)
+# title:
+ax1.text(0.01, 1.03, 'a) parameter space', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax1.transAxes)
+ax2.text(0.01, 1.03, 'b) abstract space', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax2.transAxes)
 
 # update dimensions:
-bottom = 0.16
-top = 0.95
-left = 0.15
+bottom = 0.15
+top = 0.92
+left = 0.08
 right = 0.99
-wspace = 0.2
-hspace = 0.2
+wspace = 0.15
+hspace = 0.15
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 

@@ -769,9 +769,10 @@ class DiffFlowCallback(Callback):
         #
         return w
 
-    def solve_eigenvalue_ode_abs(self, y0, n, length=1.5, integrator='lsoda', num_points=100, **kwargs):
+    def solve_eigenvalue_ode_abs(self, y0, n, length=1.5, side='both', integrator_options=None, num_points=100, **kwargs):
         """
         Solve eigenvalue problem in abstract space
+        side = '+', '-', 'both'
         """
         # define solution points:
         solution_times = tf.linspace(0., length, num_points)
@@ -781,55 +782,73 @@ class DiffFlowCallback(Callback):
         jac = self.inverse_jacobian(x_par)[0]
         jac_T = tf.transpose(jac)
         jac_jac_T = tf.matmul(jac, jac_T)
-        # compute eigenvalues:
+        # compute eigenvalues at initial point:
         eig, eigv = tf.linalg.eigh(jac_jac_T)
-        # initialize solution:
-        temp_sol_1 = np.zeros((num_points-1, self.num_params))
-        temp_sol_dot_1 = np.zeros((num_points-1, self.num_params))
-        temp_sol_2 = np.zeros((num_points-1, self.num_params))
-        temp_sol_dot_2 = np.zeros((num_points-1, self.num_params))
-        # integrate forward:
-        solver = scipy.integrate.ode(self._naive_eigenvalue_ode_abs)
-        #solver.set_integrator(integrator)
-        solver.set_initial_value(y0, 0.)
-        reference = eigv[:, n]
-        yt = y0.numpy()
-        yprime = reference
-        for ind, t in enumerate(solution_times[1:]):
-            # set the reference:
-            solver.set_f_params(reference)
-            # advance solver:
-            try:
-                yt = solver.integrate(t)
-                yprime = self._naive_eigenvalue_ode_abs(t, yt, reference)
-            except:
-                pass
-            # update reference:
-            reference = yprime[0]
-            # save out:
-            temp_sol_1[ind] = yt.copy()
-            temp_sol_dot_1[ind] = yprime.numpy().copy()
-        # integrate backward:
-        solver = scipy.integrate.ode(self._naive_eigenvalue_ode_abs)
-        #solver.set_integrator(integrator)
-        solver.set_initial_value(y0, 0.)
-        reference = - eigv[:, n]
-        yt = y0.numpy()
-        yprime = reference
-        for ind, t in enumerate(solution_times[1:]):
-            # set the reference:
-            solver.set_f_params(reference)
-            # advance solver:
-            try:
-                yt = solver.integrate(t)
-                yprime = self._naive_eigenvalue_ode_abs(t, yt, reference)
-            except:
-                pass
-            # update reference:
-            reference = yprime[0]
-            # save out:
-            temp_sol_2[ind] = yt.copy()
-            temp_sol_dot_2[ind] = yprime.numpy().copy()
+        # solve forward:
+        if side == '+' or side == 'both':
+            # initialize solution:
+            temp_sol_1 = np.zeros((num_points-1, self.num_params))
+            temp_sol_dot_1 = np.zeros((num_points-1, self.num_params))
+            # initialize forward integration:
+            solver = scipy.integrate.ode(self._naive_eigenvalue_ode_abs)
+            if integrator_options is not None:
+                solver.set_integrator(**integrator_options)
+            solver.set_initial_value(y0, 0.)
+            reference = eigv[:, n]
+            yt = y0.numpy()
+            yprime = reference
+            # do the time steps:
+            for ind, t in enumerate(solution_times[1:]):
+                # set the reference:
+                solver.set_f_params(reference)
+                # advance solver:
+                try:
+                    yt = solver.integrate(t)
+                    yprime = self._naive_eigenvalue_ode_abs(t, yt, reference)
+                except:
+                    pass
+                # update reference:
+                reference = yprime[0]
+                # save out:
+                temp_sol_1[ind] = yt.copy()
+                temp_sol_dot_1[ind] = yprime.numpy().copy()
+            # return if needed:
+            if side == '+':
+                traj = np.concatenate((x_abs.numpy(), temp_sol_1))
+                vel = np.concatenate(([eigv[:, n].numpy()], temp_sol_dot_1))
+                return solution_times, traj, vel
+        # solve backward:
+        if side == '-' or side == 'both':
+            # initialize solution:
+            temp_sol_2 = np.zeros((num_points-1, self.num_params))
+            temp_sol_dot_2 = np.zeros((num_points-1, self.num_params))
+            # initialize backward integration:
+            solver = scipy.integrate.ode(self._naive_eigenvalue_ode_abs)
+            if integrator_options is not None:
+                solver.set_integrator(**integrator_options)
+            solver.set_initial_value(y0, 0.)
+            reference = - eigv[:, n]
+            yt = y0.numpy()
+            yprime = reference
+            for ind, t in enumerate(solution_times[1:]):
+                # set the reference:
+                solver.set_f_params(reference)
+                # advance solver:
+                try:
+                    yt = solver.integrate(t)
+                    yprime = self._naive_eigenvalue_ode_abs(t, yt, reference)
+                except:
+                    pass
+                # update reference:
+                reference = yprime[0]
+                # save out:
+                temp_sol_2[ind] = yt.copy()
+                temp_sol_dot_2[ind] = yprime.numpy().copy()
+            # return if needed:
+            if side == '-':
+                traj = np.concatenate((temp_sol_2[::-1], x_abs.numpy()))
+                vel = np.concatenate((-temp_sol_dot_2[::-1], [eigv[:, n].numpy()]))
+                return -solution_times, traj, vel
         # patch solutions:
         times = np.concatenate((-solution_times[::-1], solution_times[1:]))
         traj = np.concatenate((temp_sol_2[::-1], x_abs.numpy(), temp_sol_1))
@@ -837,14 +856,14 @@ class DiffFlowCallback(Callback):
         #
         return times, traj, vel
 
-    def solve_eigenvalue_ode_par(self, y0, n, length=1.5, num_points=100, **kwargs):
+    def solve_eigenvalue_ode_par(self, y0, n, **kwargs):
         """
         Solve eigenvalue ODE in parameter space
         """
         # go to abstract space:
         x_abs = self.map_to_abstract_coord(self.cast([y0]))[0]
         # call solver:
-        times, traj, vel = self.solve_eigenvalue_ode_abs(x_abs, n, length=length, num_points=num_points, **kwargs)
+        times, traj, vel = self.solve_eigenvalue_ode_abs(x_abs, n, **kwargs)
         # convert back:
         traj = self.map_to_original_coord(self.cast(traj))
         #
