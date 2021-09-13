@@ -511,6 +511,20 @@ class DiffFlowCallback(Callback):
         """
         return self.distribution.log_prob(coord)
 
+    def MCSamples(self, size, logLikes=True, **kwargs):
+        """
+        Return MCSamples object from the syntetic probability.
+        """
+        samples = self.sample(size)
+        if logLikes:
+            loglikes = -self.log_probability(samples)
+        else:
+            loglikes = None
+        mc_samples = MCSamples(samples=samples.numpy(), loglikes=loglikes.numpy(),
+                               names=self.param_names, labels=self.param_labels,
+                               ranges=self.parameter_ranges, **kwargs)
+        return mc_samples
+
     def MAP_finder(self, **kwargs):
         """
         Function that uses scipy differential evolution to find the global maximum of the synthetic posterior.
