@@ -95,7 +95,11 @@ maximum_posterior = result.x
 # get fisher from samples:
 fisher_metric = np.linalg.inv(example.posterior_chain.cov())
 prior_fisher_metric = np.linalg.inv(example.prior_chain.cov())
-
+cov_metric = (example.posterior_chain.cov())
+prior_cov_metric = (example.prior_chain.cov())
+print(cov_metric)
+m1, m2 = example.posterior_chain.getMeans()
+print(m1,m2)
 # start the plot:
 fig = plt.gcf()
 fig.set_size_inches(x_size/2.54, y_size/2.54)
@@ -104,24 +108,30 @@ ax1 = plt.subplot(gs[0])
 
 ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
 
-alpha = np.linspace(-1, 1, 10000)
+alpha = 100*np.linspace(-1, 1, 10000)
 # plot KL:
-eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
+#eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
+eig, eigv = tf_KL_decomposition(prior_cov_metric, cov_metric)
+print(eig,eigv)
 eig, eigv = eig.numpy(), eigv.numpy()
+#eigv[:,1] = -eigv[:,1]
+print(eig,eigv)
+
 param_directions = np.linalg.inv(eigv.T)
+print(param_directions)
 inds = (np.argsort(eig)[::-1])
 param_directions_best = ((param_directions.T[inds]).T)#[:,:2]
-
+print(param_directions_best)
 print(np.shape(param_directions_best))
 mode = 0
 norm0 = np.linalg.norm(eigv[:,0])
-ax1.plot(maximum_posterior[0]+alpha*param_directions_best[0,mode], maximum_posterior[1]+alpha*param_directions_best[1,mode], color='firebrick', lw=1.5, ls='-', marker = 'o',label='KL flow covariance')
+ax1.plot(m1+alpha*param_directions_best[0,mode], m2+alpha*param_directions_best[1,mode], color='firebrick', lw=1.5, ls='-', marker = 'o',label='KL flow covariance')
 #ax1.plot(maximum_posterior[0]+alpha*eigv[0,mode]/eig[mode], maximum_posterior[1]+alpha*eigv[1,mode]/eig[mode], lw=1.5, color='firebrick', ls='-', label='KL flow covariance')
 #ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(1), ls='-')
 
 mode = 1
 norm1 = np.linalg.norm(eigv[:,1])
-ax1.plot(maximum_posterior[0]+alpha*param_directions_best[0,mode], maximum_posterior[1]+alpha*param_directions_best[1,mode], lw=1.5, color='cadetblue', ls='-', marker = 'o')
+ax1.plot(m1+alpha*param_directions_best[0,mode], m2+alpha*param_directions_best[1,mode], lw=1.5, color='cadetblue', ls='-', marker = 'o')
 #ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(2), ls='-')
 
 # A = np.array([[1,-1],[0,1]])
