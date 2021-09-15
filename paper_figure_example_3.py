@@ -87,7 +87,7 @@ for start in start_1:
 
 # plot size in cm. Has to match to draft to make sure font sizes are consistent
 x_size = 18.0
-y_size = 7.5
+y_size = 8#7.5
 main_fontsize = 10.0
 
 # start the plot:
@@ -172,8 +172,76 @@ ax2.set_ylabel(r'$Z_2$', fontsize=main_fontsize);
 ax1.text(0.01, 1.03, 'a) parameter space', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax1.transAxes)
 ax2.text(0.01, 1.03, 'b) abstract space', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax2.transAxes)
 
+# legend:
+from matplotlib.legend_handler import HandlerBase
+class object_1():
+    pass
+class AnyObjectHandler1(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), ls='--', lw=1.)
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), ls='--', lw=1.)
+        return [l1, l2]
+
+class object_2():
+    pass
+class AnyObjectHandler2(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.5, ls='-')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), lw=1.5, ls='-')
+        return [l1, l2]
+class object_3():
+    pass
+class AnyObjectHandler3(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        #m1 = plt.scatter([x0+width],[.5*height], color = 'k', marker = 'x')
+        l1 = plt.Line2D([x0+.15*width,y0+width - .15*width], [0.7*height,0.7*height], color='k', lw=4.8, ls='-', alpha = 0.2)
+        l2 = plt.Line2D([x0,y0+width], [0.2*height,0.2*height], color='k', lw=1, ls='--')
+        return [l1, l2]
+class object_4():
+    pass
+class AnyObjectHandler4(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        #m1 = plt.scatter([x0+width],[.5*height], color = 'k', marker = 'x')
+        m1 = plt.Line2D([x0+0.75*width,x0+0.75*width], [0.45*height,0.45*height], color='k', ls='None', marker = 'o', markersize = 4)
+        return [m1]
+class object_5():
+    pass
+class AnyObjectHandler5(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        #m1 = plt.scatter([x0+width],[.5*height], color = 'k', marker = 'x')
+        m1 = plt.Line2D([x0+0.75*width,x0+0.75*width], [0.45*height,0.45*height], color='k', ls='None', marker = 'x', markersize = 5)
+        return [m1]
+
+
+leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
+                object_1, object_2, object_3, object_4, object_5]
+legend_labels = [r'$\mathcal{P}$', 'PFs of $\\theta$', 'PPF of $\\theta$', 'Prior','MAP point', '$\overline{\\theta}$']
+
+leg = fig.legend(handles=leg_handlers,
+                labels=legend_labels,
+                handler_map={object_1: AnyObjectHandler1(), object_2: AnyObjectHandler2(), object_3: AnyObjectHandler3(), object_4: AnyObjectHandler4(), object_5: AnyObjectHandler5()},
+                fontsize=0.9*main_fontsize,
+                frameon=True,
+                fancybox=False,
+                edgecolor='k',
+                ncol=len(legend_labels),
+                borderaxespad=0.0,
+                columnspacing=3.0,
+                handlelength=1.5,
+                handletextpad=0.3,
+                loc = 'lower center', #mode='expand',
+                bbox_to_anchor=(0.0, .01, 1.065, 0.9),
+                )
+leg.get_frame().set_linewidth('0.8')
+
+
 # update dimensions:
-bottom = 0.15
+bottom = .24#0.15
 top = 0.92
 left = 0.08
 right = 0.99
