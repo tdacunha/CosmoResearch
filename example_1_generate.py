@@ -53,6 +53,14 @@ prior_chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'prior', no_c
 # select parameters:
 param_names = ['omegam', 'sigma8']
 
+# add log of the chosen parameters:
+for ch in [chain, prior_chain]:
+    for name in param_names:
+        ch.addDerived(np.log(ch.samples[:, ch.index[name]]), name='log_'+name, label='\\log'+ch.getParamNames().parWithName(name).label)
+    # update after adding all parameters:
+    ch.updateBaseStatistics()
+
+param_names = ['log_'+name for name in param_names]
 # prior distribution
 prior_mean = prior_chain.getMeans([prior_chain.index[name] for name in param_names])
 prior_cov = prior_chain.cov([prior_chain.index[name] for name in param_names])

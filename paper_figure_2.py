@@ -71,7 +71,7 @@ main_fontsize = 10.0
 
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
-param_ranges = [[0.0, 0.5], [0.3, 1.5]]
+param_ranges = [[-2.2,-.6],[-.5,.4]]#np.log([[0.15, 0.5], [0.3, 1.5]])
 
 # define the grid:
 P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 200)
@@ -98,7 +98,7 @@ prior_fisher_metric = np.linalg.inv(example.prior_chain.cov())
 cov_metric = (example.posterior_chain.cov())
 prior_cov_metric = (example.prior_chain.cov())
 print(cov_metric)
-m1, m2 = example.posterior_chain.getMeans()
+m1, m2 = maximum_posterior[0],maximum_posterior[1]#np.log10(.25),np.log10(.9)#example.posterior_chain.getMeans(pars = log_param_names)
 print(m1,m2)
 # start the plot:
 fig = plt.gcf()
@@ -110,14 +110,14 @@ ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=
 
 alpha = 100*np.linspace(-1, 1, 10000)
 # plot KL:
-#eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
-eig, eigv = tf_KL_decomposition(prior_cov_metric, cov_metric)
+eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
+#eig, eigv = tf_KL_decomposition(prior_cov_metric, cov_metric)
 print(eig,eigv)
 eig, eigv = eig.numpy(), eigv.numpy()
 #eigv[:,1] = -eigv[:,1]
 print(eig,eigv)
 
-param_directions = np.linalg.inv(eigv.T)
+param_directions = eigv #np.linalg.inv(eigv.T) (when using covariance)
 print(param_directions)
 inds = (np.argsort(eig)[::-1])
 param_directions_best = ((param_directions.T[inds]).T)#[:,:2]
@@ -125,47 +125,47 @@ print(param_directions_best)
 print(np.shape(param_directions_best))
 mode = 0
 norm0 = np.linalg.norm(eigv[:,0])
-ax1.plot(m1+alpha*param_directions_best[0,mode], m2+alpha*param_directions_best[1,mode], color='firebrick', lw=1.5, ls='-', marker = 'o',label='KL flow covariance')
+#ax1.plot(m1+alpha*param_directions_best[0,mode]/eig[mode], m2+alpha*param_directions_best[1,mode]/eig[mode], color='firebrick', lw=1.5, ls='-', marker = 'o',label='KL flow covariance')
 #ax1.plot(maximum_posterior[0]+alpha*eigv[0,mode]/eig[mode], maximum_posterior[1]+alpha*eigv[1,mode]/eig[mode], lw=1.5, color='firebrick', ls='-', label='KL flow covariance')
-#ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(1), ls='-')
+ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1, color=color_utilities.nice_colors(1), ls='-')
 
 mode = 1
 norm1 = np.linalg.norm(eigv[:,1])
-ax1.plot(m1+alpha*param_directions_best[0,mode], m2+alpha*param_directions_best[1,mode], lw=1.5, color='cadetblue', ls='-', marker = 'o')
-#ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(2), ls='-')
+#ax1.plot(m1+alpha*param_directions_best[0,mode]/eig[mode], m2+alpha*param_directions_best[1,mode]/eig[mode], lw=1.5, color='cadetblue', ls='-', marker = 'o')
+ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1, color=color_utilities.nice_colors(2), ls='-')
 
-# A = np.array([[1,-1],[0,1]])
-# fisher_metric_tilde = np.dot(np.dot((A.T), fisher_metric), (A))
-# prior_fisher_metric_tilde = np.dot(np.dot((A.T), prior_fisher_metric), (A))
-#
-# eig, eigv = tf_KL_decomposition(prior_fisher_metric_tilde, fisher_metric_tilde)
-# eig, eigv = eig.numpy(), eigv.numpy()
-# eigv = np.dot(A,eigv)
-#
-# alpha = np.linspace(-1, 1, 1000)
-# mode = 0
-# norm0 = np.linalg.norm(eigv[:,0])
-# ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm0, maximum_posterior[1]+alpha*eigv[1, mode]/norm0, lw=1.5, color='firebrick', ls=':', label='KL flow covariance')
-# #ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(0), ls=':')
-# mode = 1
-# norm1 = np.linalg.norm(eigv[:,1])
-# ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm1, maximum_posterior[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='cadetblue', ls=':')
-# #ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
-#
+A = np.array([[1,-1],[0,1]])
+fisher_metric_tilde = np.dot(np.dot((A.T), fisher_metric), (A))
+prior_fisher_metric_tilde = np.dot(np.dot((A.T), prior_fisher_metric), (A))
+
+eig, eigv = tf_KL_decomposition(prior_fisher_metric_tilde, fisher_metric_tilde)
+eig, eigv = eig.numpy(), eigv.numpy()
+eigv = np.dot(A,eigv)
+
+alpha = np.linspace(-1, 1, 1000)
+mode = 0
+norm0 = np.linalg.norm(eigv[:,0])
+#ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm0, maximum_posterior[1]+alpha*eigv[1, mode]/norm0, lw=1.5, color='firebrick', ls=':', label='KL flow covariance')
+ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(0), ls=':')
+mode = 1
+norm1 = np.linalg.norm(eigv[:,1])
+#ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm1, maximum_posterior[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='cadetblue', ls=':')
+ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
+
 
 
 # limits:
 ax1.set_xlim([param_ranges[0][0], param_ranges[0][1]])
-ax1.set_ylim([0.4, 1.4])
+ax1.set_ylim([-.6,.3])#(np.log([0.4, 1.4]))
 
 # ticks:
-ticks = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+ticks = [-2.0,-1.5,-1.0]#[0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
 ax1.set_xticks(ticks)
 ax1.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
 ax1.get_xticklabels()[0].set_horizontalalignment('left')
 ax1.get_xticklabels()[-1].set_horizontalalignment('right')
 
-ticks = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+ticks = [-0.6,-0.4,-0.2,0.0,0.2]#[0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
 ax1.set_yticks(ticks)
 ax1.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
 ax1.get_yticklabels()[0].set_verticalalignment('bottom')
@@ -175,39 +175,56 @@ ax1.get_yticklabels()[-1].set_verticalalignment('top')
 ax1.set_xlabel(r'$\theta_1$', fontsize=main_fontsize);
 ax1.set_ylabel(r'$\theta_2$', fontsize=main_fontsize);
 
-## legend:
-#legend_labels = [r'$\mathcal{P}_1$', r'$\mathcal{P}_2$', r'$\mathcal{P}(\Delta \theta)$', r'$\mathcal{P}(0)$']
-#leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color=cols[0]),
-#                mlines.Line2D([], [], lw=1., ls='-', color=cols[2]),
-#                mlines.Line2D([], [], lw=1., ls='-', color=cols[1]),
-#                mlines.Line2D([], [], lw=1., ls='-', color=cols[3])]
+# legend:
+from matplotlib.legend_handler import HandlerBase
+class object_1():
+    pass
+class AnyObjectHandler1(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.)
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), lw=1.)
+        return [l1, l2]
 
-#leg = fig.legend(handles=leg_handlers,
-#                 labels=legend_labels,
-#                 fontsize=0.9*main_fontsize,
-#                 frameon=True,
-#                 fancybox=False,
-#                 edgecolor='k',
-#                 ncol=len(legend_labels),
-#                 borderaxespad=0.0,
-#                 columnspacing=2.0,
-#                 handlelength=1.,
-#                 handletextpad=0.3,
-#                 loc = 'lower center', mode='expand',
-#                 bbox_to_anchor=(0.0, 0.0, 0.9, 0.9),
-#                 )
-#leg.get_frame().set_linewidth('0.8')
+class object_2():
+    pass
+class AnyObjectHandler2(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(0), lw=1.5, ls=':')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(3), lw=1.5, ls=':')
+        return [l1, l2]
+
+leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
+                object_1, object_2]
+legend_labels = [r'$\mathcal{P}$', 'KLC of $\\theta$', 'KLC of $\\tilde{\\theta}$']
+
+leg = fig.legend(handles=leg_handlers,
+                labels=legend_labels,
+                handler_map={object_1: AnyObjectHandler1(), object_2: AnyObjectHandler2()},
+                fontsize=0.9*main_fontsize,
+                frameon=True,
+                fancybox=False,
+                edgecolor='k',
+                ncol=len(legend_labels),
+                borderaxespad=0.0,
+                columnspacing=2.0,
+                handlelength=1.5,
+                handletextpad=0.3,
+                loc = 'lower center', #mode='expand',
+                bbox_to_anchor=(0.0, 0.02, 1.2, 0.9),
+                )
+leg.get_frame().set_linewidth('0.8')
 
 # update dimensions:
-bottom = 0.17
+bottom = .26#0.17
 top = 0.99
-left = 0.15
+left = 0.2#0.15
 right = 0.99
 wspace = 0.
 hspace = 0.3
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 #leg.set_bbox_to_anchor( ( left, 0.005, right-left, right ) )
-plt.show()
 plt.savefig(out_folder+'/figure_2.pdf')
 plt.close('all')

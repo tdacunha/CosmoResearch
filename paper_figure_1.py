@@ -48,7 +48,9 @@ y_size = 11.0
 main_fontsize = 10.0
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
-param_ranges = [[0.0, 0.5], [0.3, 1.5]]
+#param_ranges = [[0.0, 0.5], [0.3, 1.5]]
+param_ranges = [[-2.2,-.6],[-.5,.4]]#np.log([[0.15, 0.5], [0.3, 1.5]])
+
 
 # define the grid:
 P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 200)
@@ -65,7 +67,7 @@ P = P / simps(simps(P, y), x)
 # compute maximum posterior and metric:
 result = example.posterior_flow.MAP_finder(disp=True)
 maximum_posterior = result.x
-fisher_metric = example.posterior_flow.metric(example.posterior_flow.cast([maximum_posterior]))[0]
+#fisher_metric = example.posterior_flow.metric(example.posterior_flow.cast([maximum_posterior]))[0]
 
 # get fisher from samples:
 fisher_metric = np.linalg.inv(example.posterior_chain.cov())
@@ -122,14 +124,16 @@ mode = 1
 ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(0), ls=':')
 mode = 0
 ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
-
+print(param_ranges)
 # limits:
 for ax in [ax1, ax2]:
     ax.set_xlim([param_ranges[0][0], param_ranges[0][1]])
-    ax.set_ylim([0.4, 1.4])
+    ax.set_ylim([-.6,.3])
+    #ax.set_xlim([param_ranges[0][0], param_ranges[0][1]])
+    #ax.set_ylim([0.4, 1.4])
 
 # ticks:
-ticks = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+ticks = [-2.0,-1.5,-1.0]#ticks = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
 for ax in [ax1, ax2]:
     ax.set_xticks(ticks)
 ax1.set_xticklabels([], fontsize=0.9*main_fontsize);
@@ -137,7 +141,7 @@ ax2.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
 ax2.get_xticklabels()[0].set_horizontalalignment('left')
 ax2.get_xticklabels()[-1].set_horizontalalignment('right')
 
-ticks = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+ticks = [-0.6,-0.4,-0.2,0.0,0.2]#ticks = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
 for ax in [ax1, ax2]:
     ax.set_yticks(ticks)
     ax.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
@@ -199,7 +203,7 @@ bottom = 0.16
 top = 0.95
 left = 0.15
 right = 0.99
-wspace = 0.
+wspace = .2#0.
 hspace = 0.2
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
