@@ -237,8 +237,30 @@ plt.xlim(0,.5)
 plt.ylim(.4,1.4)
 plt.show()
 
+cov2 = chain_gauss.cov(pars=param_names)
+prior_cov2 = prior_chain_gauss.cov(pars=param_names)
+KL_eig2, KL_eigv2 = utilities.KL_decomposition(prior_cov2, cov2)
+
+param_directions = np.linalg.inv(KL_eigv2.T)
+print(param_directions)
+inds = (np.argsort(KL_eig2)[::-1])
+param_directions_best = ((param_directions.T[inds]).T)#[:,:2]
+print(param_directions_best)
 
 
+plt.figure()
+m1,m2= (.25),(.9)
+mode = 0
+alpha = 100.*np.linspace(-1.,1.,10000) # 3
+plt.plot((m1+alpha*param_directions_best[0,mode]), (m2+alpha*param_directions_best[1,mode]), color='firebrick', lw=1.5, ls='-', marker = 'o',label='KL flow covariance')
+#ax1.plot(maximum_posterior[0]+alpha*eigv[0,mode]/eig[mode], maximum_posterior[1]+alpha*eigv[1,mode]/eig[mode], lw=1.5, color='firebrick', ls='-', label='KL flow covariance')
+#ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(1), ls='-')
+mode = 1
+
+plt.plot((m1+alpha*param_directions_best[0,mode]), (m2+alpha*param_directions_best[1,mode]), lw=1.5, color='cadetblue', ls='-', marker = 'o')
+plt.xlim(0,.5)
+plt.ylim(.4,1.4)
+plt.show()
 # In[31]:
 
 

@@ -27,7 +27,7 @@ from tensiometer import utilities
 ###############################################################################
 # initial settings:
 
-import example_3_generate as example
+import example_4_generate as example
 import analyze_2d_example
 
 # latex rendering:
@@ -43,7 +43,7 @@ if not os.path.exists(out_folder):
 # plot:
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
-param_ranges = [[-1.999, 1.999], [-1.999, 1.999]]
+param_ranges = [[-.999, .999], [-.999, .999]]
 
 # define the grid:
 P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 300)
@@ -66,8 +66,8 @@ mean = example.posterior_chain.getMeans([example.posterior_chain.index[name] for
 
 # compute the two base eigenvalues trajectories:
 y0 = example.posterior_flow.cast(maximum_posterior)
-length_1 = (example.posterior_flow.sigma_to_length(2)).astype(np.float32)
-length_2 = (example.posterior_flow.sigma_to_length(6)).astype(np.float32)
+length_1 = (example.posterior_flow.sigma_to_length(2)).astype(np.float32)#3#2
+length_2 = (example.posterior_flow.sigma_to_length(8)).astype(np.float32)#3#6
 ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=100)
 ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=100)
 
@@ -135,14 +135,14 @@ ax1.fill_between([-2., 2.], [-2., -2.], [-2.2, -2.2], alpha=0.2, ec=None, lw=0.0
 ax1.add_patch(Rectangle((-2., -2.), 4.0, 4.0, fill=None, alpha=1, color='k', ls='--', lw=1.))
 
 # limits:
-ax1.set_xlim([-1.5, 1.5])
-ax1.set_ylim([-1.1, 2.1])
+ax1.set_xlim([-1, 1])
+ax1.set_ylim([-1, 1])
 
 ax2.set_xlim([-4.0, 4.0])
 ax2.set_ylim([-4.0, 4.0])
 
 # ticks:
-ticks = [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5]
+ticks = [-1.0, -0.5, 0.0, 0.5, 1.0]
 ax1.set_xticks(ticks)
 ax1.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
 ticks = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
@@ -152,7 +152,7 @@ for ax in [ax1, ax2]:
     ax.get_xticklabels()[0].set_horizontalalignment('left')
     ax.get_xticklabels()[-1].set_horizontalalignment('right')
 
-ticks = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
+ticks = [-1.0, -0.5, 0.0, 0.5, 1.0]
 ax1.set_yticks(ticks)
 ax1.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
 ticks = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
@@ -249,6 +249,5 @@ wspace = 0.15
 hspace = 0.15
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
-plt.show()
-plt.savefig(out_folder+'/figure_example_3.pdf')
+plt.savefig(out_folder+'/figure_example_4.pdf')
 plt.close('all')
