@@ -144,7 +144,7 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 
 # posterior:
 num_params = 2
-n_maf = 4*num_params#4*num_params
+n_maf = 4*num_params
 hidden_units = [num_params*2]*2#[num_params*4]*2#4
 batch_size = 4*8192#2*8192
 epochs = 120#120
