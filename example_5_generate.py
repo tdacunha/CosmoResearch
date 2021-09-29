@@ -156,7 +156,7 @@ num_params = 2
 n_maf = 10*num_params
 hidden_units = [num_params*1]*10#[num_params*4]*10
 batch_size = 8*8192#2*8192
-epochs = 120#120
+epochs = 100#120
 steps_per_epoch = 128
 
 # if cache exists load training:
