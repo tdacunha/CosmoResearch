@@ -530,7 +530,7 @@ class DiffFlowCallback(Callback):
         Function that uses scipy differential evolution to find the global maximum of the synthetic posterior.
         """
         # main call to differential evolution:
-        result = differential_evolution(lambda x: -self.distribution.log_prob(tf.cast(x, prec)),
+        result = differential_evolution(lambda x: -self.distribution.log_prob(self.cast(x)),
                                         bounds=list(self.parameter_ranges.values()),
                                         **kwargs)
         # cache MAP value:
