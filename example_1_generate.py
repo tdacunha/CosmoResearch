@@ -18,6 +18,7 @@ from getdist import plots, MCSamples
 from getdist.gaussian_mixtures import GaussianND
 import analyze_2d_example
 import importlib
+import utilities
 
 import synthetic_probability
 from tensorflow.keras.callbacks import ReduceLROnPlateau
@@ -48,11 +49,12 @@ chains_dir = here+'/tensiometer/test_chains/'
 settings = {'ignore_rows': 0, 'smooth_scale_1D': 0.3, 'smooth_scale_2D': 0.3}
 chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'DES', no_cache=True, settings=settings)
 # the prior chain:
-prior_chain = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'prior', no_cache=True, settings=settings)
+prior_chain_real = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'prior', no_cache=True, settings=settings)
 
 # select parameters:
 param_names = ['omegam', 'sigma8']
 
+<<<<<<< HEAD
 # add log of the chosen parameters:
 for ch in [chain, prior_chain]:
     for name in param_names:
@@ -70,6 +72,8 @@ prior_distribution = GaussianND(prior_mean, prior_cov,
                                 label='prior')
 prior_chain = prior_distribution.MCSamples(n_samples, label='prior')
 
+=======
+>>>>>>> ae4b135 (Small add)
 # posterior distribution:
 posterior_mean = chain.getMeans([chain.index[name] for name in param_names])
 posterior_cov = chain.cov([chain.index[name] for name in param_names])
@@ -79,6 +83,22 @@ posterior_distribution = GaussianND(posterior_mean, posterior_cov,
                                     label='posterior')
 posterior_chain = posterior_distribution.MCSamples(n_samples, label='posterior')
 
+# prior distribution
+prior_mean = posterior_mean
+prior_cov = utilities.covariance_around(prior_chain_real.samples[:, [prior_chain_real.index[name] for name in param_names]],
+                                        prior_mean, weights=prior_chain_real.weights)
+#prior_mean = prior_chain_real.getMeans([prior_chain_real.index[name] for name in param_names])
+#prior_cov = prior_chain_real.cov([prior_chain_real.index[name] for name in param_names])
+prior_distribution = GaussianND(prior_mean, prior_cov,
+                                names=['theta_'+str(i+1) for i in range(len(param_names))],
+                                labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
+                                label='prior')
+prior_chain = prior_distribution.MCSamples(n_samples, label='prior')
+
+# renames for the real chains:
+prior_chain_real.updateRenames
+
+{param_names
 
 ###############################################################################
 # define the flows:
@@ -116,6 +136,14 @@ if __name__ == '__main__':
 
     # feedback:
     print('* plotting generated sample')
+
+    # plot the real distribution and the Gaussian approximations:
+    g = plots.get_subplot_plotter()
+    g.triangle_plot([prior_chain_real, chain], params=param_names, filled=True)
+    g.export(out_folder+'0_real_prior_posterior.pdf')
+
+
+
 
     # plot distribution:
     g = plots.get_subplot_plotter()
