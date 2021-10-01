@@ -97,9 +97,7 @@ fisher_metric = np.linalg.inv(example.posterior_chain.cov())
 prior_fisher_metric = np.linalg.inv(example.prior_chain.cov())
 cov_metric = (example.posterior_chain.cov())
 prior_cov_metric = (example.prior_chain.cov())
-print(cov_metric)
 m1, m2 = maximum_posterior[0],maximum_posterior[1]#np.log10(.25),np.log10(.9)#example.posterior_chain.getMeans(pars = log_param_names)
-print(m1,m2)
 # start the plot:
 fig = plt.gcf()
 fig.set_size_inches(x_size/2.54, y_size/2.54)
@@ -112,17 +110,12 @@ alpha = 100*np.linspace(-1, 1, 10000)
 # plot KL:
 eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
 #eig, eigv = tf_KL_decomposition(prior_cov_metric, cov_metric)
-print(eig,eigv)
 eig, eigv = eig.numpy(), eigv.numpy()
 #eigv[:,1] = -eigv[:,1]
-print(eig,eigv)
 
 param_directions = eigv #np.linalg.inv(eigv.T) (when using covariance)
-print(param_directions)
 inds = (np.argsort(eig)[::-1])
 param_directions_best = ((param_directions.T[inds]).T)#[:,:2]
-print(param_directions_best)
-print(np.shape(param_directions_best))
 mode = 0
 norm0 = np.linalg.norm(eigv[:,0])
 #ax1.plot(m1+alpha*param_directions_best[0,mode]/eig[mode], m2+alpha*param_directions_best[1,mode]/eig[mode], color='firebrick', lw=1.5, ls='-', marker = 'o',label='KL flow covariance')
@@ -152,20 +145,22 @@ norm1 = np.linalg.norm(eigv[:,1])
 #ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm1, maximum_posterior[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='cadetblue', ls=':')
 ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
 
-
-
 # limits:
-ax1.set_xlim([param_ranges[0][0], param_ranges[0][1]])
-ax1.set_ylim([-.6,.3])#(np.log([0.4, 1.4]))
+#ax1.set_xlim([param_ranges[0][0], param_ranges[0][1]])
+#ax1.set_ylim([-.6,.3])#(np.log([0.4, 1.4]))
+ax1.set_xlim([-2.5, -0.5])
+ax1.set_ylim([-0.6, 0.4])
 
 # ticks:
-ticks = [-2.0,-1.5,-1.0]#[0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+ticks = [-2.5, -2.0, -1.5, -1.0, -0.5]
+#[0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
 ax1.set_xticks(ticks)
 ax1.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
 ax1.get_xticklabels()[0].set_horizontalalignment('left')
 ax1.get_xticklabels()[-1].set_horizontalalignment('right')
 
-ticks = [-0.6,-0.4,-0.2,0.0,0.2]#[0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+ticks = [-0.6, -0.4, -0.2, 0.0, 0.2, 0.4]
+#[0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
 ax1.set_yticks(ticks)
 ax1.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
 ax1.get_yticklabels()[0].set_verticalalignment('bottom')

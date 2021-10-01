@@ -124,16 +124,19 @@ mode = 1
 ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(0), ls=':')
 mode = 0
 ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
-print(param_ranges)
+
 # limits:
 for ax in [ax1, ax2]:
-    ax.set_xlim([param_ranges[0][0], param_ranges[0][1]])
-    ax.set_ylim([-.6,.3])
+    #ax.set_xlim([param_ranges[0][0], param_ranges[0][1]])
+    #ax.set_ylim([-.6,.3])
     #ax.set_xlim([param_ranges[0][0], param_ranges[0][1]])
     #ax.set_ylim([0.4, 1.4])
+    ax.set_xlim([-2.5, -0.5])
+    ax.set_ylim([-0.6, 0.4])
 
 # ticks:
-ticks = [-2.0,-1.5,-1.0]#ticks = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+ticks = [-2.5, -2.0, -1.5, -1.0, -0.5]
+#ticks = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
 for ax in [ax1, ax2]:
     ax.set_xticks(ticks)
 ax1.set_xticklabels([], fontsize=0.9*main_fontsize);
@@ -141,7 +144,8 @@ ax2.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
 ax2.get_xticklabels()[0].set_horizontalalignment('left')
 ax2.get_xticklabels()[-1].set_horizontalalignment('right')
 
-ticks = [-0.6,-0.4,-0.2,0.0,0.2]#ticks = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+ticks = [-0.6, -0.4, -0.2, 0.0, 0.2, 0.4]
+#ticks = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
 for ax in [ax1, ax2]:
     ax.set_yticks(ticks)
     ax.set_yticklabels(ticks, fontsize=0.9*main_fontsize);

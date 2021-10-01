@@ -54,26 +54,14 @@ prior_chain_real = getdist.mcsamples.loadMCSamples(file_root=chains_dir+'prior',
 # select parameters:
 param_names = ['omegam', 'sigma8']
 
-<<<<<<< HEAD
 # add log of the chosen parameters:
-for ch in [chain, prior_chain]:
+for ch in [chain, prior_chain_real]:
     for name in param_names:
         ch.addDerived(np.log(ch.samples[:, ch.index[name]]), name='log_'+name, label='\\log'+ch.getParamNames().parWithName(name).label)
     # update after adding all parameters:
     ch.updateBaseStatistics()
-
 param_names = ['log_'+name for name in param_names]
-# prior distribution
-prior_mean = prior_chain.getMeans([prior_chain.index[name] for name in param_names])
-prior_cov = prior_chain.cov([prior_chain.index[name] for name in param_names])
-prior_distribution = GaussianND(prior_mean, prior_cov,
-                                names=['theta_'+str(i+1) for i in range(len(param_names))],
-                                labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
-                                label='prior')
-prior_chain = prior_distribution.MCSamples(n_samples, label='prior')
 
-=======
->>>>>>> ae4b135 (Small add)
 # posterior distribution:
 posterior_mean = chain.getMeans([chain.index[name] for name in param_names])
 posterior_cov = chain.cov([chain.index[name] for name in param_names])
@@ -84,21 +72,16 @@ posterior_distribution = GaussianND(posterior_mean, posterior_cov,
 posterior_chain = posterior_distribution.MCSamples(n_samples, label='posterior')
 
 # prior distribution
-prior_mean = posterior_mean
-prior_cov = utilities.covariance_around(prior_chain_real.samples[:, [prior_chain_real.index[name] for name in param_names]],
-                                        prior_mean, weights=prior_chain_real.weights)
-#prior_mean = prior_chain_real.getMeans([prior_chain_real.index[name] for name in param_names])
-#prior_cov = prior_chain_real.cov([prior_chain_real.index[name] for name in param_names])
+#prior_mean = posterior_mean
+#prior_cov = utilities.covariance_around(prior_chain_real.samples[:, [prior_chain_real.index[name] for name in param_names]],
+#                                        prior_mean, weights=prior_chain_real.weights)
+prior_mean = prior_chain_real.getMeans([prior_chain_real.index[name] for name in param_names])
+prior_cov = prior_chain_real.cov([prior_chain_real.index[name] for name in param_names])
 prior_distribution = GaussianND(prior_mean, prior_cov,
                                 names=['theta_'+str(i+1) for i in range(len(param_names))],
                                 labels=['\\theta_{'+str(i+1)+'}' for i in range(len(param_names))],
                                 label='prior')
 prior_chain = prior_distribution.MCSamples(n_samples, label='prior')
-
-# renames for the real chains:
-prior_chain_real.updateRenames
-
-{param_names
 
 ###############################################################################
 # define the flows:
@@ -142,17 +125,10 @@ if __name__ == '__main__':
     g.triangle_plot([prior_chain_real, chain], params=param_names, filled=True)
     g.export(out_folder+'0_real_prior_posterior.pdf')
 
-
-
-
     # plot distribution:
     g = plots.get_subplot_plotter()
     g.triangle_plot([prior_chain, posterior_chain], filled=True)
     g.export(out_folder+'0_prior_posterior.pdf')
-
-    g = plots.get_subplot_plotter()
-    g.triangle_plot([posterior_chain], filled=True)
-    g.export(out_folder+'0_posterior.pdf')
 
     # plot learned posterior distribution:
     X_sample = np.array(posterior_flow.sample(n_samples))
