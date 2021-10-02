@@ -69,9 +69,8 @@ x_size = 8.54
 y_size = 7.0
 main_fontsize = 10.0
 
-
 levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
-param_ranges = [[-2.2,-.6],[-.5,.4]]#np.log([[0.15, 0.5], [0.3, 1.5]])
+param_ranges = [[-2.2, -.6],[-.5,.4]]#np.log([[0.15, 0.5], [0.3, 1.5]])
 
 # define the grid:
 P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 200)
@@ -214,7 +213,7 @@ leg.get_frame().set_linewidth('0.8')
 # update dimensions:
 bottom = .26#0.17
 top = 0.99
-left = 0.2#0.15
+left = 0.15
 right = 0.99
 wspace = 0.
 hspace = 0.3
