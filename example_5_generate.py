@@ -48,8 +48,8 @@ cache_file = out_folder+'example_5_cache.plk'
 
 mean_1 = [+0.5, +0.5]
 mean_2 = [-0.5, -0.5]
-sigma_1 = 0.17
-sigma_2 = 0.17
+sigma_1 = .25#0.17
+sigma_2 = .25#0.17
 weights = [1., 1.]
 
 
@@ -154,9 +154,9 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 # posterior:
 num_params = 2
 n_maf = 10*num_params
-hidden_units = [num_params*1]*10#[num_params*4]*10
-batch_size = 8*8192#2*8192
-epochs = 100#120
+hidden_units = [num_params*4]*10#[num_params*4]*10
+batch_size = 2*8192#2*8192
+epochs = 120
 steps_per_epoch = 128
 
 # if cache exists load training:
