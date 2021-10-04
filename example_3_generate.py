@@ -39,6 +39,7 @@ if not os.path.exists(flow_cache):
 
 # number of samples:
 n_samples = 1000000
+temperature = 2.0
 
 # cache file:
 cache_file = out_folder+'example_3_cache.plk'
@@ -91,18 +92,22 @@ else:
     print('Generating samples')
     samples = []
     likelihood = []
+    weights = []
     num_samples = 0
     while num_samples < n_samples:
         xtemp = (prior[1]-prior[0])*np.random.rand(2) + prior[0]
         log_like = log_pdf(xtemp) - log_max_p
-        if np.random.binomial(1, np.exp(log_like)):
+        if np.random.binomial(1, np.exp(log_like/temperature)):
             samples.append(xtemp)
             likelihood.append(log_like)
+            weights.append(np.exp((1.-1./temperature)*log_like))
             num_samples += 1
     samples = np.array(samples)
     likelihood = np.array(likelihood)
+    weights = np.array(weights)
     posterior_chain = MCSamples(samples=samples,
                                 loglikes=-likelihood,
+                                weights=weights,
                                 names=['theta_1', 'theta_2'],
                                 labels=['\\theta_1', '\\theta_2'],
                                 ranges={'theta_1': [prior[0], prior[1]],

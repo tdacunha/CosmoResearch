@@ -53,9 +53,9 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
     hidden_units = kwargs.pop('hidden_units', [num_params*3]*2)
 
     # prior flow:
-    if os.path.isfile(flow_cache+'prior'+'_permutations.pickle'):
+    if os.path.isfile(flow_cache+'/prior'+'_permutations.pickle'):
         # load trained model:
-        temp_MAF = synthetic_probability.SimpleMAF.load(num_params, flow_cache+'prior', n_maf=n_maf, hidden_units=hidden_units)
+        temp_MAF = synthetic_probability.SimpleMAF.load(num_params, flow_cache+'/prior', n_maf=n_maf, hidden_units=hidden_units)
         # initialize flow:
         prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, prior_bijector='ranges', trainable_bijector=temp_MAF.bijector,
                                                             param_names=param_names, feedback=0)
@@ -67,16 +67,16 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
         # train prior flow:
         prior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
         # save trained model:
-        prior_flow.MAF.save(flow_cache+'prior')
+        prior_flow.MAF.save(flow_cache+'/prior')
         # plot:
         g = plots.get_subplot_plotter()
         g.triangle_plot([prior_chain, prior_flow.MCSamples(nsamples)], params=param_names, filled=False)
         g.export(flow_cache+'/0_learned_prior_distribution.pdf')
 
     # posterior flow:
-    if os.path.isfile(flow_cache+'posterior'+'_permutations.pickle'):
+    if os.path.isfile(flow_cache+'/posterior'+'_permutations.pickle'):
         # load trained model:
-        temp_MAF = synthetic_probability.SimpleMAF.load(num_params, flow_cache+'posterior', n_maf=n_maf, hidden_units=hidden_units)
+        temp_MAF = synthetic_probability.SimpleMAF.load(num_params, flow_cache+'/posterior', n_maf=n_maf, hidden_units=hidden_units)
         # initialize flow:
         posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain,
                                                                 prior_bijector=prior_flow.bijector,
@@ -95,7 +95,7 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
         # train posterior flow:
         posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
         # save trained model:
-        posterior_flow.MAF.save(flow_cache+'posterior')
+        posterior_flow.MAF.save(flow_cache+'/posterior')
         # plot posterior:
         g = plots.get_subplot_plotter()
         g.triangle_plot([posterior_chain, posterior_flow.MCSamples(nsamples)], params=param_names, filled=False)

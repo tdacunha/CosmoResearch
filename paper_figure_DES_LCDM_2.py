@@ -18,7 +18,7 @@ here = './'
 temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
-from tensiometer import utilities
+from tensiometer import utilities, gaussian_tension
 
 ###############################################################################
 # initial settings:
@@ -64,9 +64,15 @@ num_params = len(param_names)
 
 # compute covariance and PCA of fisher:
 covariance = posterior_chain_1.cov(param_names)
+prior_covariance = prior_chain_1.cov(param_names)
 fisher = np.linalg.inv(covariance)
-eig, eigv = np.linalg.eigh(fisher)
+prior_fisher = np.linalg.inv(prior_covariance)
+eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
+_Neff = gaussian_tension.get_Neff(posterior_chain_1, prior_chain_1, param_names)
+
+print('1) Neff = ', np.round(_Neff, 2))
+
 # sort modes:
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]
@@ -78,9 +84,15 @@ eig_1 = eig.copy()
 
 # compute covariance and PCA of fisher:
 covariance = posterior_chain_2.cov(param_names)
+prior_covariance = prior_chain_2.cov(param_names)
 fisher = np.linalg.inv(covariance)
-eig, eigv = np.linalg.eigh(fisher)
+prior_fisher = np.linalg.inv(prior_covariance)
+eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
+_Neff = gaussian_tension.get_Neff(posterior_chain_2, prior_chain_2, param_names)
+
+print('2) Neff = ', np.round(_Neff, 2))
+
 # sort modes:
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]
@@ -133,13 +145,17 @@ for ax in [ax1, ax2]:
     ax.set_yticks(range(num_params))
 ax1.set_yticklabels([r'$'+name.label+'$' for name in posterior_chain_1.getParamNames().parsWithNames(param_names)], fontsize=0.9*main_fontsize)
 ax2.set_yticklabels([])
-ax1.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(eig_1), 2))], fontsize=0.9*main_fontsize)
-ax2.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(eig_2), 2))], fontsize=0.9*main_fontsize)
+_temp = eig_1 - 1.
+_temp[_temp < 0.] = 0.
+ax1.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(_temp), 2))], fontsize=0.9*main_fontsize)
+_temp = eig_2 - 1.
+_temp[_temp < 0.] = 0.
+ax2.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(_temp), 2))], fontsize=0.9*main_fontsize)
 
 # axes labels:
-ax1.set_xlabel('PCA mode $(\\sqrt{\\lambda})$', fontsize=main_fontsize);
+ax1.set_xlabel('KL mode $(\\sqrt{\\lambda-1})$', fontsize=main_fontsize);
+ax2.set_xlabel('KL mode $(\\sqrt{\\lambda-1})$', fontsize=main_fontsize);
 ax1.set_ylabel('Parameter', fontsize=main_fontsize);
-ax2.set_xlabel('PCA mode $(\\sqrt{\\lambda})$', fontsize=main_fontsize);
 
 # title:
 ax1.text(0.01, 1.03, 'a) DES Y1 shear', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax1.transAxes)
@@ -155,5 +171,5 @@ hspace = 0.08
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 
-plt.savefig(out_folder+'/figure_DES_LCDM_1.pdf')
+plt.savefig(out_folder+'/figure_DES_LCDM_2.pdf')
 plt.close('all')

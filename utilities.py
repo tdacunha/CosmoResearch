@@ -3,7 +3,7 @@ Things that we will add to tensiometer utilities
 """
 
 import numpy as np
-
+from getdist import plots
 
 def covariance_around(samples, center, weights=None):
     """
@@ -27,16 +27,3 @@ def covariance_around(samples, center, weights=None):
     cov /= np.sum(weights)
     #
     return cov
-
-
-
-
-
-
-
-
-
-
-
-
-pass
