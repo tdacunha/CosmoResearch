@@ -18,7 +18,7 @@ here = './'
 temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
-from tensiometer import utilities
+from tensiometer import utilities, gaussian_tension
 
 ###############################################################################
 # initial settings:
@@ -69,6 +69,9 @@ fisher = np.linalg.inv(covariance)
 prior_fisher = np.linalg.inv(prior_covariance)
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
+_Neff = gaussian_tension.get_Neff(posterior_chain_1, prior_chain_1, param_names)
+
+print('1) Neff = ', np.round(_Neff, 2))
 
 # sort modes:
 idx = np.argsort(eig)[::-1]
@@ -86,6 +89,10 @@ fisher = np.linalg.inv(covariance)
 prior_fisher = np.linalg.inv(prior_covariance)
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
+_Neff = gaussian_tension.get_Neff(posterior_chain_2, prior_chain_2, param_names)
+
+print('2) Neff = ', np.round(_Neff, 2))
+
 # sort modes:
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]

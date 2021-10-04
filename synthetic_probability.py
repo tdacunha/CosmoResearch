@@ -318,6 +318,8 @@ class DiffFlowCallback(Callback):
                 raise ValueError('Input parameter is not in the chain.\n',
                                  'Input parameters ', param_names, '\n'
                                  'Possible parameters', chain_params)
+        # save name of the flow:
+        self.name_tag = chain.name_tag+'_flow'
         # save param names:
         self.param_names = param_names
         # save param labels:
@@ -497,6 +499,12 @@ class DiffFlowCallback(Callback):
     ###############################################################################
     # Utility functions:
 
+    def cast(self, v):
+        """
+        Cast vector to internal precision of the flow. Converts to tensorflow tensor.
+        """
+        return tf.cast(v, dtype=prec)
+
     @tf.function()
     def sample(self, N):
         """
@@ -522,7 +530,9 @@ class DiffFlowCallback(Callback):
             loglikes = None
         mc_samples = MCSamples(samples=samples.numpy(), loglikes=loglikes.numpy(),
                                names=self.param_names, labels=self.param_labels,
-                               ranges=self.parameter_ranges, **kwargs)
+                               ranges=self.parameter_ranges,
+                               name_tag=self.name_tag, **kwargs)
+        #
         return mc_samples
 
     def MAP_finder(self, **kwargs):
@@ -546,12 +556,6 @@ class DiffFlowCallback(Callback):
         This is the inverse of from_chi2_to_sigma, should implement it as such, with the inverse of the asynth expansion.
         """
         return np.sqrt(scipy.stats.chi2.isf(1. - utils.from_sigma_to_confidence(nsigma), self.num_params))
-
-    def cast(self, v):
-        """
-        Cast vector to internal precision of the flow. Converts to tensorflow tensor.
-        """
-        return tf.cast(v, dtype=prec)
 
     ###############################################################################
     # Information geometry methods:
