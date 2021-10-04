@@ -63,7 +63,7 @@ maximum_posterior = result.x
 
 # get the mean:
 mean = example.posterior_chain.getMeans([example.posterior_chain.index[name] for name in example.posterior_chain.getParamNames().list()])
-maximum_posterior = mean#result.x
+maximum_posterior = result.x#mean#
 # compute the two base eigenvalues trajectories:
 y0 = example.posterior_flow.cast(maximum_posterior)
 length_1 = (example.posterior_flow.sigma_to_length(1.5)).astype(np.float32)#3#2
