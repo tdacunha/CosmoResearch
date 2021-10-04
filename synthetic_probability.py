@@ -319,7 +319,10 @@ class DiffFlowCallback(Callback):
                                  'Input parameters ', param_names, '\n'
                                  'Possible parameters', chain_params)
         # save name of the flow:
-        self.name_tag = chain.name_tag+'_flow'
+        if chain.name_tag is not None:
+            self.name_tag = chain.name_tag+'_flow'
+        else:
+            self.name_tag = 'flow'
         # save param names:
         self.param_names = param_names
         # save param labels:
