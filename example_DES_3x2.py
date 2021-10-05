@@ -46,19 +46,19 @@ for ch in [prior_chain, posterior_chain]:
     temp_names = ch.getParamNames().list()
     for name in temp_names:
         if np.all(ch.samples[:, ch.index[name]] > 0.):
-            ch.addDerived(np.log(ch.samples[:, ch.index[name]]), name='log_'+name, label='\\log'+ch.getParamNames().parWithName(name).label)
+            ch.addDerived(np.log(ch.samples[:, ch.index[name]]), name='log_'+name, label='\\log '+ch.getParamNames().parWithName(name).label)
     # update after adding all parameters:
     ch.updateBaseStatistics()
 
 ###############################################################################
 # train the relevant flows:
 
-log_param_names = ['log_omegam', 'log_omegab', 'log_H0', 'log_sigma8', 'log_ns']
+log_param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns']
 log_params_flow_cache = out_folder+'log_params_flow_cache'
 temp = DES_generate.helper_load_chains(log_param_names, prior_chain, posterior_chain, log_params_flow_cache)
 log_params_prior_flow, log_params_posterior_flow = temp
 
-param_names = ['omegam', 'omegab', 'H0', 'sigma8', 'ns']
+param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns']
 params_flow_cache = out_folder+'params_flow_cache'
 temp = DES_generate.helper_load_chains(param_names, prior_chain, posterior_chain, params_flow_cache)
 params_prior_flow, params_posterior_flow = temp
