@@ -293,7 +293,7 @@ if __name__ == '__main__':
             else:
                 col = 'w'
             plt.text(i, j, np.round(contributions[j, i], 2), va='center', ha='center', color=col)
-    plt.xlabel('PCA mode (value)')
+    plt.xlabel('KL mode (value)')
     plt.ylabel('Parameters')
     ticks = np.arange(num_params)
     labels = [str(t+1)+'\n ('+str(l)+')' for t, l in zip(ticks, np.round(np.sqrt(eig), 2))]
@@ -375,7 +375,7 @@ if __name__ == '__main__':
             else:
                 col = 'w'
             plt.text(i, j, np.round(contributions[j, i], 2), va='center', ha='center', color=col)
-    plt.xlabel('PCA mode (value)')
+    plt.xlabel('KL mode (value)')
     plt.ylabel('Parameters')
     ticks = np.arange(num_params)
     labels = [str(t+1)+'\n ('+str(l)+')' for t, l in zip(ticks, np.round(np.sqrt(eig), 2))]
@@ -427,6 +427,77 @@ if __name__ == '__main__':
 ###############################################################################
 # PCA of local covariance:
 
+if __name__ == '__main__':
+
+    num_params = len(log_param_names)
+    # compute local fisher and PCA of fisher:
+
+    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
+    eig, eigv = np.linalg.eigh(fisher)
+    sqrt_fisher = scipy.linalg.sqrtm(fisher)
+    # sort modes:
+    idx = np.argsort(eig)[::-1]
+    eig = eig[idx]
+    eigv = eigv[:, idx]
+    # compute contributions:
+    temp = np.dot(sqrt_fisher, eigv)
+    contributions = temp * temp / eig
+
+    # plot contributions:
+    plt.figure(figsize=(num_params*1, num_params*1))
+    im1 = plt.imshow(contributions, cmap='viridis')
+    for i in range(num_params):
+        for j in range(num_params):
+            if contributions[j, i] > 0.5:
+                col = 'k'
+            else:
+                col = 'w'
+            plt.text(i, j, np.round(contributions[j, i], 2), va='center', ha='center', color=col)
+    plt.xlabel('PCA mode (value)')
+    plt.ylabel('Parameters')
+    ticks = np.arange(num_params)
+    labels = [str(t+1)+'\n ('+str(l)+')' for t, l in zip(ticks, np.round(np.sqrt(eig), 2))]
+    plt.xticks(ticks, labels, horizontalalignment='center')
+    labels = ['$'+posterior_chain.getParamNames().parWithName(name).label+'$' for name in log_param_names]
+    plt.yticks(ticks, labels, horizontalalignment='right')
+    plt.tight_layout()
+    plt.savefig(out_folder+'/9_LPCA_mode_contributions.pdf')
+    plt.close('all')
+
+    # print out modes:
+    for i in range(num_params):
+        idx_max = np.argmax(contributions[:, i])
+        print('* Mode', i+1)
+        print('  Sqrt eig = ', np.round(np.sqrt(eig[i]),2))
+        _norm_eigv = eigv[:, i] / eigv[idx_max, i]
+        with np.printoptions(precision=2, suppress=True):
+            print('  Variance contributions', contributions[:, i])
+        string = ''
+        for j in range(num_params):
+            _name = log_param_names[j]
+            _mean = posterior_chain.getMeans([posterior_chain.index[log_param_names[j]]])[0]
+            _mean = '{0:+}'.format(np.round(-_mean, 2))
+            _temp = '{0:+}'.format(np.round(_norm_eigv[j], 2))
+            string += _temp+'*('+_name+' '+_mean+') '
+        print('  Mode =', string, '= 0')
+        print(' ')
+
+    # plot triangle with lines:
+    g = plots.get_subplot_plotter()
+    g.triangle_plot([posterior_chain], params=log_param_names, filled=True)
+    # add the modes:
+    for i in range(num_params-1):
+        for j in range(i+1, num_params):
+            ax = g.subplots[j, i]
+            # get mean:
+            m1, m2 = posterior_chain.getMeans(pars=[posterior_chain.index[name]
+                                              for name in [log_param_names[i], log_param_names[j]]])
+            ax.scatter(m1, m2, color='k')
+            alpha = 3.*np.linspace(-1., 1., 100)
+            for k in range(num_params):
+                ax.axline([m1, m2], [m1 + eigv[i, k], m2 + eigv[j, k]], color=sns.hls_palette(num_params)[k], label='Mode '+str(k+1))
+    g.fig.legend(*ax.get_legend_handles_labels())
+    g.export(out_folder+'/10_LPCA_triangle.pdf')
 
 
 
