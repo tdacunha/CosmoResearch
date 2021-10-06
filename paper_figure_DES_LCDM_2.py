@@ -20,6 +20,10 @@ sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities, gaussian_tension
 
+# import example:
+import example_DES_shear as example_shear
+import example_DES_3x2 as example_3x2
+
 ###############################################################################
 # initial settings:
 
@@ -35,28 +39,16 @@ plt.rc('text', usetex=True)
 ###############################################################################
 # import chains:
 
-prior_chain_1 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'002_DESY1_shear_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain_1 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'002_DESY1_shear', no_cache=True, settings=DES_generate.settings)
+prior_chain_1 = example_shear.prior_chain
+posterior_chain_1 = example_shear.posterior_chain
 
-prior_chain_2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'001_DESY1_3x2_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain_2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'001_DESY1_3x2', no_cache=True, settings=DES_generate.settings)
-
-###############################################################################
-# process chains:
-
-# add log parameters:
-for ch in [prior_chain_1, posterior_chain_1, prior_chain_2, posterior_chain_2]:
-    temp_names = ch.getParamNames().list()
-    for name in temp_names:
-        if np.all(ch.samples[:, ch.index[name]] > 0.):
-            ch.addDerived(np.log(ch.samples[:, ch.index[name]]), name='log_'+name, label='\\log '+ch.getParamNames().parWithName(name).label)
-    # update after adding all parameters:
-    ch.updateBaseStatistics()
+prior_chain_2 = example_3x2.prior_chain
+posterior_chain_2 = example_3x2.posterior_chain
 
 ###############################################################################
 # decide parameters to use:
 
-param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'ns'][::-1]
+param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns'][::-1]
 num_params = len(param_names)
 
 ###############################################################################

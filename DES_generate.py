@@ -47,10 +47,10 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
 
     # get parameters for flows:
     batch_size = kwargs.pop('batch_size', None)
-    epochs = kwargs.pop('epochs', 100)
+    epochs = kwargs.pop('epochs', 300)
     steps_per_epoch = kwargs.pop('steps_per_epoch', None)
-    n_maf = kwargs.pop('n_maf', num_params)
-    hidden_units = kwargs.pop('hidden_units', [num_params*3]*2)
+    n_maf = kwargs.pop('n_maf', 1*num_params)
+    hidden_units = kwargs.pop('hidden_units', [num_params*2]*2)
 
     # prior flow:
     if os.path.isfile(flow_cache+'/prior'+'_permutations.pickle'):
@@ -88,10 +88,11 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
         # initialize posterior flow:
         from tensorflow.keras.initializers import TruncatedNormal, Zeros, GlorotNormal
         posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain,
-                                                                prior_bijector=prior_flow.bijector, param_ranges=prior_flow.parameter_ranges,
+                                                                #prior_bijector=prior_flow.bijector,
+                                                                param_ranges=prior_flow.parameter_ranges,
                                                                 param_names=prior_flow.param_names,
                                                                 feedback=1,
-                                                                n_maf=n_maf, hidden_units=hidden_units, kernel_initializer=GlorotNormal()) #, kernel_initializer=TruncatedNormal(stddev=1e-3))
+                                                                n_maf=n_maf, hidden_units=hidden_units, kernel_initializer=GlorotNormal()) #kernel_initializer=TruncatedNormal(stddev=1e-3))
         # train posterior flow:
         posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
         # save trained model:

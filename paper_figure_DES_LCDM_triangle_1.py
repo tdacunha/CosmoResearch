@@ -21,6 +21,8 @@ temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
+# import example:
+import example_DES_shear as example
 
 ###############################################################################
 # initial settings:
@@ -40,41 +42,17 @@ y_size = 11.0
 main_fontsize = 10.0
 
 # color palette:
-colors = [color_utilities.nice_colors(i) for i in range(4)]
+colors = [color_utilities.nice_colors(i) for i in range(6)]
 
 # number of modes:
-num_modes = 2
-
-###############################################################################
-# import chains:
-
-prior_chain = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'002_DESY1_shear_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'002_DESY1_shear', no_cache=True, settings=DES_generate.settings)
-
-###############################################################################
-# process chains:
-
-# add log parameters:
-for ch in [prior_chain, posterior_chain]:
-    temp_names = ch.getParamNames().list()
-    for name in temp_names:
-        if np.all(ch.samples[:, ch.index[name]] > 0.):
-            ch.addDerived(np.log(ch.samples[:, ch.index[name]]), name='log_'+name, label='\\log '+ch.getParamNames().parWithName(name).label)
-    # update after adding all parameters:
-    ch.updateBaseStatistics()
-
-###############################################################################
-# decide parameters to use:
-
-pca_param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'ns']
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns']
-num_params = len(param_names)
+num_modes = 3
 
 ###############################################################################
 # do PCA:
 
 # compute covariance and PCA of fisher:
-covariance = posterior_chain.cov(param_names)
+num_params = len(example.log_param_names)
+covariance = example.posterior_chain.cov(example.log_param_names)
 fisher = np.linalg.inv(covariance)
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
@@ -109,20 +87,29 @@ g.make_figure(nx=num_params-1, ny=num_params-1, sharex=g.settings.no_triangle_ax
 bottom = num_params - 2
 for i in range(num_params-1):
     for i2 in range(bottom, i-1, -1):
-        param1, param2 = param_names[i], param_names[i2+1]
+        param1, param2 = example.param_names[i], example.param_names[i2+1]
         # create sub plot:
         g._subplot(i, i2, pars=(param1, param2),
                    sharex=g.subplots[bottom, i] if i2 != bottom else None,
                    sharey=g.subplots[i2, 0] if i > 0 else None)
         ax = g.subplots[i2, i]
         # add plot 2D:
-        g.plot_2d([posterior_chain], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
+        g.plot_2d([example.posterior_chain], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
                   no_label_no_numbers=g.settings.no_triangle_axis_labels, shaded=False,
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
-        m1, m2 = posterior_chain.getBestFit().parWithName(param1).best_fit, posterior_chain.getBestFit().parWithName(param2).best_fit
-
+        #m1, m2 = example.posterior_chain.getBestFit().parWithName(param1).best_fit, example.posterior_chain.getBestFit().parWithName(param2).best_fit
+        m1 = example.posterior_chain.getMeans([example.posterior_chain.index[param1]])[0]
+        m2 = example.posterior_chain.getMeans([example.posterior_chain.index[param2]])[0]
+        ax.scatter([m1], [m2], c=[colors[0]], edgecolors='white', zorder=999, s=20)
+        for k in range(num_modes):
+            idx1 = example.param_names.index(param1)
+            idx2 = example.param_names.index(param2)
+            temp = np.sqrt(eig[k])
+            alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
+            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
+            #ax.plot(m1 + alpha*eigv[idx1, k], m2 + alpha*eigv[idx2, k], c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
 
 # ticks:
 for _row in g.subplots:
@@ -141,19 +128,36 @@ g.fig.set_size_inches(x_size/2.54, y_size/2.54)
 ax = g.subplots[0, 0]
 ax.text(0.01, 1.05, 'a) DES Y1 shear', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
 
+# legend:
+leg_handlers, legend_labels = ax.get_legend_handles_labels()
 
-
+# legend for the second plot:
+leg = g.fig.legend(handles=leg_handlers,
+                   labels=legend_labels,
+                   fontsize=0.9*main_fontsize,
+                   frameon=True,
+                   fancybox=False,
+                   edgecolor='k',
+                   ncol=1,
+                   borderaxespad=0.0,
+                   columnspacing=2.0,
+                   handlelength=1.4,
+                   loc='upper right',
+                   bbox_to_anchor=(0.0, 0.0, 0.9, 0.9),
+                   )
+leg.get_frame().set_linewidth('0.8')
+leg.get_title().set_fontsize(main_fontsize)
 
 # update dimensions:
-bottom = 0.12
+bottom = 0.10
 top = 0.93
-left = 0.12
+left = 0.15
 right = 0.99
 wspace = 0.
 hspace = 0.
 g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
                   wspace=wspace, hspace=hspace)
-#leg.set_bbox_to_anchor((0.0, 0.0, right, top))
+leg.set_bbox_to_anchor((0.0, 0.0, right, top))
 
 # save:
-g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle.pdf')
+g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle_1.pdf')

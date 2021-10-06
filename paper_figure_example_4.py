@@ -58,16 +58,17 @@ P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
 # compute maximum posterior:
-result = example.posterior_flow.MAP_finder(disp=True)
-maximum_posterior = result.x
+#result = example.posterior_flow.MAP_finder(disp=True)
+#maximum_posterior = result.x
+
 # get the mean:
 mean = example.posterior_chain.getMeans([example.posterior_chain.index[name] for name in example.posterior_chain.getParamNames().list()])
 maximum_posterior = mean
 # compute the two base eigenvalues trajectories:
 y0 = example.posterior_flow.cast(maximum_posterior)
 
-length_1 = (example.posterior_flow.sigma_to_length(2)).astype(np.float32)#3#2
-length_2 = (example.posterior_flow.sigma_to_length(8)).astype(np.float32)#3#6
+length_1 = (example.posterior_flow.sigma_to_length(1.8)).astype(np.float32)
+length_2 = (example.posterior_flow.sigma_to_length(4)).astype(np.float32)
 ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=100)
 ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=100)
 
