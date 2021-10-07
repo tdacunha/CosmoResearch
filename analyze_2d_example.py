@@ -5,13 +5,16 @@ General code to analyze examples
 
 For testing purposes:
 
-import example_2_generate as example
+import example_5_generate as example
 
 chain=example.posterior_chain
 flow=example.posterior_flow
 param_names=example.posterior_chain.getParamNames().list()
-param_ranges=[[0.01, 0.6], [0.4, 1.5]]
+#param_ranges=[[0.01, 0.6], [0.4, 1.5]]
+param_ranges=[[-1.5, 1.5], [-1.5, 1.5]]
+
 outroot=example.out_folder+'posterior_'
+use_MAP = True
 
 # for testing prior run
 chain=example.prior_chain
@@ -655,7 +658,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
 
     # lines along the global principal components:
     y0 = flow.cast(reference_point)
-    length = (flow.sigma_to_length(6)).astype(np.float32)
+    length = (flow.sigma_to_length(4)).astype(np.float32)#6
 
     _, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
     _, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
@@ -709,7 +712,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
     plt.tight_layout()
     plt.savefig(outroot+'11_local_pca_flow.pdf')
 
-    ###########################################################################
+    ############################################################################
     # Find principal eigenvalue flow:
     ###########################################################################
     from scipy.interpolate import interp1d
