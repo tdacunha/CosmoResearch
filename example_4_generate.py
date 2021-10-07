@@ -38,7 +38,7 @@ if not os.path.exists(flow_cache):
     os.mkdir(flow_cache)
 
 # number of samples:
-n_samples = 1000000
+n_samples = 2000000
 temperature = 2.0
 
 # cache file:
@@ -150,9 +150,9 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 # posterior:
 num_params = 2
 n_maf = 4*num_params
-hidden_units = [num_params*2]*2#[num_params*4]*2#4
-batch_size = 4*8192#2*8192
-epochs = 120#120
+hidden_units = [num_params*2]*2
+batch_size = None
+epochs = 120
 steps_per_epoch = 128
 
 # if cache exists load training:

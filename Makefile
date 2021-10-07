@@ -36,7 +36,9 @@ generate_examples:
 
 example_2_video:
 	python example_2_video.py
-	convert -quality 100 results/example_2/video/*.png results/example_2/training_video.gif
+	convert -quality 100 results/example_2/video_1/*.png results/example_2/training_video_1.gif
+	convert -quality 100 results/example_2/video_2/*.png results/example_2/training_video_2.gif
+	convert -quality 100 results/example_2/video_3/*.png results/example_2/training_video_3.gif
 
 clean:
 	@rm -rf results/*

@@ -19,6 +19,7 @@ from getdist.gaussian_mixtures import GaussianND
 import tensiometer.gaussian_tension as gaussian_tension
 from scipy.integrate import simps
 
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
@@ -37,9 +38,15 @@ import tensorflow as tf
 # initial settings:
 
 # output folder:
-out_folder = './results/example_2/video/'
-if not os.path.exists(out_folder):
-    os.mkdir(out_folder)
+out_folder_1 = './results/example_2/video_1/'
+if not os.path.exists(out_folder_1):
+    os.mkdir(out_folder_1)
+out_folder_2 = './results/example_2/video_2/'
+if not os.path.exists(out_folder_2):
+    os.mkdir(out_folder_2)
+out_folder_3 = './results/example_2/video_3/'
+if not os.path.exists(out_folder_3):
+    os.mkdir(out_folder_3)
 
 # number of samples:
 n_samples = 1000000
@@ -74,8 +81,8 @@ param_ranges = [[0.01, 0.7-0.01], [0.01, 1.7-0.01]]
 param_names = example.posterior_chain.getParamNames().list()
 
 # parameter grids:
-P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 200)
-P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 200)
+P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 300)
+P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 300)
 x, y = P1, P2
 X, Y = np.meshgrid(x, y)
 
@@ -98,6 +105,9 @@ for ind in range(110):
             steps_per_epoch = 100
         posterior_flow.train(batch_size=batch_size, epochs=1, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
 
+    ##########################################################################
+    # Figure 1
+    ##########################################################################
     # create figure:
     plt.figure(figsize=(2*figsize[0], figsize[1]))
     gs = gridspec.GridSpec(1, 2)
@@ -152,5 +162,87 @@ for ind in range(110):
     hspace = 0.2
     gs.update(bottom=bottom, top=top, left=left, right=right, wspace=wspace, hspace=hspace)
 
-    plt.savefig(out_folder+f'/figure_{ind:05d}.png', dpi=300)
+    plt.savefig(out_folder_1+f'/figure_{ind:05d}.png', dpi=300)
+    plt.close('all')
+
+    ##########################################################################
+    # Figure 2
+    ##########################################################################
+    # create figure:
+    plt.figure(figsize=(figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 1)
+    ax1 = plt.subplot(gs[0, 0])
+
+    # plot contours:
+    ax1.contour(_X, _Y, density.P, analyze_2d_example.get_levels(density.P, density.x, density.y, levels),
+                 linewidths=1., linestyles='-', colors=['k' for i in levels])
+    levs = np.append(analyze_2d_example.get_levels(density.P, density.x, density.y, levels), [np.amax(density.P)])
+    cmap = matplotlib.cm.get_cmap('Blues')
+    ax1.contourf(_X, _Y, density.P, levs, colors=cmap(np.linspace(0.5, 1., len(levs)-1)))
+
+    # compute flow probability on a grid:
+    ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1.5, linestyles='--', colors=['red' for i in levels])
+
+    # finalize plot:
+    ax1.set_xlabel('', fontsize=fontsize)
+    ax1.set_ylabel('', fontsize=fontsize)
+    ax1.set_xlim([0.0, 0.5])
+    ax1.set_ylim([0.5, 1.5])
+    ax1.set_xticks([])
+    ax1.set_yticks([])
+
+    # update dimensions:
+    bottom = 0.01
+    top = 0.99
+    left = 0.01
+    right = 0.99
+    wspace = 0.1
+    hspace = 0.2
+    gs.update(bottom=bottom, top=top, left=left, right=right, wspace=wspace, hspace=hspace)
+
+    plt.savefig(out_folder_2+f'/figure_{ind:05d}.png', dpi=300)
+    plt.close('all')
+
+    ##########################################################################
+    # Figure 3
+    ##########################################################################
+    # create figure:
+    plt.figure(figsize=(figsize[0], figsize[1]))
+    gs = gridspec.GridSpec(1, 1)
+    ax1 = plt.subplot(gs[0, 0])
+
+    # plot contours:
+    origin = [0, 0]
+    theta = np.linspace(0.0, 2.*np.pi, 200)
+    for i in range(4):
+        _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
+        ax1.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='-', lw=1., color='k')
+
+    # plot samples:
+    num_samples = 10000
+    tot_num_samples = len(example.posterior_chain.samples)
+    temp_samples = example.posterior_chain.samples[::tot_num_samples // num_samples, :]
+    abs_temp_samples = posterior_flow.map_to_abstract_coord(posterior_flow.cast(temp_samples)).numpy()
+
+    # plot samples:
+    ax1.scatter(*abs_temp_samples.T, s=0.8, c=temp_samples[:, 0])
+
+    # finalize plot:
+    ax1.set_xlabel('', fontsize=fontsize)
+    ax1.set_ylabel('', fontsize=fontsize)
+    ax1.set_xlim([-5, 5])
+    ax1.set_ylim([-5, 5])
+    ax1.set_xticks([])
+    ax1.set_yticks([])
+
+    # update dimensions:
+    bottom = 0.01
+    top = 0.99
+    left = 0.01
+    right = 0.99
+    wspace = 0.1
+    hspace = 0.2
+    gs.update(bottom=bottom, top=top, left=left, right=right, wspace=wspace, hspace=hspace)
+
+    plt.savefig(out_folder_3+f'/figure_{ind:05d}.png', dpi=300)
     plt.close('all')

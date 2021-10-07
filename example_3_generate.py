@@ -39,7 +39,7 @@ if not os.path.exists(flow_cache):
 
 # number of samples:
 n_samples = 1000000
-temperature = 2.0
+temperature = 1.0
 
 # cache file:
 cache_file = out_folder+'example_3_cache.plk'
@@ -151,7 +151,7 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 num_params = 2
 n_maf = 2*num_params
 hidden_units = [num_params*2]*2
-batch_size = 8192
+batch_size = None
 epochs = 200
 steps_per_epoch = 128
 
