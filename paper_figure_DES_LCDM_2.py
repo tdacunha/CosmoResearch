@@ -55,10 +55,8 @@ num_params = len(param_names)
 # Compute PCA contributions:
 
 # compute covariance and PCA of fisher:
-covariance = posterior_chain_1.cov(param_names)
-prior_covariance = prior_chain_1.cov(param_names)
-fisher = np.linalg.inv(covariance)
-prior_fisher = np.linalg.inv(prior_covariance)
+fisher = example_shear.log_params_posterior_flow.metric(example_shear.log_params_posterior_flow.cast([example_shear.MAP_coords]))[0]
+prior_fisher = example_shear.log_params_prior_flow.metric(example_shear.log_params_prior_flow.cast([example_shear.MAP_coords]))[0]
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 _Neff = gaussian_tension.get_Neff(posterior_chain_1, prior_chain_1, param_names)
@@ -75,10 +73,8 @@ contributions_1 = temp * temp / eig
 eig_1 = eig.copy()
 
 # compute covariance and PCA of fisher:
-covariance = posterior_chain_2.cov(param_names)
-prior_covariance = prior_chain_2.cov(param_names)
-fisher = np.linalg.inv(covariance)
-prior_fisher = np.linalg.inv(prior_covariance)
+fisher = example_3x2.log_params_posterior_flow.metric(example_3x2.log_params_posterior_flow.cast([example_3x2.MAP_coords]))[0]
+prior_fisher = example_3x2.log_params_prior_flow.metric(example_3x2.log_params_prior_flow.cast([example_3x2.MAP_coords]))[0]
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 _Neff = gaussian_tension.get_Neff(posterior_chain_2, prior_chain_2, param_names)

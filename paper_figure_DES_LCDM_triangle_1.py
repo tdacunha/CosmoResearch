@@ -47,13 +47,13 @@ colors = [color_utilities.nice_colors(i) for i in range(6)]
 # number of modes:
 num_modes = 3
 
-###############################################################################
-# do PCA:
 
-# compute covariance and PCA of fisher:
+###############################################################################
+# do local PCA:
+
+# compute PCA of local fisher:
 num_params = len(example.log_param_names)
-covariance = example.posterior_chain.cov(example.log_param_names)
-fisher = np.linalg.inv(covariance)
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([example.MAP_coords]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:
