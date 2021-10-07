@@ -71,8 +71,8 @@ length_2 = (example.posterior_flow.sigma_to_length(3)).astype(np.float32)#3#6
 ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=100)
 ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=100)
 
-start_1 = np.concatenate((example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=6, side='-')[1].numpy()[1:],
-                          example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=6, side='+')[1].numpy()[1:])) #10
+start_1 = np.concatenate((example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=10, side='-')[1].numpy()[1:],
+                          example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=10, side='+')[1].numpy()[1:])) #10
 start_2 = np.concatenate((example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=5, side='-')[1].numpy()[1:],
                           example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=5, side='+')[1].numpy()[1:]))
 
