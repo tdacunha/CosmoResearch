@@ -159,8 +159,8 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 # posterior:
 num_params = 2
 n_maf = 10*num_params
-hidden_units = [num_params*4]*10
-batch_size = None
+hidden_units = [num_params*4]*10 # Tara: had used [num_params*4]*2 here I think. That or [num_params*2]*2
+batch_size = None # Tara: had increased this earlier
 epochs = 120
 steps_per_epoch = 128
 
