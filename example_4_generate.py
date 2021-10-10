@@ -47,16 +47,19 @@ cache_file = out_folder+'example_4_cache.plk'
 ###############################################################################
 # define the pdf:
 
+scaling = 0.1
+
 
 def log_pdf(theta, theta0=[0., 0.], rsigma=0.1):
     x, y = theta
+    y = y / scaling
     x0, y0 = theta0
     r = (x-x0) - (y-y0)**3
     return -0.5*r**2/rsigma**2
 
 
 # prior:
-prior = [-1., 1.]
+prior = [[-1., 1.], [-scaling, scaling]]
 
 ###############################################################################
 # generate the samples:
@@ -81,7 +84,7 @@ else:
 
     # find maximum posterior:
     print('Finding maximum posterior')
-    temp_res = optimize.differential_evolution(lambda x: -log_pdf(x), [(prior[0], prior[1]), (prior[0], prior[1])])
+    temp_res = optimize.differential_evolution(lambda x: -log_pdf(x), [(prior[0][0], prior[0][1]), (prior[1][0], prior[1][1])])
     log_max_p = -temp_res.fun
     max_P_x = temp_res.x
 
@@ -95,7 +98,9 @@ else:
     weights = []
     num_samples = 0
     while num_samples < n_samples:
-        xtemp = (prior[1]-prior[0])*np.random.rand(2) + prior[0]
+        xtemp = (prior[0][1]-prior[0][0])*np.random.rand(1) + prior[0][0]
+        ytemp = (prior[1][1]-prior[1][0])*np.random.rand(1) + prior[1][0]
+        xtemp = np.append(xtemp, ytemp)
         log_like = log_pdf(xtemp) - log_max_p
         if np.random.binomial(1, np.exp(log_like/temperature)):
             samples.append(xtemp)
@@ -110,22 +115,22 @@ else:
                                 weights=weights,
                                 names=['theta_1', 'theta_2'],
                                 labels=['\\theta_1', '\\theta_2'],
-                                ranges={'theta_1': [prior[0], prior[1]],
-                                        'theta_2': [prior[0], prior[1]]},
+                                ranges={'theta_1': [prior[0][0], prior[0][1]],
+                                        'theta_2': [prior[1][0], prior[1][1]]},
                                 sampler='uncorrelated',
                                 label='posterior')
     cache_results['posterior_chain'] = copy.deepcopy(posterior_chain)
 
     # generating prior:
     prior_samples = []
-    for _min, _max in zip([prior[0], prior[0]], [prior[1], prior[1]]):
+    for _min, _max in zip([prior[0][0], prior[1][0]], [prior[0][1], prior[1][1]]):
         prior_samples.append(np.random.uniform(_min, _max, size=n_samples))
     prior_samples = np.array(prior_samples).T
     prior_chain = MCSamples(samples=prior_samples,
                             names=['theta_1', 'theta_2'],
                             labels=['\\theta_1', '\\theta_2'],
-                            ranges={'theta_1': [prior[0], prior[1]],
-                                    'theta_2': [prior[0], prior[1]]},
+                            ranges={'theta_1': [prior[0][0], prior[0][1]],
+                                    'theta_2': [prior[1][0], prior[1][1]]},
                             sampler='uncorrelated',
                             label='prior')
     cache_results['prior_chain'] = copy.deepcopy(prior_chain)
@@ -142,7 +147,7 @@ else:
 param_ranges = {}
 for name in ['theta_'+str(i+1) for i in range(2)]:
     param_ranges[name] = copy.deepcopy(prior)
-prior_bij = synthetic_probability.prior_bijector_helper([{'lower': prior[0], 'upper':prior[1]}, {'lower': prior[0], 'upper':prior[1]}])
+prior_bij = synthetic_probability.prior_bijector_helper([{'lower': prior[0][0], 'upper':prior[0][1]}, {'lower': prior[1][0], 'upper':prior[1][1]}])
 prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
                                                     prior_bijector=prior_bij, apply_pregauss=False, trainable_bijector=None,
                                                     param_ranges=param_ranges, param_names=prior_chain.getParamNames().list(), feedback=1)

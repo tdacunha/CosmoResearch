@@ -42,12 +42,12 @@ if not os.path.exists(out_folder):
 ###############################################################################
 # plot:
 
-levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
-param_ranges = [[-1.999, 1.999], [-1.999, 1.999]]
+levels = [utilities.from_sigma_to_confidence(i) for i in range(2, 0, -1)]
+param_ranges = [[example.prior[0]+0.001, example.prior[1]-0.001], [example.prior[0]+0.001, example.prior[1]-0.001]]
 
 # define the grid:
-P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 300)
-P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 300)
+P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 400)
+P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 400)
 x, y = P1, P2
 X, Y = np.meshgrid(x, y)
 
@@ -87,7 +87,7 @@ for start in start_1:
 
 # plot size in cm. Has to match to draft to make sure font sizes are consistent
 x_size = 18.0
-y_size = 8#7.5
+y_size = 8
 main_fontsize = 10.0
 
 # start the plot:
@@ -101,7 +101,7 @@ ax2 = plt.subplot(gs[1])
 ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=999., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
 
 theta = np.linspace(0.0, 2.*np.pi, 200)
-for i in range(4):
+for i in range(3):
     _length = np.sqrt(stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
     ax2.plot(_length*np.sin(theta), _length*np.cos(theta), ls='-', zorder=999., lw=1., color='k')
 
@@ -128,39 +128,39 @@ for mode in modes_1:
     ax2.plot(*example.posterior_flow.map_to_abstract_coord(mode).numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(2))
 
 # prior:
-ax1.axvspan(2., 2.2, alpha=0.2, ec=None, color='k')
-ax1.axvspan(-2., -2.2, alpha=0.2, ec=None, color='k')
-ax1.fill_between([-2., 2.], [2., 2.], [2.2, 2.2], alpha=0.2, ec=None, lw=0.0, color='k')
-ax1.fill_between([-2., 2.], [-2., -2.], [-2.2, -2.2], alpha=0.2, ec=None, lw=0.0, color='k')
-ax1.add_patch(Rectangle((-2., -2.), 4.0, 4.0, fill=None, alpha=1, color='k', ls='--', lw=1.))
+#ax1.axvspan(2., 2.2, alpha=0.2, ec=None, color='k')
+#ax1.axvspan(-2., -2.2, alpha=0.2, ec=None, color='k')
+#ax1.fill_between([-2., 2.], [2., 2.], [2.2, 2.2], alpha=0.2, ec=None, lw=0.0, color='k')
+#ax1.fill_between([-2., 2.], [-2., -2.], [-2.2, -2.2], alpha=0.2, ec=None, lw=0.0, color='k')
+#ax1.add_patch(Rectangle((-2., -2.), 4.0, 4.0, fill=None, alpha=1, color='k', ls='--', lw=1.))
 
 # limits:
 ax1.set_xlim([-1.5, 1.5])
-ax1.set_ylim([-1.1, 2.1])
+ax1.set_ylim([-1, 3])
 
-ax2.set_xlim([-4.0, 4.0])
-ax2.set_ylim([-4.0, 4.0])
+ax2.set_xlim([-3.0, 3.0])
+ax2.set_ylim([-3.0, 3.0])
 
 # ticks:
 ticks = [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5]
 ax1.set_xticks(ticks)
 ax1.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
-ticks = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
+ticks = [-3, -2, -1, 0, 1, 2, 3]
 ax2.set_xticks(ticks)
 ax2.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
 for ax in [ax1, ax2]:
     ax.get_xticklabels()[0].set_horizontalalignment('left')
     ax.get_xticklabels()[-1].set_horizontalalignment('right')
 
-ticks = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
+ticks = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
 ax1.set_yticks(ticks)
 ax1.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
-ticks = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
+ticks = [-3, -2, -1, 0, 1, 2, 3]
 ax2.set_yticks(ticks)
 ax2.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
-ax2.get_yticklabels()[0].set_verticalalignment('bottom')
-ax2.get_yticklabels()[-1].set_verticalalignment('top')
-
+for ax in [ax1, ax2]:
+    ax.get_yticklabels()[0].set_verticalalignment('bottom')
+    ax.get_yticklabels()[-1].set_verticalalignment('top')
 
 # axes labels:
 ax1.set_xlabel(r'$\theta_1$', fontsize=main_fontsize);
@@ -249,6 +249,5 @@ wspace = 0.15
 hspace = 0.15
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
-plt.show()
 plt.savefig(out_folder+'/figure_example_3.pdf')
 plt.close('all')

@@ -39,7 +39,7 @@ if not os.path.exists(flow_cache):
 
 # number of samples:
 n_samples = 1000000
-temperature = 1.0
+temperature = 2.0
 
 # cache file:
 cache_file = out_folder+'example_3_cache.plk'
@@ -56,7 +56,7 @@ def log_pdf(theta, theta0=[0.0, -0.5], sigma0=0.5):
 
 
 # prior:
-prior = [-2., 2.]
+prior = [-3., 3.]
 
 ###############################################################################
 # generate the samples:

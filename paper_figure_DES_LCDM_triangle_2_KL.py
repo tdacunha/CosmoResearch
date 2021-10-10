@@ -52,9 +52,10 @@ num_modes = 3
 # do local KL:
 
 # compute KL of local fisher:
+MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
 num_params = len(example.log_param_names)
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([example.MAP_coords]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([example.MAP_coords]))[0]
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
+prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([MAP_coords]))[0]
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
