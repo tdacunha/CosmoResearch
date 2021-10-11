@@ -70,7 +70,6 @@ full_params_flow_cache = out_folder+'full_params_flow_cache'
 temp = DES_generate.helper_load_chains(full_param_names, prior_chain, posterior_chain, full_params_flow_cache)
 full_params_prior_flow, full_params_posterior_flow = temp
 
-
 ###############################################################################
 # sanity triangle plot:
 

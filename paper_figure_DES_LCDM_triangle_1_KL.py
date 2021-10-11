@@ -45,16 +45,18 @@ main_fontsize = 10.0
 colors = [color_utilities.nice_colors(i) for i in range(6)]
 
 # number of modes:
-num_modes = 3
+num_modes = 5
 
 
 ###############################################################################
 # do local KL:
+MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
+
 
 # compute KL of local fisher:
 num_params = len(example.log_param_names)
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([example.MAP_coords]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([example.MAP_coords]))[0]
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
+prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([MAP_coords]))[0]
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
@@ -104,15 +106,22 @@ for i in range(num_params-1):
         #m1, m2 = example.posterior_chain.getBestFit().parWithName(param1).best_fit, example.posterior_chain.getBestFit().parWithName(param2).best_fit
         m1 = example.posterior_chain.getMeans([example.posterior_chain.index[param1]])[0]
         m2 = example.posterior_chain.getMeans([example.posterior_chain.index[param2]])[0]
+        #m1 = MAP_coords[i]
+        #m2 = MAP_coords[i2+1]
         ax.scatter([m1], [m2], c=[colors[0]], edgecolors='white', zorder=999, s=20)
         for k in range(num_modes):
             idx1 = example.param_names.index(param1)
             idx2 = example.param_names.index(param2)
             temp = np.sqrt(eig[k])
+            if param2 =='sigma8' and param1 == 'omegam':
+                print(eigv[idx1, k], eigv[idx2, k])
             alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
+            _direction = eigv[:, k]
+            _direction = _direction / np.sqrt(np.dot(_direction, _direction))
+            ax.plot(m1*np.exp(alpha*_direction[idx1]), m2*np.exp(alpha*_direction[idx2]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+            #ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
             #ax.plot(m1 + alpha*eigv[idx1, k], m2 + alpha*eigv[idx2, k], c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
-
+print(example.param_names)
 # ticks:
 for _row in g.subplots:
     for _ax in _row:
@@ -160,6 +169,36 @@ hspace = 0.
 g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
                   wspace=wspace, hspace=hspace)
 leg.set_bbox_to_anchor((0.0, 0.0, right, top))
-
+print(MAP_coords)
 # save:
 g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle_1_KL.pdf')
+
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
+prior_fisher = example.log_params_prior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
+eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
+sqrt_fisher = scipy.linalg.sqrtm(fisher)
+print(MAP_coords)
+# sort modes:
+idx = np.argsort(eig)[::-1]
+eig = eig[idx]
+eigv = eigv[:, idx]
+
+num_params = len(example.log_param_names)
+
+# plot triangle with lines:
+g = plots.get_subplot_plotter()
+g.triangle_plot([example.posterior_chain], params=example.log_param_names, filled=True)
+# add the modes:
+for i in range(num_params-1):
+    for j in range(i+1, num_params):
+        ax = g.subplots[j, i]
+        # get mean:
+        m1, m2 = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name]
+                                          for name in [example.log_param_names[i], example.log_param_names[j]]])
+        ax.scatter(m1, m2, color='k')
+        alpha = 3.*np.linspace(-1., 1., 100)
+        for k in range(num_params):
+            _direction = eigv[:, k]
+            _direction = _direction / np.sqrt(np.dot(_direction, _direction))
+            ax.axline([m1, m2], [m1 + _direction[i], m2 + _direction[j]], color=sns.hls_palette(num_params)[k], label='Mode '+str(k+1))
+g.fig.legend(*ax.get_legend_handles_labels())
