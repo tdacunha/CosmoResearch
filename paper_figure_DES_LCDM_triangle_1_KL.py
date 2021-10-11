@@ -54,6 +54,8 @@ MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
 
 
 # compute KL of local fisher:
+#MAP_coords = example.log_params_posterior_flow.fast_MAP_finder().x
+MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
 num_params = len(example.log_param_names)
 fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
 prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([MAP_coords]))[0]
@@ -109,6 +111,8 @@ for i in range(num_params-1):
         #m1 = MAP_coords[i]
         #m2 = MAP_coords[i2+1]
         ax.scatter([m1], [m2], c=[colors[0]], edgecolors='white', zorder=999, s=20)
+        ax.scatter([MAP_coords[i]], [MAP_coords[i2+1]], c=[colors[0]], edgecolors='white', zorder=999, s=20)
+
         for k in range(num_modes):
             idx1 = example.param_names.index(param1)
             idx2 = example.param_names.index(param2)

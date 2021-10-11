@@ -27,7 +27,7 @@ import scipy.integrate
 from scipy.linalg import sqrtm
 from scipy.integrate import simps
 from scipy.spatial import cKDTree
-from scipy.optimize import differential_evolution
+from scipy.optimize import differential_evolution, minimize
 import scipy.stats
 import pickle
 from collections.abc import Iterable
@@ -362,6 +362,9 @@ class DiffFlowCallback(Callback):
                 # save:
                 self.parameter_ranges[name] = copy.deepcopy(temp_range)
 
+        # save sample MAP:
+        temp = chain.samples[np.argmin(chain.loglikes), :]
+        self.sample_MAP = np.array([temp[chain.index[name]] for name in param_names])
         # Prior bijector setup:
         if prior_bijector == 'ranges':
             self.prior_bijector = prior_bijector_helper([{'lower': tf.cast(self.parameter_ranges[name][0], prec), 'upper': tf.cast(self.parameter_ranges[name][1], prec)} for name in param_names])
@@ -546,6 +549,21 @@ class DiffFlowCallback(Callback):
         result = differential_evolution(lambda x: -self.distribution.log_prob(self.cast(x)),
                                         bounds=list(self.parameter_ranges.values()),
                                         **kwargs)
+        # cache MAP value:
+        if result.success:
+            self.MAP_coord = result.x
+            self.MAP_logP = -result.fun
+        #
+        return result
+
+    def fast_MAP_finder(self, **kwargs):
+        """
+        Function that uses scipy optimizer to find the maximum of the synthetic posterior.
+        """
+        # main call to differential evolution:
+        result = minimize(lambda x: -self.distribution.log_prob(self.cast(x)).numpy(),
+                          x0=self.sample_MAP,
+                          **kwargs)
         # cache MAP value:
         if result.success:
             self.MAP_coord = result.x
