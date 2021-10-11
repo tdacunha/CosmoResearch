@@ -3,10 +3,11 @@ General code to analyze examples
 
 For testing purposes:
 
-import example_3_generate as example
 import example_2_generate as example
 import example_5_generate as example
 import example_1_generate as example
+
+import example_3_generate as example
 
 
 chain = example.posterior_chain
@@ -19,14 +20,6 @@ outroot = example.out_folder+'KL_'
 train_params = {}
 param_ranges = None #[[-1.5, 1.5], [-1.5, 1.5]] #None # [[0.0, 0.6], [0.4, 1.5]]
 
-# for testing prior run
-chain = example.prior_chain
-prior_chain = example.prior_chain
-flow = example.prior_flow
-param_names = example.prior_chain.getParamNames().list()
-outroot = example.out_folder
-train_params = {}
-param_ranges=[[0.0, 0.7], [0, 1.7]]# None #[[-1.5, 1.5], [-1.5, 1.5]] #None # [[0.0, 0.6], [0.4, 1.5]]
 """
 
 ###############################################################################
@@ -85,7 +78,7 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
     return levs
 
 
-def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot, param_ranges=None, train_params={}):
+def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot, param_ranges=None, use_MAP=True):
     """
     Run full KL analysis of 2d example case, as in flow playground
     """
@@ -121,11 +114,8 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     density.P = density.P / simps(simps(density.P, density.y), density.x)
 
     # levels for contour plots:
-    levels_5 = [utilities.from_sigma_to_confidence(i) for i in range(5, 1, -1)]
+    levels_5 = [utilities.from_sigma_to_confidence(i) for i in range(5, 0, -1)]
     levels_3 = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
-
-
-
 
     log_P = flow.log_probability(np.array([X, Y], dtype=np.float32).T)
     log_P = np.array(log_P).T
@@ -149,8 +139,17 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     # mean:
     mean = chain.getMeans([chain.index[name] for name in param_names])
 
+    if use_MAP:
+        reference_point = maximum_posterior
+    else:
+        reference_point = mean
+
+    # from samples:
     cov_samples = chain.cov(pars=param_names)
     prior_cov_samples = prior_chain.cov(pars=param_names)
+
+    fisher_samples = np.linalg.inv(cov_samples)
+    prior_fisher_samples = np.linalg.inv(prior_cov_samples)
 
     # metrics from flow around mean:
     covariance_metric = flow.metric(np.array([mean]).astype(np.float32))[0]
@@ -189,45 +188,27 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     alpha = np.linspace(-1, 1, 1000)
     plt.figure(figsize=figsize)
 
-    # plot KL of flow covariance metric
-    eig, eigv = tf_KL_decomposition(prior_covariance_metric, covariance_metric)
+    # plot KL of flow local fisher metric
+    eig, eigv = tf_KL_decomposition(fisher_metric, prior_fisher_metric)
     eig, eigv = eig.numpy(), eigv.numpy()
-    # inds = (np.argsort(eig)[::-1])
-    # param_directions = np.linalg.inv(eigv.T)
-    # eigv = (param_directions.T[inds]).T
-    mode = 0
-    norm0 = np.linalg.norm(eigv[:,0])
-    plt.plot(mean[0]+alpha*eigv[0, mode]/norm0, mean[1]+alpha*eigv[1, mode]/norm0, lw=1.5, color='k', ls='--', label='KL flow covariance', alpha = .5)
-    mode = 1
-    norm1 = np.linalg.norm(eigv[:,1])
-    plt.plot(mean[0]+alpha*eigv[0, mode]/norm1, mean[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='k', ls='--',alpha = .5)
-
-    # plot KL of flow fisher metric
-    eig, eigv = tf_KL_decomposition(prior_fisher_metric, fisher_metric)
-    eig, eigv = eig.numpy(), eigv.numpy()
-    inds = (np.argsort(eig)[::-1])
-    param_directions = np.linalg.inv(eigv.T)
-    eigv = (param_directions.T[inds]).T
 
     mode = 0
-    norm0 = np.linalg.norm(eigv[:,0])
-    plt.plot(mean[0]+alpha*eigv[0, mode]/norm0, mean[1]+alpha*eigv[1, mode]/norm0, lw=1., color='green', ls='-.', label='KL flow fisher',alpha = .5)
+    norm0 = np.linalg.norm(eigv[:, 0])
+    plt.plot(mean[0]+alpha*eigv[0, mode]/norm0, mean[1]+alpha*eigv[1, mode]/norm0, lw=1., color='green', ls='-.', label='KL flow fisher', alpha=.5)
     mode = 1
-    norm1 = np.linalg.norm(eigv[:,1])
-    plt.plot(mean[0]+alpha*eigv[0, mode]/norm1, mean[1]+alpha*eigv[1, mode]/norm1, lw=1., color='green', ls='-.',alpha = .5)
+    norm1 = np.linalg.norm(eigv[:, 1])
+    plt.plot(mean[0]+alpha*eigv[0, mode]/norm1, mean[1]+alpha*eigv[1, mode]/norm1, lw=1., color='green', ls='-.', alpha=.5)
 
-    # plot KL of covariance of samples
-    eig, eigv = tf_KL_decomposition(prior_cov_samples, cov_samples)
+    # plot KL of global fisher:
+    eig, eigv = tf_KL_decomposition(fisher_samples, prior_fisher_samples)
     eig, eigv = eig.numpy(), eigv.numpy()
-    inds = (np.argsort(eig)[::-1])
-    param_directions = np.linalg.inv(eigv.T)
-    eigv = (param_directions.T[inds]).T
+
     mode = 0
-    norm0 = np.linalg.norm(eigv[:,0])
-    plt.plot(mean[0]+alpha*eigv[0, mode]/norm0, mean[1]+alpha*eigv[1, mode]/norm0, lw=1., color='red', ls='--', label='KL samples',alpha = .5)
+    norm0 = np.linalg.norm(eigv[:, 0])
+    plt.plot(mean[0]+alpha*eigv[0, mode]/norm0, mean[1]+alpha*eigv[1, mode]/norm0, lw=1., color='red', ls='--', label='KL samples fisher', alpha=.5)
     mode = 1
-    norm1 = np.linalg.norm(eigv[:,1])
-    plt.plot(mean[0]+alpha*eigv[0, mode]/norm1, mean[1]+alpha*eigv[1, mode]/norm1, lw=1., color='red', ls='--',alpha = .5)
+    norm1 = np.linalg.norm(eigv[:, 1])
+    plt.plot(mean[0]+alpha*eigv[0, mode]/norm1, mean[1]+alpha*eigv[1, mode]/norm1, lw=1., color='red', ls='--', alpha=.5)
 
     # plot contours
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
@@ -240,12 +221,8 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
-    plt.show()
-
     plt.savefig(outroot+'1_comparison_of_cov_fisher_samples_at_mean.pdf')
     plt.close('all')
-
-
 
     ##########################################################################
     # Plot of local KL eigenvectors
@@ -254,11 +231,13 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     r = np.linspace(-1, 1, 1000)
 
     coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
+
     # compute the metric at all coordinates
     local_metrics = flow.metric(coords)
     prior_local_metrics = prior_flow.metric(coords)
+
     # compute KL decomposition:
-    KL_eig, KL_eigv = tf_KL_decomposition(prior_local_metrics, local_metrics)
+    KL_eig, KL_eigv = tf_KL_decomposition(local_metrics, prior_local_metrics)
     idx = np.argsort(KL_eig, axis=1)[0]
     KL_eig = KL_eig.numpy()[:, idx]
     KL_eigv = KL_eigv.numpy()[:, :, idx]
@@ -281,11 +260,11 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     param_directions = np.linalg.inv(eigv.T)
     eigv = (param_directions.T[inds]).T
 
-    norm0 = np.linalg.norm(eigv[:,0])
+    norm0 = np.linalg.norm(eigv[:, 0])
     mode = 0
     plt.plot(maximum_posterior[0] + r*eigv[0, mode]/norm0, maximum_posterior[1] + r*eigv[1, mode]/norm0, ls='-', color='k')
     mode = 1
-    norm1 = np.linalg.norm(eigv[:,1])
+    norm1 = np.linalg.norm(eigv[:, 1])
     plt.plot(maximum_posterior[0] + r*eigv[0, mode]/norm1, maximum_posterior[1] + r*eigv[1, mode]/norm1, ls='-', color='k')
 
     plt.legend()
@@ -294,26 +273,24 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
     plt.ylabel(param_labels_latex[1], fontsize=fontsize)
     plt.tight_layout()
-    plt.show()
-    plt.savefig(outroot+'8_local_metric_KL.pdf')
+    plt.savefig(outroot+'2_local_metric_KL.pdf')
     plt.close('all')
-
-
 
     ###########################################################################
     # Plots of local KL eigenvalues
     ###########################################################################
 
     # feedback:
-    print('9) local KL eigenvalues')
+    print('3) local KL eigenvalues')
 
     coords = np.array([X, Y], dtype=np.float32).reshape(2, -1).T
 
     # compute the metric at all coordinates
     local_metrics = flow.metric(coords)
     prior_local_metrics = prior_flow.metric(coords)
+
     # compute KL decomposition:
-    KL_eig, KL_eigv = tf_KL_decomposition(prior_local_metrics, local_metrics)
+    KL_eig, KL_eigv = tf_KL_decomposition(local_metrics, prior_local_metrics)
     idx = np.argsort(KL_eig, axis=1)[0]
     KL_eig = KL_eig.numpy()[:, idx]
     KL_eigv = KL_eigv.numpy()[:, :, idx]
@@ -325,8 +302,8 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     ax2 = plt.subplot(gs[0, 1])
 
     mode = 0
-    pc = ax1.pcolormesh(X, Y, np.log10(KL_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='PiYG_r',label='First mode')
-    colorbar = plt.colorbar(pc, ax = ax1)
+    pc = ax1.pcolormesh(X, Y, np.log10(KL_eig[:, mode].reshape(200, 200)), linewidth=0, rasterized=True, shading='auto', cmap='PiYG_r', label='First mode')
+    colorbar = plt.colorbar(pc, ax=ax1)
     # plot contours
     ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
@@ -337,8 +314,8 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     ax1.set_title('Mode 0')
 
     mode = 1
-    pc = ax2.pcolormesh(X, Y, np.log10(KL_eig[:, mode].reshape(200,200)), linewidth=0, rasterized=True, shading='auto', cmap='PiYG_r',label='Second mode')
-    colorbar = plt.colorbar(pc, ax = ax2)
+    pc = ax2.pcolormesh(X, Y, np.log10(KL_eig[:, mode].reshape(200, 200)), linewidth=0, rasterized=True, shading='auto', cmap='PiYG_r', label='Second mode')
+    plt.colorbar(pc, ax=ax2)
     # plot contours
     ax2.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
     ax2.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
@@ -349,141 +326,142 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     ax2.set_title('Mode 1')
 
     plt.tight_layout()
-    plt.show()
-    plt.savefig(outroot+'9_local_metric_PCA_eigs.pdf')
+    plt.savefig(outroot+'3_local_KL_eigs.pdf')
     plt.close('all')
-
 
     ##########################################################################
     # KL eigenvalue flow
     ##########################################################################
 
-    def eigenvalue_ode(t, y, reference):
+    def _naive_KL_ode(t, y, reference, flow, prior_flow):
         """
-        Solve the dynamical equation for eigenvalues.
+        Solve naively the dynamical equation for KL decomposition in abstract space.
         """
         # preprocess:
-        x_par = tf.convert_to_tensor([tf.cast(y, tf.float32)])
-        # map to original space to compute Jacobian (without inversion):
-        #x_par = flow.map_to_original_coord(x)
-        # precompute Jacobian and its derivative:
-        # jac = flow.inverse_jacobian(x_par)[0]
-        # jac_T = tf.transpose(jac)
-        # jac_jac_T = tf.matmul(jac, jac_T)
-        metric = flow.metric(np.array([np.array([x_par])[0][0]]))
-        prior_metric = prior_flow.metric(np.array([np.array([x_par])[0][0]]))
-        #print('shape=',np.shape(np.array([x_par])[0]),np.shape(metric))
-        # compute eigenvalues:
-        eig, eigv = tf_KL_decomposition(prior_metric[0], metric[0])
-        norm = 50*np.linalg.norm(eigv,axis = 0)
-        eigv/= norm
-        #metric_norm = (np.dot(np.dot(tf.transpose(eigv),metric[0]),(eigv)))
-        #eigv /= tf.sqrt(metric_norm)
-        #print('current norm',norm)
-        #print('metric norm',metric_norm)
-        #print(np.linalg.norm(eigv,axis = 0))
-        temp = tf.matmul(tf.matmul(eigv,metric[0]),tf.transpose([reference]))
-        #temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))
-        idx = tf.math.argmax(tf.abs(temp))[0]
-        w = tf.convert_to_tensor([tf.math.sign(temp[idx]) * eigv[:, idx]])
+        x = tf.convert_to_tensor([tf.cast(y, tf.float32)])
+        # compute metrics:
+        metric = flow.metric(x)[0]
+        prior_metric = prior_flow.metric(x)[0]
+        # compute KL decomposition:
+        eig, eigv = tf_KL_decomposition(metric, prior_metric)
+        # normalize to one to project and select direction:
+        temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))[:, 0] / tf.linalg.norm(eigv, axis=0)
+        idx = tf.math.argmax(tf.abs(temp))
+        w = tf.math.sign(temp[idx]) * eigv[:, idx]
+        # normalize affine parameter:
+        s = tf.math.sqrt(tf.tensordot(w, tf.tensordot(metric, w, 1), 1))
         #
-        return w
+        return tf.convert_to_tensor([w / s])
 
-    def solve_eigenvalue_ode_par(y0, n, length=1.5, num_points=100, **kwargs):
+    def solve_KL_ode(flow, prior_flow, y0, n, length=1.5, side='both', integrator_options=None, num_points=100, **kwargs):
         """
         Solve eigenvalue problem in abstract space
+        side = '+', '-', 'both'
+        length = 1.5
+        num_points = 100
+        n=0
         """
         # define solution points:
         solution_times = tf.linspace(0., length, num_points)
-        # compute initial PCA:
-        x_par = tf.convert_to_tensor(y0)
-        #x_par = flow.map_to_original_coord(x_abs)
-        # jac = flow.inverse_jacobian(x_par)[0]
-        # jac_T = tf.transpose(jac)
-        # jac_jac_T = tf.matmul(jac, jac_T)
-        # compute eigenvalues:
-        metric  = flow.metric(np.array([x_par]))
-        prior_metric = prior_flow.metric(np.array([x_par]))
-        #print(y0)
-        #print(x_par[0])
-        #print(metric)
-        #print(prior_metric)
-        eig, eigv = tf_KL_decomposition(prior_metric[0], metric[0])
-        norm = 50*np.linalg.norm(eigv,axis = 0)
-        eigv/= norm
-        #metric_norm = tf.sqrt(np.dot(np.dot(tf.transpose(eigv),metric[0]),(eigv)))
-        #eigv /= metric_norm
-        #norm = np.dot(np.dot(eigv,metric[0]),eigv)
-        #eigv = eigv/norm
-        # initialize solution:
-        temp_sol_1 = np.zeros((num_points-1, flow.num_params))
-        temp_sol_dot_1 = np.zeros((num_points-1, flow.num_params))
-        temp_sol_2 = np.zeros((num_points-1, flow.num_params))
-        temp_sol_dot_2 = np.zeros((num_points-1, flow.num_params))
-        # integrate forward:
-        solver = scipy.integrate.ode(eigenvalue_ode)
-        solver.set_integrator('lsoda')
-        solver.set_initial_value(tf.convert_to_tensor(y0), 0.)
-        reference = eigv[:, n]#/np.linalg.norm(eigv[:,n])
-        #print(np.linalg.norm(reference))
-        for ind, t in enumerate(solution_times[1:]):
-            # set the reference:
-            solver.set_f_params(reference)
-            # advance solver:
-            yt = solver.integrate(t)
-            # compute derivative after time-step:
-            yprime = eigenvalue_ode(t, yt, reference)
-            # update reference:
-            reference = yprime[0]
-            # save out:
-            temp_sol_1[ind] = yt.copy()
-            temp_sol_dot_1[ind] = yprime.numpy().copy()
-        # integrate backward:
-        solver = scipy.integrate.ode(eigenvalue_ode)
-        #solver.set_integrator()
-        solver.set_initial_value(y0, 0.)
-        reference = - eigv[:, n]
-        for ind, t in enumerate(solution_times[1:]):
-            # set the reference:
-            solver.set_f_params(reference)
-            # advance solver:
-            yt = solver.integrate(t)
-            # compute derivative after time-step:
-            yprime = eigenvalue_ode(t, yt, reference)
-            # update reference:
-            reference = yprime[0]
-            # save out:
-            temp_sol_2[ind] = yt.copy()
-            temp_sol_dot_2[ind] = yprime.numpy().copy()
+        # compute initial KL decomposition:
+        x = tf.convert_to_tensor([tf.cast(y0, tf.float32)])
+        metric = flow.metric(x)[0]
+        prior_metric = prior_flow.metric(x)[0]
+        # compute KL decomposition:
+        eig, eigv = tf_KL_decomposition(metric, prior_metric)
+        # solve forward:
+        if side == '+' or side == 'both':
+            # initialize solution:
+            temp_sol_1 = np.zeros((num_points-1, flow.num_params))
+            temp_sol_dot_1 = np.zeros((num_points-1, flow.num_params))
+            # initialize forward integration:
+            solver = scipy.integrate.ode(_naive_KL_ode)
+            if integrator_options is not None:
+                solver.set_integrator(**integrator_options)
+            solver.set_initial_value(y0, 0.)
+            reference = eigv[:, n] / tf.norm(eigv[:, n])
+            yt = y0.numpy()
+            yprime = eigv[:, n]
+            # do the time steps:
+            for ind, t in enumerate(solution_times[1:]):
+                # set the reference:
+                solver.set_f_params(reference, flow, prior_flow)
+                # advance solver:
+                try:
+                    yt = solver.integrate(t)
+                    yprime = _naive_KL_ode(t, yt, reference, flow, prior_flow)
+                except:
+                    pass
+                # update reference:
+                reference = yprime[0] / tf.norm(yprime[0])
+                # save out:
+                temp_sol_1[ind] = yt.copy()
+                temp_sol_dot_1[ind] = yprime.numpy().copy()
+            # return if needed:
+            if side == '+':
+                traj = np.concatenate((x.numpy(), temp_sol_1))
+                vel = np.concatenate(([eigv[:, n].numpy()], temp_sol_dot_1))
+                return solution_times, traj, vel
+        # solve backward:
+        if side == '-' or side == 'both':
+            # initialize solution:
+            temp_sol_2 = np.zeros((num_points-1, flow.num_params))
+            temp_sol_dot_2 = np.zeros((num_points-1, flow.num_params))
+            # initialize backward integration:
+            solver = scipy.integrate.ode(_naive_KL_ode)
+            if integrator_options is not None:
+                solver.set_integrator(**integrator_options)
+            solver.set_initial_value(y0, 0.)
+            reference = - eigv[:, n] / tf.norm(eigv[:, n])
+            yt = y0.numpy()
+            yprime = reference
+            for ind, t in enumerate(solution_times[1:]):
+                # set the reference:
+                solver.set_f_params(reference, flow, prior_flow)
+                # advance solver:
+                try:
+                    yt = solver.integrate(t)
+                    yprime = _naive_KL_ode(t, yt, reference, flow, prior_flow)
+                except:
+                    pass
+                # update reference:
+                reference = yprime[0] / tf.norm(yprime[0])
+                # save out:
+                temp_sol_2[ind] = yt.copy()
+                temp_sol_dot_2[ind] = yprime.numpy().copy()
+            # return if needed:
+            if side == '-':
+                traj = np.concatenate((temp_sol_2[::-1], x.numpy()))
+                vel = np.concatenate((-temp_sol_dot_2[::-1], [eigv[:, n].numpy()]))
+                return -solution_times, traj, vel
         # patch solutions:
         times = np.concatenate((-solution_times[::-1], solution_times[1:]))
-        traj = np.concatenate((temp_sol_2[::-1], np.array([x_par]), temp_sol_1))
+        traj = np.concatenate((temp_sol_2[::-1], x.numpy(), temp_sol_1))
         vel = np.concatenate((-temp_sol_dot_2[::-1], [eigv[:, n].numpy()], temp_sol_dot_1))
         #
         return times, traj, vel
 
     # lines along the global principal components:
-    y0 = maximum_posterior.astype(np.float32)
-    length = (flow.sigma_to_length(6)).astype(np.float32)
+    y0 = flow.cast(reference_point)
+    length = (flow.sigma_to_length(3)).astype(np.float32)
 
-    #print((solve_eigenvalue_ode_par([y0], n=0, length=length, num_points=5)))
-    _, start_1, __ = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
-    _, start_0, __ = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
-    #print(start_1)
+    _, temp_start_1, __ = solve_KL_ode(flow, prior_flow, flow.cast(y0), n=0, length=length, num_points=101, side='+')
+    _, temp_start_2, __ = solve_KL_ode(flow, prior_flow, flow.cast(y0), n=0, length=length, num_points=101, side='-')
+    start_1 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
+
+    _, temp_start_1, __ = solve_KL_ode(flow, prior_flow, flow.cast(y0), n=1, length=length, num_points=101, side='+')
+    _, temp_start_2, __ = solve_KL_ode(flow, prior_flow, flow.cast(y0), n=1, length=length, num_points=101, side='-')
+    start_0 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
+
     # solve:
     modes_0, modes_1 = [], []
-    print(start_0)
     for start in start_0:
-        _, mode,_ = solve_eigenvalue_ode_par(start.astype(np.float32), n=0, length=length, num_points=100)
+        _, mode, _ = solve_KL_ode(flow, prior_flow, flow.cast(start), n=0, length=length, num_points=100)
         modes_0.append(mode)
     for start in start_1:
-        _, mode,_ = solve_eigenvalue_ode_par(start.astype(np.float32), n=1, length=length, num_points=100)
+        _, mode, _ = solve_KL_ode(flow, prior_flow, flow.cast(start), n=1, length=length, num_points=100)
         modes_1.append(mode)
-    #print(np.shape(modes_0))
-    #print(np.shape(modes_1))
-    #print(modes_0[4])
     # plot:
-    import matplotlib.gridspec as gridspec
     plt.figure(figsize=(2*figsize[0], figsize[1]))
     gs = gridspec.GridSpec(1, 2)
     ax1 = plt.subplot(gs[0, 0])
@@ -522,5 +500,4 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
 
     plt.tight_layout()
-    plt.show()
-plt.savefig(outroot+'11_local_KL_flow.pdf')
+    plt.savefig(outroot+'4_local_KL_flow.pdf')

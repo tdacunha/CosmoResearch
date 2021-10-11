@@ -38,7 +38,7 @@ if not os.path.exists(flow_cache):
     os.mkdir(flow_cache)
 
 # number of samples:
-n_samples = 2000000
+n_samples = 1000000
 temperature = 2.0
 
 # cache file:
@@ -154,10 +154,10 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 
 # posterior:
 num_params = 2
-n_maf = 4*num_params
+n_maf = 2*num_params
 hidden_units = [num_params*2]*2
 batch_size = None
-epochs = 120
+epochs = 100
 steps_per_epoch = 128
 
 # if cache exists load training:
@@ -176,7 +176,8 @@ else:
                                                             param_ranges=param_ranges, param_names=posterior_chain.getParamNames().list(),
                                                             feedback=1, learning_rate=0.01, n_maf=n_maf, hidden_units=hidden_units)
     # train:
-    posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
+    #posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
+    posterior_flow.global_train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 

@@ -21,6 +21,7 @@ import tensiometer.gaussian_tension as gaussian_tension
 from scipy import optimize
 
 import analyze_2d_example
+import KL_analyze_2d_example
 
 ###############################################################################
 # run example:
@@ -33,6 +34,16 @@ analyze_2d_example.run_example_2d(chain=example.posterior_chain,
                                   param_names=example.posterior_chain.getParamNames().list(),
                                   outroot=example.out_folder+'posterior_',
                                   param_ranges=[[-0.999, 0.999], [-0.999, 0.999]])
+
+# run KL analysis:
+KL_analyze_2d_example.run_KL_example_2d(chain=example.posterior_chain,
+                                        prior_chain=example.prior_chain,
+                                        flow=example.posterior_flow,
+                                        prior_flow=example.prior_flow,
+                                        param_names=example.posterior_chain.getParamNames().list(),
+                                        outroot=example.out_folder+'KL_',
+                                        param_ranges=[[-0.999, 0.999], [-0.999, 0.999]])
+
 
 
 pass
