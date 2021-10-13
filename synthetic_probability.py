@@ -279,6 +279,8 @@ class DiffFlowCallback(Callback):
     validation_split=0.1
     kwargs={}
     param_ranges = None
+    param_names
+    self = DiffFlowCallback(chain, param_names=param_names, feedback=1)
     """
 
     def __init__(self, chain, param_names=None, param_ranges=None, prior_bijector='ranges', apply_pregauss=True, trainable_bijector='MAF', learning_rate=1e-3, feedback=1, validation_split=0.1, **kwargs):
@@ -501,6 +503,40 @@ class DiffFlowCallback(Callback):
         self.is_trained = True
         #
         return hist
+
+    def global_train(self, pop_size=10,  **kwargs):
+        """
+        Training algorithm with some globalization strategy
+
+        pop_size = 10
+        kwargs = {'epochs': 10}
+        """
+        # generate starting population of weights:
+        population = [self.model.get_weights()]
+        for i in range(pop_size-1):
+            for layer in self.model.layers:
+                layer.build(layer.input_shape)
+            population.append(self.model.get_weights())
+        # evolve:
+        loss, val_loss = [], []
+        for i in range(pop_size):
+            # feedback:
+            if self.feedback:
+                print('Training population', i+1)
+            # train:
+            self.model.set_weights(population[i])
+            history = self.train(**kwargs)
+            # update stored weights:
+            population[i] = self.model.get_weights()
+            # save log:
+            loss.append(history.history['loss'][-1])
+            val_loss.append(history.history['val_loss'][-1])
+        loss = np.array(loss)
+        val_loss = np.array(val_loss)
+        # select best:
+        self.model.set_weights(population[np.argmin(loss + val_loss)])
+        #
+        return population, loss, val_loss
 
     ###############################################################################
     # Utility functions:
@@ -777,13 +813,13 @@ class DiffFlowCallback(Callback):
         return tf.linalg.norm(abs_coord_1 - abs_coord_2)
 
     @tf.function()
-    def fast_geodesic_ivp(self, pos, velocity):
+    def fast_geodesic_ivp(self, pos, velocity, solution_times):
         """
         """
         pass
 
     @tf.function()
-    def fast_geodesic_bvp(self, pos, velocity):
+    def fast_geodesic_bvp(self, pos_start, pos_end, solution_times):
         """
         """
         pass
