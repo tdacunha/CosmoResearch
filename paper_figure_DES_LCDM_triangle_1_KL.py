@@ -45,20 +45,29 @@ main_fontsize = 10.0
 colors = [color_utilities.nice_colors(i) for i in range(6)]
 
 # number of modes:
-num_modes = 5
+num_modes = 3
 
 
 ###############################################################################
 # do local KL:
-MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
+#MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
 
-
+#example.log_param_names
+means = []
+for i in range(0, len(example.log_param_names)):
+    param_i = example.log_param_names[i]
+    mean_i = example.posterior_chain.getMeans([example.posterior_chain.index[param_i]])[0]
+    means.append(mean_i)
+#print(means)
 # compute KL of local fisher:
 #MAP_coords = example.log_params_posterior_flow.fast_MAP_finder().x
-MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
+#MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
 num_params = len(example.log_param_names)
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([MAP_coords]))[0]
+#fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
+#prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([MAP_coords]))[0]
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([means]))[0]
+prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([means]))[0]
+
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
@@ -111,7 +120,7 @@ for i in range(num_params-1):
         #m1 = MAP_coords[i]
         #m2 = MAP_coords[i2+1]
         ax.scatter([m1], [m2], c=[colors[0]], edgecolors='white', zorder=999, s=20)
-        ax.scatter([MAP_coords[i]], [MAP_coords[i2+1]], c=[colors[0]], edgecolors='white', zorder=999, s=20)
+        #ax.scatter([MAP_coords[i]], [MAP_coords[i2+1]], c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
         for k in range(num_modes):
             idx1 = example.param_names.index(param1)
@@ -173,10 +182,14 @@ hspace = 0.
 g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
                   wspace=wspace, hspace=hspace)
 leg.set_bbox_to_anchor((0.0, 0.0, right, top))
-print(MAP_coords)
+#print(MAP_coords)
 # save:
 g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle_1_KL.pdf')
+print(means)
+print(np.exp(means))
+#print((MAP_coords))
 
+#print(np.exp(MAP_coords))
 fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
 prior_fisher = example.log_params_prior_flow.metric(example.log_params_posterior_flow.cast([MAP_coords]))[0]
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
