@@ -53,7 +53,13 @@ num_modes = 3
 
 # compute PCA of local fisher:
 num_params = len(example.log_param_names)
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([example.MAP_coords]))[0]
+#MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
+means = []
+for i in range(0, len(example.log_param_names)):
+    param_i = example.log_param_names[i]
+    mean_i = example.posterior_chain.getMeans([example.posterior_chain.index[param_i]])[0]
+    means.append(mean_i)
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([means]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:

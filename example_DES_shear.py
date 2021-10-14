@@ -420,7 +420,7 @@ if __name__ == '__main__':
                 ax.axline([m1, m2], [m1 + _direction[i], m2 + _direction[j]], color=sns.hls_palette(num_params)[k], label='Mode '+str(k+1))
     g.fig.legend(*ax.get_legend_handles_labels())
     g.export(out_folder+'/8_LKL_triangle.pdf')
-
+print(MAP_coords)
 ###############################################################################
 # PCA of local covariance:
 
