@@ -85,8 +85,9 @@ P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
 # compute maximum posterior and metric:
-result = example.posterior_flow.MAP_finder(disp=True)
-maximum_posterior = result.x
+#result = example.posterior_flow.MAP_finder(disp=True)
+#maximum_posterior = result.x
+maximum_posterior = example.posterior_flow.MAP_coord
 
 #fisher_metric = example.posterior_flow.metric(example.posterior_flow.cast([maximum_posterior]))[0]
 #prior_fisher_metric = example.prior_flow.metric(example.prior_flow.cast([maximum_posterior]))[0]
@@ -211,7 +212,7 @@ leg = fig.legend(handles=leg_handlers,
 leg.get_frame().set_linewidth('0.8')
 
 # update dimensions:
-bottom = .26#0.17
+bottom = .26
 top = 0.99
 left = 0.15
 right = 0.99
@@ -219,6 +220,6 @@ wspace = 0.
 hspace = 0.3
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
-#leg.set_bbox_to_anchor( ( left, 0.005, right-left, right ) )
+leg.set_bbox_to_anchor( ( left, 0.005, right-left, right ) )
 plt.savefig(out_folder+'/figure_2.pdf')
 plt.close('all')

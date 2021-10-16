@@ -38,7 +38,7 @@ if not os.path.exists(flow_cache):
     os.mkdir(flow_cache)
 
 # number of samples:
-n_samples = 1000000
+n_samples = 2000000
 temperature = 2.0
 
 # cache file:
@@ -59,7 +59,7 @@ def log_pdf(theta, theta0=[0., 0.], rsigma=0.1):
 
 
 # prior:
-prior = [[-1., 1.], [-scaling, scaling]]
+prior = [[-2., 2.], [-scaling, scaling]]
 
 ###############################################################################
 # generate the samples:
@@ -145,8 +145,8 @@ else:
 
 # exact prior:
 param_ranges = {}
-for name in ['theta_'+str(i+1) for i in range(2)]:
-    param_ranges[name] = copy.deepcopy(prior)
+for ind, name in enumerate(['theta_'+str(i+1) for i in range(2)]):
+    param_ranges[name] = copy.deepcopy(prior[ind])
 prior_bij = synthetic_probability.prior_bijector_helper([{'lower': prior[0][0], 'upper':prior[0][1]}, {'lower': prior[1][0], 'upper':prior[1][1]}])
 prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
                                                     prior_bijector=prior_bij, apply_pregauss=False, trainable_bijector=None,
@@ -155,7 +155,7 @@ prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
 # posterior:
 num_params = 2
 n_maf = 2*num_params
-hidden_units = [num_params*2]*2
+hidden_units = [num_params*8]*2
 batch_size = None
 epochs = 100
 steps_per_epoch = 128
@@ -181,6 +181,23 @@ else:
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 
+# find MAP or load if it exists:
+if os.path.isfile(flow_cache+'/posterior_MAP.pickle'):
+    temp = pickle.load(open(flow_cache+'/posterior_MAP.pickle', 'rb'))
+    posterior_flow.MAP_coord = temp['MAP_coord']
+    posterior_flow.MAP_logP = temp['MAP_logP']
+else:
+    # find map:
+    res = posterior_flow.MAP_finder(disp=True)
+    print(res)
+    # store:
+    temp = {
+            'MAP_coord': posterior_flow.MAP_coord,
+            'MAP_logP': posterior_flow.MAP_logP,
+            }
+    # save out:
+    pickle.dump(temp, open(flow_cache+'/posterior_MAP.pickle', 'wb'))
+
 ###############################################################################
 # test plot if called directly:
 if __name__ == '__main__':
@@ -198,21 +215,11 @@ if __name__ == '__main__':
     g.export(out_folder+'0_posterior.pdf')
 
     # plot learned posterior distribution:
-    X_sample = np.array(posterior_flow.sample(n_samples))
-    posterior_flow_chain = MCSamples(samples=X_sample,
-                                     loglikes=-posterior_flow.log_probability(X_sample).numpy(),
-                                     names=posterior_flow.param_names,
-                                     label='Learned distribution')
     g = plots.get_subplot_plotter()
-    g.triangle_plot([posterior_chain, posterior_flow_chain], filled=True)
+    g.triangle_plot([posterior_chain, posterior_flow.MCSamples(n_samples)], filled=True, markers=posterior_flow.MAP_coord)
     g.export(out_folder+'0_learned_posterior_distribution.pdf')
 
     # plot learned prior distribution:
-    X_sample = np.array(prior_flow.sample(n_samples))
-    prior_flow_chain = MCSamples(samples=X_sample,
-                                 loglikes=-prior_flow.log_probability(X_sample).numpy(),
-                                 names=prior_flow.param_names,
-                                 label='Learned distribution')
     g = plots.get_subplot_plotter()
-    g.triangle_plot([prior_chain, prior_flow_chain], filled=True)
+    g.triangle_plot([prior_chain, prior_flow.MCSamples(n_samples)], filled=True)
     g.export(out_folder+'0_learned_prior_distribution.pdf')

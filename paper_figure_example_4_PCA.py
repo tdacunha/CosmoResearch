@@ -23,11 +23,12 @@ here = './'
 temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 from tensiometer import utilities
+import synthetic_probability
 
 ###############################################################################
 # initial settings:
 
-import example_3_generate as example
+import example_4_generate as example
 import analyze_2d_example
 
 # latex rendering:
@@ -43,11 +44,11 @@ if not os.path.exists(out_folder):
 # plot:
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(2, 0, -1)]
-param_ranges = [[example.prior[0]+0.001, example.prior[1]-0.001], [example.prior[0]+0.001, example.prior[1]-0.001]]
+param_ranges = [[example.prior[0][0]+0.001, example.prior[0][1]-0.001], [example.prior[1][0]+0.001, example.prior[1][1]-0.001]]
 
 # define the grid:
-P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 400)
-P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 400)
+P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 300)
+P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 300)
 x, y = P1, P2
 X, Y = np.meshgrid(x, y)
 
@@ -58,31 +59,36 @@ P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
 # compute maximum posterior:
-result = example.posterior_flow.MAP_finder(disp=True)
-maximum_posterior = result.x
+#maximum_posterior = example.posterior_flow.MAP_coord
 
 # get the mean:
 mean = example.posterior_chain.getMeans([example.posterior_chain.index[name] for name in example.posterior_chain.getParamNames().list()])
-
+maximum_posterior = mean
 # compute the two base eigenvalues trajectories:
 y0 = example.posterior_flow.cast(maximum_posterior)
-length_1 = (example.posterior_flow.sigma_to_length(2)).astype(np.float32)
-length_2 = (example.posterior_flow.sigma_to_length(6)).astype(np.float32)
-ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=100)
-ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=100)
 
-start_1 = np.concatenate((example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=10, side='-')[1].numpy()[1:],
-                          example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=10, side='+')[1].numpy()[1:]))
-start_2 = np.concatenate((example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=5, side='-')[1].numpy()[1:],
-                          example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=5, side='+')[1].numpy()[1:]))
+length_1 = (example.posterior_flow.sigma_to_length(1.5)).astype(np.float32)
+length_2 = (example.posterior_flow.sigma_to_length(1.5)).astype(np.float32)
+
+ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=3.*length_1, num_points=200)
+ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=3.*length_2, num_points=200)
+
+start_1 = np.linspace(-length_2, length_2, 9)
+start_1 = np.delete(start_1, 4)
+start_1 = example.posterior_flow.cast(np.array([start_1, np.zeros(8)]).T)
+start_1 = example.posterior_flow.map_to_original_coord(start_1)
+
+start_2 = np.array([np.zeros(8), np.linspace(-length_1, length_1, 8)]).T
+#start_2 = np.append(start_2, np.array([-np.ones(4), np.linspace(-length_1, length_1, 4)]).T, axis=0)
+start_2 = example.posterior_flow.map_to_original_coord(example.posterior_flow.cast(start_2))
 
 # compute eigenvalue network:
 modes_0, modes_1 = [], []
 for start in start_2:
-    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=0, length=length_1, num_points=100)
+    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=0, length=2.*length_1, num_points=200)
     modes_0.append(mode)
 for start in start_1:
-    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=1, length=length_2, num_points=100)
+    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=1, length=3.*length_2, num_points=200)
     modes_1.append(mode)
 
 # plot size in cm. Has to match to draft to make sure font sizes are consistent
@@ -106,8 +112,8 @@ for i in range(3):
     ax2.plot(_length*np.sin(theta), _length*np.cos(theta), ls='-', zorder=999., lw=1., color='k')
 
 # MAP:
-ax1.scatter(*maximum_posterior, s=5.0, color='k', zorder=999)
-ax2.scatter(*example.posterior_flow.map_to_abstract_coord(example.posterior_flow.cast(maximum_posterior)), s=5.0, color='k', zorder=999)
+#ax1.scatter(*maximum_posterior, s=5.0, color='k', zorder=999)
+#ax2.scatter(*example.posterior_flow.map_to_abstract_coord(example.posterior_flow.cast(maximum_posterior)), s=5.0, color='k', zorder=999)
 
 # mean:
 ax1.scatter(*mean, s=20.0, marker='x', color='k', zorder=999)
@@ -128,15 +134,21 @@ for mode in modes_1:
     ax2.plot(*example.posterior_flow.map_to_abstract_coord(mode).numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(2))
 
 # prior:
-#ax1.axvspan(2., 2.2, alpha=0.2, ec=None, color='k')
-#ax1.axvspan(-2., -2.2, alpha=0.2, ec=None, color='k')
-#ax1.fill_between([-2., 2.], [2., 2.], [2.2, 2.2], alpha=0.2, ec=None, lw=0.0, color='k')
-#ax1.fill_between([-2., 2.], [-2., -2.], [-2.2, -2.2], alpha=0.2, ec=None, lw=0.0, color='k')
-#ax1.add_patch(Rectangle((-2., -2.), 4.0, 4.0, fill=None, alpha=1, color='k', ls='--', lw=1.))
+ax1.axvspan(2., 2.2, alpha=0.2, ec=None, color='k')
+ax1.axvspan(-2., -2.2, alpha=0.2, ec=None, color='k')
+ax1.fill_between([-2., 2.], [2., 2.], [2.2, 2.2], alpha=0.2, ec=None, lw=0.0, color='k')
+ax1.fill_between([-2., 2.], [-2., -2.], [-2.2, -2.2], alpha=0.2, ec=None, lw=0.0, color='k')
+ax1.add_patch(Rectangle((-2., -2.), 4.0, 4.0, fill=None, alpha=1, color='k', ls='--', lw=1.))
+
+# prior:
+ax1.axhspan(0.1, 0.2, alpha=0.2, ec=None, color='k')
+ax1.axhspan(-0.2, -0.1, alpha=0.2, ec=None, color='k')
+ax1.axhline(0.1, lw=1., ls='--', color='k')
+ax1.axhline(-0.1, lw=1., ls='--', color='k')
 
 # limits:
 ax1.set_xlim([-1.5, 1.5])
-ax1.set_ylim([-1, 3])
+ax1.set_ylim([-0.11, 0.11])
 
 ax2.set_xlim([-3.0, 3.0])
 ax2.set_ylim([-3.0, 3.0])
@@ -152,13 +164,13 @@ for ax in [ax1, ax2]:
     ax.get_xticklabels()[0].set_horizontalalignment('left')
     ax.get_xticklabels()[-1].set_horizontalalignment('right')
 
-ticks = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+ticks = [-0.1, -0.05, 0.0, 0.05, 0.1]
 ax1.set_yticks(ticks)
 ax1.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
 ticks = [-3, -2, -1, 0, 1, 2, 3]
 ax2.set_yticks(ticks)
 ax2.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
-for ax in [ax1, ax2]:
+for ax in [ax2]:
     ax.get_yticklabels()[0].set_verticalalignment('bottom')
     ax.get_yticklabels()[-1].set_verticalalignment('top')
 
@@ -219,8 +231,21 @@ class AnyObjectHandler5(HandlerBase):
 
 
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
-                object_1, object_2, object_3, object_4, object_5]
-legend_labels = [r'$\mathcal{P}$', 'PFs of $\\theta$', 'PPF of $\\theta$', 'Prior','MAP point', '$\overline{\\theta}$']
+                #object_1,
+                #object_2,
+                mlines.Line2D([], [], lw=1., ls='-', color=color_utilities.nice_colors(1)),
+                mlines.Line2D([], [], lw=1., ls='-', color=color_utilities.nice_colors(2)),
+                object_3,
+                #object_4,
+                object_5]
+legend_labels = [r'$\mathcal{P}$',
+                  #'PFs of $\\theta$',
+                  #'PPF of $\\theta$',
+                  'mode 1',
+                  'mode 2',
+                  'Prior',
+                  #'MAP',
+                  'MAP/mean']
 
 leg = fig.legend(handles=leg_handlers,
                 labels=legend_labels,
@@ -249,5 +274,5 @@ wspace = 0.15
 hspace = 0.15
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
-plt.savefig(out_folder+'/figure_example_3.pdf')
+plt.savefig(out_folder+'/figure_example_4_PCA.pdf')
 plt.close('all')

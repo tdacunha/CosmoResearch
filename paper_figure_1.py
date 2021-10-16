@@ -65,9 +65,9 @@ P = np.exp(log_P)
 P = P / simps(simps(P, y), x)
 
 # compute maximum posterior and metric:
-result = example.posterior_flow.MAP_finder(disp=True)
-maximum_posterior = result.x
-#fisher_metric = example.posterior_flow.metric(example.posterior_flow.cast([maximum_posterior]))[0]
+#result = example.posterior_flow.MAP_finder(disp=True)
+#maximum_posterior = result.x
+maximum_posterior = example.posterior_flow.MAP_coord
 
 # get fisher from samples:
 fisher_metric = np.linalg.inv(example.posterior_chain.cov())
@@ -207,7 +207,7 @@ bottom = 0.16
 top = 0.95
 left = 0.15
 right = 0.99
-wspace = .2#0.
+wspace = .2
 hspace = 0.2
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)

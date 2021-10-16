@@ -33,7 +33,7 @@ analyze_2d_example.run_example_2d(chain=example.posterior_chain,
                                   flow=example.posterior_flow,
                                   param_names=example.posterior_chain.getParamNames().list(),
                                   outroot=example.out_folder+'posterior_',
-                                  param_ranges=[[-0.999, 0.999], [-0.999, 0.999]],
+                                  param_ranges=[[-2.+0.01, 2.-0.01], [-example.scaling+0.001, example.scaling-0.001]],
                                   use_MAP=False)
 
 # run KL analysis:
@@ -43,7 +43,7 @@ KL_analyze_2d_example.run_KL_example_2d(chain=example.posterior_chain,
                                         prior_flow=example.prior_flow,
                                         param_names=example.posterior_chain.getParamNames().list(),
                                         outroot=example.out_folder+'KL_',
-                                        param_ranges=[[-0.999, 0.999], [-0.999, 0.999]],
+                                        param_ranges=[[-2.+0.01, 2.-0.01], [-example.scaling+0.001, example.scaling-0.001]],
                                         use_MAP=False)
 
 pass

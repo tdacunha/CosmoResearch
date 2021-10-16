@@ -134,8 +134,9 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     ###############################################################################
 
     # find the MAPS:
-    result = flow.MAP_finder(disp=True)
-    maximum_posterior = result.x
+    #result = flow.MAP_finder(disp=True)
+    #maximum_posterior = result.x
+    maximum_posterior = flow.MAP_coord
     # mean:
     mean = chain.getMeans([chain.index[name] for name in param_names])
 
@@ -152,11 +153,11 @@ def run_KL_example_2d(chain, prior_chain, flow, prior_flow, param_names, outroot
     prior_fisher_samples = np.linalg.inv(prior_cov_samples)
 
     # metrics from flow around mean:
-    covariance_metric = flow.metric(np.array([mean]).astype(np.float32))[0]
-    fisher_metric = flow.inverse_metric(np.array([mean]).astype(np.float32))[0]
+    covariance_metric = flow.inverse_metric(np.array([reference_point]).astype(np.float32))[0]
+    fisher_metric = flow.metric(np.array([reference_point]).astype(np.float32))[0]
 
-    prior_covariance_metric = prior_flow.metric(np.array([mean]).astype(np.float32))[0]
-    prior_fisher_metric = prior_flow.inverse_metric(np.array([mean]).astype(np.float32))[0]
+    prior_covariance_metric = prior_flow.inverse_metric(np.array([reference_point]).astype(np.float32))[0]
+    prior_fisher_metric = prior_flow.metric(np.array([reference_point]).astype(np.float32))[0]
 
     ###############################################################################
     # TF KL decomposition:

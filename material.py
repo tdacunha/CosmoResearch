@@ -53,19 +53,19 @@
         jacm1 = flow_P.direct_jacobian(x_par)[0]
         jac_T = tf.transpose(jac)
         jac_jac_T = tf.matmul(jac, jac_T)
-        I = tf.eye(flow_P.num_params)
+        Id = tf.eye(flow_P.num_params)
         # select the eigenvector that we want to follow based on the solution to the continuity equation:
         eig, eigv = tf.linalg.eigh(jac_jac_T)
         idx = tf.math.argmax(tf.abs(tf.matmul(tf.transpose(eigv), tf.transpose(w))))[0]
-        tilde_w =  tf.convert_to_tensor([eigv[:, idx]])
+        tilde_w = tf.convert_to_tensor([eigv[:, idx]])
         dot_J = tf.einsum('k, lk, ijl -> ji', tilde_w[0], jacm1, djac)
         # equation for alpha:
         alpha_dot = 2.*tf.matmul(tf.matmul(tilde_w, jac), tf.matmul(dot_J, tf.transpose(tilde_w)))
         # equation for wdot:
-        wdot_lhs = (jac_jac_T - tf.matmul(tf.matmul(tilde_w, jac_jac_T), tf.transpose(tilde_w))*I)
-        wdot_rhs = tf.matmul(alpha_dot - tf.matmul(dot_J, jac_T) -tf.matmul(jac, tf.transpose(dot_J)), tf.transpose(tilde_w))
+        wdot_lhs = (jac_jac_T - tf.matmul(tf.matmul(tilde_w, jac_jac_T), tf.transpose(tilde_w))*Id)
+        wdot_rhs = tf.matmul(alpha_dot - tf.matmul(dot_J, jac_T) - tf.matmul(jac, tf.transpose(dot_J)), tf.transpose(tilde_w))
         w_dot = tf.linalg.lstsq(wdot_lhs, wdot_rhs, fast=False)
-        w_dot = tf.matmul((I - tf.einsum('i,j->ij', tilde_w[0], tf.transpose(tilde_w[0]))), w_dot)
+        w_dot = tf.matmul((Id - tf.einsum('i,j->ij', tilde_w[0], tf.transpose(tilde_w[0]))), w_dot)
         # equation for w:
         x_dot = tf.transpose(tilde_w)
         #

@@ -28,18 +28,17 @@ import KL_analyze_2d_example
 
 import example_1_generate as example
 
+
 # run posterior:
 analyze_2d_example.run_example_2d(chain=example.posterior_chain,
                                   flow=example.posterior_flow,
                                   param_names=example.posterior_chain.getParamNames().list(),
-                                  param_ranges=[[0.0, 0.5], [0.3, 1.5]],
                                   outroot=example.out_folder+'posterior_')
 
 # run prior:
 analyze_2d_example.run_example_2d(chain=example.prior_chain,
                                   flow=example.prior_flow,
                                   param_names=example.prior_chain.getParamNames().list(),
-                                  param_ranges=[[-20, 25], [-3, 4]],
                                   outroot=example.out_folder+'prior_')
 
 # run KL analysis:
@@ -49,4 +48,4 @@ KL_analyze_2d_example.run_KL_example_2d(chain=example.posterior_chain,
                                         prior_flow=example.prior_flow,
                                         param_names=example.posterior_chain.getParamNames().list(),
                                         outroot=example.out_folder+'KL_',
-                                        param_ranges=[[0.0, 0.5], [0.3, 1.5]],)
+                                        )

@@ -5,13 +5,12 @@ General code to analyze examples
 
 For testing purposes:
 
-import example_5_generate as example
+import example_1_generate as example
 
 chain=example.posterior_chain
 flow=example.posterior_flow
 param_names=example.posterior_chain.getParamNames().list()
-#param_ranges=[[0.01, 0.6], [0.4, 1.5]]
-param_ranges=[[-1.5, 1.5], [-1.5, 1.5]]
+param_ranges=[[0.0, 0.5], [0.3, 1.5]]
 
 outroot=example.out_folder+'posterior_'
 use_MAP = True
@@ -220,8 +219,11 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
     print('4) MAP and mean')
 
     # find the MAP in parameter space:
-    result = flow.MAP_finder(disp=True)
-    maximum_posterior = result.x
+    if hasattr(flow, 'MAP_coord'):
+        maximum_posterior = flow.MAP_coord
+    else:
+        result = flow.MAP_finder(disp=True)
+        maximum_posterior = result.x
     # mean:
     mean = chain.getMeans([chain.index[name] for name in param_names])
 
@@ -434,11 +436,11 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
 
     # plot PCA of covariance of samples
     for mode in [0, 1]:
-        plt.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], ls='-', color='k')
+        plt.axline(reference_point, reference_point+eig[mode]*eigv[:, mode], ls='-', color='k')
 
     # plot contours and MAP
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    plt.scatter(reference_point[0], reference_point[1], color='k')
 
     plt.legend()
     plt.xlabel(param_labels_latex[0], fontsize=fontsize)
@@ -477,12 +479,12 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
 
     # plot contours
     plt.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    plt.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    plt.scatter(reference_point[0], reference_point[1], color='k')
 
     # compute and plot eigenvectors of covariance of samples
     eig, eigv = np.linalg.eigh(cov_samples)
     for mode in [0, 1]:
-        plt.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], ls='-', color='k')
+        plt.axline(reference_point, reference_point+eig[mode]*eigv[:, mode], ls='-', color='k')
 
     plt.legend()
     plt.xlim([np.amin(P1), np.amax(P1)])
@@ -524,7 +526,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
     colorbar = plt.colorbar(pc, ax=ax1)
     # plot contours
     ax1.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax1.scatter(reference_point[0], reference_point[1], color='k')
     ax1.set_xlim([np.amin(P1), np.amax(P1)])
     ax1.set_ylim([np.amin(P2), np.amax(P2)])
     ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
@@ -536,7 +538,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
     colorbar = plt.colorbar(pc, ax=ax2)
     # plot contours
     ax2.contour(X, Y, P, get_levels(P, x, y, levels_5), linewidths=1., linestyles='-', colors=['k' for i in levels_5])
-    ax2.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax2.scatter(reference_point[0], reference_point[1], color='k')
     ax2.set_xlim([np.amin(P1), np.amax(P1)])
     ax2.set_ylim([np.amin(P2), np.amax(P2)])
     ax2.set_xlabel(param_labels_latex[0], fontsize=fontsize)
@@ -658,10 +660,15 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
 
     # lines along the global principal components:
     y0 = flow.cast(reference_point)
-    length = (flow.sigma_to_length(4)).astype(np.float32)#6
+    length = (flow.sigma_to_length(3)).astype(np.float32)
 
-    _, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=5)
-    _, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=5)
+    _, temp_start_1 = solve_eigenvalue_ode_par(flow.cast(y0), n=0, length=length, num_points=101, side='+')
+    _, temp_start_2 = solve_eigenvalue_ode_par(flow.cast(y0), n=0, length=length, num_points=101, side='-')
+    start_1 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
+
+    _, temp_start_1 = solve_eigenvalue_ode_par(flow.cast(y0), n=1, length=length, num_points=101, side='+')
+    _, temp_start_2 = solve_eigenvalue_ode_par(flow.cast(y0), n=1, length=length, num_points=101, side='-')
+    start_0 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
 
     # solve:
     modes_0, modes_1 = [], []
@@ -684,7 +691,7 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
         ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
 
     ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
-    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+    ax1.scatter(reference_point[0], reference_point[1], color='k')
 
     ax1.set_xlim([np.amin(P1), np.amax(P1)])
     ax1.set_ylim([np.amin(P2), np.amax(P2)])
@@ -743,110 +750,118 @@ def run_example_2d(chain, flow, param_names, outroot, param_ranges=None, use_MAP
         #
         return np.mean(distances)
 
-    # general setup:
-    y0 = flow.cast(reference_point)
-    length = (flow.sigma_to_length(6)).astype(np.float32)
-    # minimize for first mode:
-    time_0, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=100)
-    interp_start = interp1d(time_0, start_0, kind='cubic', axis=0)
-    num_samples = 100
-    samples = flow.sample(num_samples)
-    def _helper_temp(temp):
-        return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=0, n2=1, samples=samples)
-    if use_MAP:
-        result_0 = scipy.optimize.minimize(_helper_temp, [0.],
-                                           bounds=[[-length, length]], method='L-BFGS-B')
-        result_0 = result_0.x
-    else:
-        result_0 = 0.0
-    pca_mode_0_times, pca_mode_0 = solve_eigenvalue_ode_par(interp_start(result_0)[0].astype(np.float32), n=0, length=length, num_points=100)
+    try:
+        # general setup:
+        y0 = flow.cast(reference_point)
+        length = (flow.sigma_to_length(3)).astype(np.float32)
 
-    # minimize for the second mode:
-    time_1, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=100)
-    interp_start = interp1d(time_1, start_1, kind='cubic', axis=0)
-    num_samples = 100
-    samples = flow.sample(num_samples)
-    def _helper_temp(temp):
-        return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=1, n2=0, samples=samples)
-    if use_MAP:
-        result_1 = scipy.optimize.minimize(_helper_temp, [0.],
-                                         bounds=[[-length, length]], method='L-BFGS-B')
-        result_1 = result_1.x
-    else:
-        result_1 = 0.0
-    pca_mode_1_times, pca_mode_1 = solve_eigenvalue_ode_par(interp_start(result_1)[0].astype(np.float32), n=1, length=length, num_points=100)
+        # minimize for first mode:
+        time_0, start_0 = solve_eigenvalue_ode_par(y0, n=1, length=length, num_points=100)
+        interp_start = interp1d(time_0, start_0, kind='cubic', axis=0)
+        num_samples = 100
+        samples = flow.sample(num_samples)
+        def _helper_temp(temp):
+            return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=0, n2=1, samples=samples)
+        if use_MAP:
+            try:
+                result_0 = scipy.optimize.minimize(_helper_temp, [0.],
+                                                   bounds=[[-length, length]], method='L-BFGS-B')
+                result_0 = result_0.x
+            except:
+                result_0 = 0.0
+        else:
+            result_0 = 0.0
+        pca_mode_0_times, pca_mode_0 = solve_eigenvalue_ode_par(interp_start(result_0)[0].astype(np.float32), n=0, length=length, num_points=100)
 
-    # plot in parameter space:
-    plt.figure(figsize=(2*figsize[0], figsize[1]))
-    gs = gridspec.GridSpec(1, 2)
-    ax1 = plt.subplot(gs[0, 0])
-    ax2 = plt.subplot(gs[0, 1])
+        # minimize for the second mode:
+        time_1, start_1 = solve_eigenvalue_ode_par(y0, n=0, length=length, num_points=100)
+        interp_start = interp1d(time_1, start_1, kind='cubic', axis=0)
+        num_samples = 100
+        samples = flow.sample(num_samples)
+        def _helper_temp(temp):
+            return expected_distance(interp_start(temp[0]).astype(np.float32), length, n1=1, n2=0, samples=samples)
+        if use_MAP:
+            result_1 = scipy.optimize.minimize(_helper_temp, [0.0],
+                                               bounds=[[-length, length]], method='L-BFGS-B')
+            result_1 = result_1.x
+        else:
+            result_1 = 0.0
+        pca_mode_1_times, pca_mode_1 = solve_eigenvalue_ode_par(interp_start(result_1)[0].astype(np.float32), n=1, length=length, num_points=100)
 
-    for mode in modes_0:
-        ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
-    ax1.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=2., ls='-', color='k')
-    for mode in modes_1:
-        ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
-    ax1.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=2., ls='-', color='red')
-    ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
-    ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
-    ax1.set_xlim([np.amin(P1), np.amax(P1)])
-    ax1.set_ylim([np.amin(P2), np.amax(P2)])
-    ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
-    ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
+        # plot in parameter space:
+        plt.figure(figsize=(2*figsize[0], figsize[1]))
+        gs = gridspec.GridSpec(1, 2)
+        ax1 = plt.subplot(gs[0, 0])
+        ax2 = plt.subplot(gs[0, 1])
 
-    # plot in abstract space:
-    for mode in modes_0:
-        mode_abs = flow.map_to_abstract_coord(mode)
-        ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
-    mode_abs = flow.map_to_abstract_coord(pca_mode_0)
-    ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='k')
-    for mode in modes_1:
-        mode_abs = flow.map_to_abstract_coord(mode)
-        ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
-    mode_abs = flow.map_to_abstract_coord(pca_mode_1)
-    ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='red')
+        for mode in modes_0:
+            ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='k')
+        ax1.plot(pca_mode_0[:, 0], pca_mode_0[:, 1], lw=2., ls='-', color='k')
+        for mode in modes_1:
+            ax1.plot(mode[:, 0], mode[:, 1], lw=1., ls='-', color='red')
+        ax1.plot(pca_mode_1[:, 0], pca_mode_1[:, 1], lw=2., ls='-', color='red')
+        ax1.contour(X, Y, P, get_levels(P, x, y, levels_3), linewidths=2., linestyles='-', colors=['blue' for i in levels_5], zorder=999)
+        ax1.scatter(maximum_posterior[0], maximum_posterior[1], color='k')
+        ax1.set_xlim([np.amin(P1), np.amax(P1)])
+        ax1.set_ylim([np.amin(P2), np.amax(P2)])
+        ax1.set_xlabel(param_labels_latex[0], fontsize=fontsize)
+        ax1.set_ylabel(param_labels_latex[1], fontsize=fontsize)
 
-    # print the iso-contours:
-    origin = [0, 0]  # flow.map_to_abstract_coord(y0)
-    theta = np.linspace(0.0, 2.*np.pi, 200)
-    for i in range(4):
-        _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
-        ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
-    y0_abs = flow.map_to_abstract_coord(y0)
-    ax2.scatter(y0_abs[0], y0_abs[1], color='k', zorder=999)
+        # plot in abstract space:
+        for mode in modes_0:
+            mode_abs = flow.map_to_abstract_coord(mode)
+            ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='k')
+        mode_abs = flow.map_to_abstract_coord(pca_mode_0)
+        ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='k')
+        for mode in modes_1:
+            mode_abs = flow.map_to_abstract_coord(mode)
+            ax2.plot(*np.array(mode_abs).T, lw=1., ls='-', color='red')
+        mode_abs = flow.map_to_abstract_coord(pca_mode_1)
+        ax2.plot(mode_abs[:, 0], mode_abs[:, 1], lw=2., ls='-', color='red')
 
-    ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
-    ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
-    plt.tight_layout()
-    plt.savefig(outroot+'12_local_pca_abstract.pdf')
-    plt.close('all')
+        # print the iso-contours:
+        origin = [0, 0]  # flow.map_to_abstract_coord(y0)
+        theta = np.linspace(0.0, 2.*np.pi, 200)
+        for i in range(4):
+            _length = np.sqrt(scipy.stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
+            ax2.plot(origin[0]+_length*np.sin(theta), origin[1]+_length*np.cos(theta), ls='--', lw=2., color='blue')
+        y0_abs = flow.map_to_abstract_coord(y0)
+        ax2.scatter(y0_abs[0], y0_abs[1], color='k', zorder=999)
 
-    ###########################################################################
-    # Plot probability along principal eigenvalue flow:
-    ###########################################################################
+        ax2.set_xlabel('$Z_{1}$', fontsize=fontsize)
+        ax2.set_ylabel('$Z_{2}$', fontsize=fontsize)
+        plt.tight_layout()
+        plt.savefig(outroot+'12_local_pca_abstract.pdf')
+        plt.close('all')
 
-    plt.figure(figsize=figsize)
+        ###########################################################################
+        # Plot probability along principal eigenvalue flow:
+        ###########################################################################
 
-    points = pca_mode_0
-    probs = flow.log_probability(points)
-    points_abs = flow.map_to_abstract_coord(points)
-    v = points_abs - maximum_posterior_abs
-    dists = np.linalg.norm(v, axis=1)
-    dists[:np.argmin(dists)] *= -1
-    plt.plot(dists, probs, label='Mode 0', c='k')
+        plt.figure(figsize=figsize)
 
-    points = pca_mode_1
-    probs = flow.log_probability(points)
-    points_abs = flow.map_to_abstract_coord(points)
-    v = points_abs - maximum_posterior_abs
-    dists = np.linalg.norm(v, axis=1)
-    dists[:np.argmin(dists)] *= -1
-    plt.plot(dists, probs, label='Mode 1', c='r')
+        points = pca_mode_0
+        probs = flow.log_probability(points)
+        points_abs = flow.map_to_abstract_coord(points)
+        v = points_abs - maximum_posterior_abs
+        dists = np.linalg.norm(v, axis=1)
+        dists[:np.argmin(dists)] *= -1
+        plt.plot(dists, probs, label='Mode 0', c='k')
 
-    plt.xlabel('Distance from Maximum Posterior along principal mode', fontsize=fontsize)
-    plt.ylabel('Log Probability', fontsize=fontsize)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(outroot+'13_probability_local_pca.pdf')
-    plt.close('all')
+        points = pca_mode_1
+        probs = flow.log_probability(points)
+        points_abs = flow.map_to_abstract_coord(points)
+        v = points_abs - maximum_posterior_abs
+        dists = np.linalg.norm(v, axis=1)
+        dists[:np.argmin(dists)] *= -1
+        plt.plot(dists, probs, label='Mode 1', c='r')
+
+        plt.xlabel('Distance from Maximum Posterior along principal mode', fontsize=fontsize)
+        plt.ylabel('Log Probability', fontsize=fontsize)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(outroot+'13_probability_local_pca.pdf')
+        plt.close('all')
+
+    except Exception as ex:
+        print(ex)

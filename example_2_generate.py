@@ -8,6 +8,7 @@ Generate data for example: non-Gaussian resembling DES.
 # initial imports:
 import os
 import numpy as np
+import pickle
 
 import sys
 here = './'
@@ -138,10 +139,26 @@ else:
                                                             param_ranges=param_ranges, param_names=posterior_chain.getParamNames().list(),
                                                             feedback=1, learning_rate=0.01, n_maf=n_maf, hidden_units=hidden_units)
     # train:
-    posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
+    posterior_flow.global_train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
     # save trained model:
     posterior_flow.MAF.save(flow_cache+'posterior')
 
+# find MAP or load if it exists:
+if os.path.isfile(flow_cache+'/posterior_MAP.pickle'):
+    temp = pickle.load(open(flow_cache+'/posterior_MAP.pickle', 'rb'))
+    posterior_flow.MAP_coord = temp['MAP_coord']
+    posterior_flow.MAP_logP = temp['MAP_logP']
+else:
+    # find map:
+    res = posterior_flow.MAP_finder(disp=True)
+    print(res)
+    # store:
+    temp = {
+            'MAP_coord': posterior_flow.MAP_coord,
+            'MAP_logP': posterior_flow.MAP_logP,
+            }
+    # save out:
+    pickle.dump(temp, open(flow_cache+'/posterior_MAP.pickle', 'wb'))
 
 ###############################################################################
 # test plot if called directly:
@@ -160,21 +177,11 @@ if __name__ == '__main__':
     g.export(out_folder+'0_posterior.pdf')
 
     # plot learned posterior distribution:
-    X_sample = np.array(posterior_flow.sample(n_samples))
-    posterior_flow_chain = MCSamples(samples=X_sample,
-                                     loglikes=-posterior_flow.log_probability(X_sample).numpy(),
-                                     names=posterior_flow.param_names,
-                                     label='Learned distribution')
     g = plots.get_subplot_plotter()
-    g.triangle_plot([posterior_chain, posterior_flow_chain], filled=True)
+    g.triangle_plot([posterior_chain, posterior_flow.MCSamples(n_samples)], filled=True, markers=posterior_flow.MAP_coord)
     g.export(out_folder+'0_learned_posterior_distribution.pdf')
 
     # plot learned prior distribution:
-    X_sample = np.array(prior_flow.sample(n_samples))
-    prior_flow_chain = MCSamples(samples=X_sample,
-                                 loglikes=-prior_flow.log_probability(X_sample).numpy(),
-                                 names=prior_flow.param_names,
-                                 label='Learned distribution')
     g = plots.get_subplot_plotter()
-    g.triangle_plot([prior_chain, prior_flow_chain], filled=True)
+    g.triangle_plot([prior_chain, prior_flow.MCSamples(n_samples)], filled=True)
     g.export(out_folder+'0_learned_prior_distribution.pdf')
