@@ -14,6 +14,7 @@ import seaborn as sns
 import matplotlib.gridspec as gridspec
 import color_utilities
 import utilities as utils
+import pickle
 
 import sys
 here = './'
@@ -23,10 +24,7 @@ sys.path.insert(0, temp_path)
 from tensiometer import utilities
 # import example:
 import example_DES_3x2 as example
-#from previous run:
-#x: array([-0.20621234,  0.91269585, -2.75786815,  4.5377462 ,  0.00692421])
-#x: array([-1.68532105, -0.54725021, -2.92236878,  4.16254548,  0.04879383])
-# stuck on step 171 of 3rd
+
 ###############################################################################
 # initial settings:
 
@@ -55,10 +53,10 @@ num_modes = 3
 # do local KL:
 
 # compute KL of local fisher:
-#MAP_coords = example.log_params_posterior_flow.MAP_finder(disp=True).x
+
 num_params = len(example.log_param_names)
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([example.MAP_coords]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([example.MAP_coords]))[0]
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([example.log_params_posterior_flow.MAP_coord]))[0]
+prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([example.log_params_posterior_flow.MAP_coord]))[0]
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
@@ -66,6 +64,7 @@ sqrt_fisher = scipy.linalg.sqrtm(fisher)
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]
 eigv = eigv[:, idx]
+
 
 ###############################################################################
 # plot:
@@ -108,14 +107,17 @@ for i in range(num_params-1):
         #m1, m2 = example.posterior_chain.getBestFit().parWithName(param1).best_fit, example.posterior_chain.getBestFit().parWithName(param2).best_fit
         m1 = example.posterior_chain.getMeans([example.posterior_chain.index[param1]])[0]
         m2 = example.posterior_chain.getMeans([example.posterior_chain.index[param2]])[0]
-        ax.scatter([m1], [m2], c=[colors[0]], edgecolors='white', zorder=999, s=20)
+        map1 = np.exp(example.log_params_posterior_flow.MAP_coord[i])
+        map2 = np.exp(example.log_params_posterior_flow.MAP_coord[i2+1])
+        ax.scatter([m1], [m2], c=[colors[0]], edgecolors='black', zorder=999, s=20)
+        ax.scatter(map1, map2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
+
         for k in range(num_modes):
             idx1 = example.param_names.index(param1)
             idx2 = example.param_names.index(param2)
             temp = np.sqrt(eig[k])
             alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
-            #ax.plot(m1 + alpha*eigv[idx1, k], m2 + alpha*eigv[idx2, k], c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
+            ax.plot(map1*np.exp(alpha*eigv[idx1, k]), map2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
 
 # ticks:
 for _row in g.subplots:
@@ -132,7 +134,7 @@ g.fig.set_size_inches(x_size/2.54, y_size/2.54)
 
 # text:
 ax = g.subplots[0, 0]
-ax.text(0.01, 1.05, 'a) DES Y1 shear', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
+ax.text(0.01, 1.05, 'a) DES Y1 3x2', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
 
 # legend:
 leg_handlers, legend_labels = ax.get_legend_handles_labels()
@@ -166,4 +168,4 @@ g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
 leg.set_bbox_to_anchor((0.0, 0.0, right, top))
 
 # save:
-g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle_1_KL.pdf')
+g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle_2_KL.pdf')

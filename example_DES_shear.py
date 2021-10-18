@@ -56,20 +56,19 @@ log_param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns']
 log_params_flow_cache = out_folder+'log_params_flow_cache'
 temp = DES_generate.helper_load_chains(log_param_names, prior_chain, posterior_chain, log_params_flow_cache)
 log_params_prior_flow, log_params_posterior_flow = temp
-
+#
 param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns']
-params_flow_cache = out_folder+'params_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain, posterior_chain, params_flow_cache)
-params_prior_flow, params_posterior_flow = temp
-
-full_param_names = ['omegam', 'omegab', 'H0', 'sigma8', 'ns',
-                    'DES_m1', 'DES_m2', 'DES_m3', 'DES_m4',
-                    'DES_AIA', 'DES_alphaIA',
-                    'DES_DzS1', 'DES_DzS2', 'DES_DzS3', 'DES_DzS4']
-full_params_flow_cache = out_folder+'full_params_flow_cache'
-temp = DES_generate.helper_load_chains(full_param_names, prior_chain, posterior_chain, full_params_flow_cache)
-full_params_prior_flow, full_params_posterior_flow = temp
-
+# params_flow_cache = out_folder+'params_flow_cache'
+# temp = DES_generate.helper_load_chains(param_names, prior_chain, posterior_chain, params_flow_cache)
+# params_prior_flow, params_posterior_flow = temp
+#
+# full_param_names = ['omegam', 'omegab', 'H0', 'sigma8', 'ns',
+#                     'DES_m1', 'DES_m2', 'DES_m3', 'DES_m4',
+#                     'DES_AIA', 'DES_alphaIA',
+#                     'DES_DzS1', 'DES_DzS2', 'DES_DzS3', 'DES_DzS4']
+# full_params_flow_cache = out_folder+'full_params_flow_cache'
+# temp = DES_generate.helper_load_chains(full_param_names, prior_chain, posterior_chain, full_params_flow_cache)
+# full_params_prior_flow, full_params_posterior_flow = temp
 ###############################################################################
 # sanity triangle plot:
 
@@ -420,7 +419,7 @@ if __name__ == '__main__':
                 ax.axline([m1, m2], [m1 + _direction[i], m2 + _direction[j]], color=sns.hls_palette(num_params)[k], label='Mode '+str(k+1))
     g.fig.legend(*ax.get_legend_handles_labels())
     g.export(out_folder+'/8_LKL_triangle.pdf')
-print(MAP_coords)
+# print(MAP_coords)
 ###############################################################################
 # PCA of local covariance:
 
