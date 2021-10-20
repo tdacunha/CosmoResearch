@@ -604,7 +604,8 @@ class DiffFlowCallback(Callback):
         if result.success:
             self.MAP_coord = result.x
             self.MAP_logP = -result.fun
-        #
+        else:
+            print('fast map finder failed')
         return result
 
     def sigma_to_length(self, nsigma):

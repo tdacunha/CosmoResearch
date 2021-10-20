@@ -52,11 +52,15 @@ num_modes = 3
 ###############################################################################
 # do local KL:
 
+#map_fit = example.posterior_chain.getBestFit(max_posterior=True)
 # compute KL of local fisher:
 
+#MAP = example.log_params_posterior_flow.sample_MAP
+MAP  = example.log_params_posterior_flow.MAP_coord
+
 num_params = len(example.log_param_names)
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([example.log_params_posterior_flow.MAP_coord]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([example.log_params_posterior_flow.MAP_coord]))[0]
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP]))[0]
+prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([MAP]))[0]
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
