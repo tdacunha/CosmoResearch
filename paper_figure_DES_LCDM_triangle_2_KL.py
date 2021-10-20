@@ -52,11 +52,17 @@ num_modes = 3
 ###############################################################################
 # do local KL:
 
-#map_fit = example.posterior_chain.getBestFit(max_posterior=True)
+means = []
+for i in range(0, len(example.log_param_names)):
+    param_i = example.log_param_names[i]
+    mean_i = example.posterior_chain.getMeans([example.posterior_chain.index[param_i]])[0]
+    means.append(mean_i)
+MAP = means
+#MAP = example.log_params_posterior_flow.sample_MAP
+#MAP  = example.log_params_posterior_flow.MAP_coord
+
 # compute KL of local fisher:
 
-#MAP = example.log_params_posterior_flow.sample_MAP
-MAP  = example.log_params_posterior_flow.MAP_coord
 
 num_params = len(example.log_param_names)
 fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP]))[0]
@@ -109,11 +115,12 @@ for i in range(num_params-1):
         g._inner_ticks(ax)
         # add PCA lines:
         #m1, m2 = example.posterior_chain.getBestFit().parWithName(param1).best_fit, example.posterior_chain.getBestFit().parWithName(param2).best_fit
-        m1 = example.posterior_chain.getMeans([example.posterior_chain.index[param1]])[0]
-        m2 = example.posterior_chain.getMeans([example.posterior_chain.index[param2]])[0]
-        map1 = np.exp(example.log_params_posterior_flow.MAP_coord[i])
-        map2 = np.exp(example.log_params_posterior_flow.MAP_coord[i2+1])
-        ax.scatter([m1], [m2], c=[colors[0]], edgecolors='black', zorder=999, s=20)
+        #m1 = example.posterior_chain.getMeans([example.posterior_chain.index[param1]])[0]
+        #m2 = example.posterior_chain.getMeans([example.posterior_chain.index[param2]])[0]
+        #map1 = np.exp(example.log_params_posterior_flow.MAP_coord[i])
+        #map2 = np.exp(example.log_params_posterior_flow.MAP_coord[i2+1])
+        map1,map2 = np.exp(MAP[i]),np.exp(MAP[i2+1])
+        #ax.scatter([m1], [m2], c=[colors[0]], edgecolors='black', zorder=999, s=20)
         ax.scatter(map1, map2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
         for k in range(num_modes):
@@ -121,7 +128,7 @@ for i in range(num_params-1):
             idx2 = example.param_names.index(param2)
             temp = np.sqrt(eig[k])
             alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(map1*np.exp(alpha*eigv[idx1, k]), map2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
+            ax.plot(map1*np.exp(alpha*eigv[idx1, k]), map2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
 
 # ticks:
 for _row in g.subplots:
