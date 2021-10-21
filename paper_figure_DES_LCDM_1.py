@@ -54,8 +54,17 @@ num_params = len(param_names)
 ###############################################################################
 # Compute PCA contributions:
 
+means_shear = []
+for i in range(0, len(example_shear.log_param_names)):
+    param_i = example_shear.log_param_names[i]
+    mean_i = example_shear.posterior_chain.getMeans([example_shear.posterior_chain.index[param_i]])[0]
+    means_shear.append(mean_i)
+MAP_shear = means_shear
+#MAP = example.log_params_posterior_flow.sample_MAP
+#MAP  = example.log_params_posterior_flow.MAP_coord
+
 # compute covariance and PCA of fisher:
-fisher = example_shear.log_params_posterior_flow.metric(example_shear.log_params_posterior_flow.cast([example_shear.MAP_coords]))[0]
+fisher = example_shear.log_params_posterior_flow.metric(example_shear.log_params_posterior_flow.cast([MAP_shear]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:
@@ -67,8 +76,14 @@ temp = np.dot(sqrt_fisher, eigv)
 contributions_1 = temp * temp / eig
 eig_1 = eig.copy()
 
+means_3x2 = []
+for i in range(0, len(example_3x2.log_param_names)):
+    param_i = example_3x2.log_param_names[i]
+    mean_i = example_3x2.posterior_chain.getMeans([example_3x2.posterior_chain.index[param_i]])[0]
+    means_3x2.append(mean_i)
+MAP_3x2 = means_3x2
 # compute covariance and PCA of fisher:
-fisher = example_3x2.log_params_posterior_flow.metric(example_3x2.log_params_posterior_flow.cast([example_3x2.MAP_coords]))[0]
+fisher = example_3x2.log_params_posterior_flow.metric(example_3x2.log_params_posterior_flow.cast([MAP_3x2]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:
