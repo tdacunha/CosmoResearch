@@ -48,15 +48,15 @@ posterior_chain_2 = example_3x2.posterior_chain
 ###############################################################################
 # decide parameters to use:
 
-param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns'][::-1]
+param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns']
 num_params = len(param_names)
 
 ###############################################################################
 # Compute PCA contributions:
 
 means_shear = []
-for i in range(0, len(example_shear.log_param_names)):
-    param_i = example_shear.log_param_names[i]
+for i in range(0, len(param_names)):
+    param_i = param_names[i]
     mean_i = example_shear.posterior_chain.getMeans([example_shear.posterior_chain.index[param_i]])[0]
     means_shear.append(mean_i)
 MAP_shear = means_shear
@@ -64,6 +64,9 @@ MAP_shear = means_shear
 #MAP  = example.log_params_posterior_flow.MAP_coord
 
 # compute covariance and PCA of fisher:
+# cov = example_shear.posterior_chain.cov(param_names)
+# fisher = np.linalg.inv(cov)
+
 fisher = example_shear.log_params_posterior_flow.metric(example_shear.log_params_posterior_flow.cast([MAP_shear]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
@@ -74,15 +77,20 @@ eigv = eigv[:, idx]
 # compute contributions:
 temp = np.dot(sqrt_fisher, eigv)
 contributions_1 = temp * temp / eig
+contributions_1 = np.flip(contributions_1, axis=0)
+
 eig_1 = eig.copy()
 
 means_3x2 = []
-for i in range(0, len(example_3x2.log_param_names)):
-    param_i = example_3x2.log_param_names[i]
+for i in range(0, len(param_names)):
+    param_i = param_names[i]
     mean_i = example_3x2.posterior_chain.getMeans([example_3x2.posterior_chain.index[param_i]])[0]
     means_3x2.append(mean_i)
 MAP_3x2 = means_3x2
 # compute covariance and PCA of fisher:
+
+# cov = example_3x2.posterior_chain.cov(param_names)
+# fisher = np.linalg.inv(cov)
 fisher = example_3x2.log_params_posterior_flow.metric(example_3x2.log_params_posterior_flow.cast([MAP_3x2]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
@@ -93,6 +101,8 @@ eigv = eigv[:, idx]
 # compute contributions:
 temp = np.dot(sqrt_fisher, eigv)
 contributions_2 = temp * temp / eig
+contributions_2 = np.flip(contributions_2, axis=0)
+
 eig_2 = eig.copy()
 
 ###############################################################################
@@ -136,7 +146,7 @@ for i in range(num_params):
 for ax in [ax1, ax2]:
     ax.set_xticks(range(num_params))
     ax.set_yticks(range(num_params))
-ax1.set_yticklabels([r'$'+name.label+'$' for name in posterior_chain_1.getParamNames().parsWithNames(param_names)], fontsize=0.9*main_fontsize)
+ax1.set_yticklabels([r'$'+name.label+'$' for name in posterior_chain_1.getParamNames().parsWithNames(param_names[::-1])], fontsize=0.9*main_fontsize)
 ax2.set_yticklabels([])
 ax1.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(eig_1), 2))], fontsize=0.9*main_fontsize)
 ax2.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(eig_2), 2))], fontsize=0.9*main_fontsize)

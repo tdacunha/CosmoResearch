@@ -48,24 +48,30 @@ posterior_chain_2 = example_3x2.posterior_chain
 ###############################################################################
 # decide parameters to use:
 
-param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns'][::-1]
+param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns']#[::-1]
 num_params = len(param_names)
 
 ###############################################################################
-# Compute PCA contributions:
+# Compute KL contributions:
 
 means_shear = []
-for i in range(0, len(example_shear.log_param_names)):
-    param_i = example_shear.log_param_names[i]
+for i in range(0, len(param_names)):
+    param_i = param_names[i]
     mean_i = example_shear.posterior_chain.getMeans([example_shear.posterior_chain.index[param_i]])[0]
     means_shear.append(mean_i)
-MAP_shear = means_shear
-#MAP = example.log_params_posterior_flow.sample_MAP
-#MAP  = example.log_params_posterior_flow.MAP_coord
+MAP_shear = means_shear#
+#MAP_shear = example_shear.log_params_posterior_flow.sample_MAP
+#MAP_shear  = example_shear.log_params_posterior_flow.MAP_coord
 
-# compute covariance and PCA of fisher:
+# compute covariance and KL of fisher:
+# cov = example_shear.posterior_chain.cov(param_names)
+# fisher = np.linalg.inv(cov)
+# prior_cov = example_shear.prior_chain.cov(param_names)
+# prior_fisher = np.linalg.inv(prior_cov)
+
 fisher = example_shear.log_params_posterior_flow.metric(example_shear.log_params_posterior_flow.cast([MAP_shear]))[0]
 prior_fisher = example_shear.log_params_prior_flow.metric(example_shear.log_params_prior_flow.cast([MAP_shear]))[0]
+
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 _Neff = gaussian_tension.get_Neff(posterior_chain_1, prior_chain_1, param_names)
@@ -79,17 +85,27 @@ eigv = eigv[:, idx]
 # compute contributions:
 temp = np.dot(sqrt_fisher, eigv)
 contributions_1 = temp * temp / eig
+contributions_1 = np.flip(contributions_1, axis=0)
 eig_1 = eig.copy()
 
 means_3x2 = []
-for i in range(0, len(example_3x2.log_param_names)):
-    param_i = example_3x2.log_param_names[i]
+for i in range(0, len(param_names)):
+    param_i = param_names[i]
     mean_i = example_3x2.posterior_chain.getMeans([example_3x2.posterior_chain.index[param_i]])[0]
     means_3x2.append(mean_i)
-MAP_3x2 = means_3x2
-# compute covariance and PCA of fisher:
+MAP_3x2 = means_3x2#[::-1]
+#MAP_3x2  = example_3x2.log_params_posterior_flow.MAP_coord
+
+
+# compute covariance and KL of fisher:
+# cov = example_3x2.posterior_chain.cov(param_names)
+# fisher = np.linalg.inv(cov)
+# prior_cov = example_3x2.prior_chain.cov(param_names)
+# prior_fisher = np.linalg.inv(prior_cov)
+
 fisher = example_3x2.log_params_posterior_flow.metric(example_3x2.log_params_posterior_flow.cast([MAP_3x2]))[0]
 prior_fisher = example_3x2.log_params_prior_flow.metric(example_3x2.log_params_prior_flow.cast([MAP_3x2]))[0]
+
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 _Neff = gaussian_tension.get_Neff(posterior_chain_2, prior_chain_2, param_names)
@@ -103,6 +119,8 @@ eigv = eigv[:, idx]
 # compute contributions:
 temp = np.dot(sqrt_fisher, eigv)
 contributions_2 = temp * temp / eig
+contributions_2 = np.flip(contributions_2, axis=0)
+
 eig_2 = eig.copy()
 
 ###############################################################################
@@ -146,7 +164,7 @@ for i in range(num_params):
 for ax in [ax1, ax2]:
     ax.set_xticks(range(num_params))
     ax.set_yticks(range(num_params))
-ax1.set_yticklabels([r'$'+name.label+'$' for name in posterior_chain_1.getParamNames().parsWithNames(param_names)], fontsize=0.9*main_fontsize)
+ax1.set_yticklabels([r'$'+name.label+'$' for name in posterior_chain_1.getParamNames().parsWithNames(param_names[::-1])], fontsize=0.9*main_fontsize)
 ax2.set_yticklabels([])
 _temp = eig_1 - 1.
 _temp[_temp < 0.] = 0.

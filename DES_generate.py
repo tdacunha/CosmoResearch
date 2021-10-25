@@ -51,7 +51,7 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
     epochs = kwargs.pop('epochs', 100)
     steps_per_epoch = kwargs.pop('steps_per_epoch', None)
     n_maf = kwargs.pop('n_maf', 1*num_params)
-    hidden_units = kwargs.pop('hidden_units', [num_params*2]*2)
+    hidden_units = kwargs.pop('hidden_units', [num_params]*2) #[num_params*2]*2
 
     # prior flow:
     if os.path.isfile(flow_cache+'/prior'+'_permutations.pickle'):
@@ -103,57 +103,57 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
         g.triangle_plot([posterior_chain, posterior_flow.MCSamples(nsamples)], params=param_names, filled=False)
         g.export(flow_cache+'/0_learned_posterior_distribution.pdf')
 
-    # find MAP of flows:
-    if os.path.isfile(flow_cache+'/prior_MAP.pickle'):
-        temp = pickle.load(open(flow_cache+'/prior_MAP.pickle', 'rb'))
-        prior_flow.MAP_coord = temp['MAP_coord']
-        prior_flow.MAP_logP = temp['MAP_logP']
-    else:
-        # find map:
-        res = prior_flow.MAP_finder(maxiter = 50, disp=True)
-        #res = prior_flow.fast_MAP_finder()
-
-        print(res)
-        # store:
-        temp = {
-                'MAP_coord': prior_flow.MAP_coord,
-                'MAP_logP': prior_flow.MAP_logP,
-                }
-        # save out:
-        pickle.dump(temp, open(flow_cache+'/prior_MAP.pickle', 'wb'))
-        # plot:
-        g = plots.get_subplot_plotter()
-        g.triangle_plot([prior_chain, prior_flow.MCSamples(nsamples)], params=param_names, filled=False, markers=prior_flow.MAP_coord)
-        g.export(flow_cache+'/0_learned_prior_distribution_MAP.pdf')
+    # # find MAP of flows:
+    # if os.path.isfile(flow_cache+'/prior_MAP.pickle'):
+    #     temp = pickle.load(open(flow_cache+'/prior_MAP.pickle', 'rb'))
+    #     prior_flow.MAP_coord = temp['MAP_coord']
+    #     prior_flow.MAP_logP = temp['MAP_logP']
+    # else:
+    #     # find map:
+    #     res = prior_flow.MAP_finder(maxiter = 50, disp=True)
+    #     #res = prior_flow.fast_MAP_finder()
     #
-    if os.path.isfile(flow_cache+'/posterior_MAP.pickle'):
-        temp = pickle.load(open(flow_cache+'/posterior_MAP.pickle', 'rb'))
-        posterior_flow.MAP_coord = temp['MAP_coord']
-        posterior_flow.MAP_logP = temp['MAP_logP']
-    else:
-        # find map:
-        means = []
-        for i in range(0, len(param_names)):
-            param_i = param_names[i]
-            mean_i = posterior_chain.getMeans([posterior_chain.index[param_i]])[0]
-            means.append(mean_i)
-        #res = posterior_flow.MAP_finder(maxiter = 200, disp=True, x0 = posterior_flow.sample_MAP)
-        res = posterior_flow.MAP_finder(maxiter = 200, disp=True, x0 = means)
-
-        #res = posterior_flow.fast_MAP_finder()
-
-        print(res)
-        # store:
-        temp = {
-                'MAP_coord': posterior_flow.MAP_coord,
-                'MAP_logP': posterior_flow.MAP_logP,
-                }
-        # save out:
-        pickle.dump(temp, open(flow_cache+'/posterior_MAP.pickle', 'wb'))
-        # plot:
-        g = plots.get_subplot_plotter()
-        g.triangle_plot([posterior_chain, posterior_flow.MCSamples(nsamples)], params=param_names, filled=False, markers=posterior_flow.MAP_coord)
-        g.export(flow_cache+'/0_learned_posterior_distribution_MAP.pdf')
+    #     print(res)
+    #     # store:
+    #     temp = {
+    #             'MAP_coord': prior_flow.MAP_coord,
+    #             'MAP_logP': prior_flow.MAP_logP,
+    #             }
+    #     # save out:
+    #     pickle.dump(temp, open(flow_cache+'/prior_MAP.pickle', 'wb'))
+    #     # plot:
+    #     g = plots.get_subplot_plotter()
+    #     g.triangle_plot([prior_chain, prior_flow.MCSamples(nsamples)], params=param_names, filled=False, markers=prior_flow.MAP_coord)
+    #     g.export(flow_cache+'/0_learned_prior_distribution_MAP.pdf')
+    # #
+    # if os.path.isfile(flow_cache+'/posterior_MAP.pickle'):
+    #     temp = pickle.load(open(flow_cache+'/posterior_MAP.pickle', 'rb'))
+    #     posterior_flow.MAP_coord = temp['MAP_coord']
+    #     posterior_flow.MAP_logP = temp['MAP_logP']
+    # else:
+    #     # find map:
+    #     means = []
+    #     for i in range(0, len(param_names)):
+    #         param_i = param_names[i]
+    #         mean_i = posterior_chain.getMeans([posterior_chain.index[param_i]])[0]
+    #         means.append(mean_i)
+    #     #res = posterior_flow.MAP_finder(maxiter = 200, disp=True, x0 = posterior_flow.sample_MAP)
+    #     res = posterior_flow.MAP_finder(maxiter = 200, disp=True, x0 = means)
+    #
+    #     #res = posterior_flow.fast_MAP_finder()
+    #
+    #     print(res)
+    #     # store:
+    #     temp = {
+    #             'MAP_coord': posterior_flow.MAP_coord,
+    #             'MAP_logP': posterior_flow.MAP_logP,
+    #             }
+    #     # save out:
+    #     pickle.dump(temp, open(flow_cache+'/posterior_MAP.pickle', 'wb'))
+    #     # plot:
+    #     g = plots.get_subplot_plotter()
+    #     g.triangle_plot([posterior_chain, posterior_flow.MCSamples(nsamples)], params=param_names, filled=False, markers=posterior_flow.MAP_coord)
+    #     g.export(flow_cache+'/0_learned_posterior_distribution_MAP.pdf')
     #
     return prior_flow, posterior_flow
 

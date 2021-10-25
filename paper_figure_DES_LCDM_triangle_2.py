@@ -61,7 +61,11 @@ MAP = means
 
 # compute PCA of local fisher:
 num_params = len(example.log_param_names)
-covariance = example.posterior_chain.cov(example.log_param_names)
+
+# testing for global metric:
+# cov = example.posterior_chain.cov(example.log_param_names)
+# fisher = np.linalg.inv(cov)
+
 fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
@@ -111,8 +115,8 @@ for i in range(num_params-1):
         #m1, m2 = example.posterior_chain.getBestFit().parWithName(param1).best_fit, example.posterior_chain.getBestFit().parWithName(param2).best_fit
         #m1 = example.posterior_chain.getMeans([example.posterior_chain.index[param1]])[0]
         #m2 = example.posterior_chain.getMeans([example.posterior_chain.index[param2]])[0]
-        #map1 = np.exp(example.log_params_posterior_flow.MAP_coord[i])
-        #map2 = np.exp(example.log_params_posterior_flow.MAP_coord[i2+1])
+        #m1 = np.exp(example.log_params_posterior_flow.MAP_coord[i])
+        #m2 = np.exp(example.log_params_posterior_flow.MAP_coord[i2+1])
         map1,map2 = np.exp(MAP[i]),np.exp(MAP[i2+1])
         #ax.scatter([m1], [m2], c=[colors[0]], edgecolors='black', zorder=999, s=20)
         ax.scatter(map1, map2, c=[colors[0]], edgecolors='white', zorder=999, s=20)

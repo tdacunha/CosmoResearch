@@ -61,10 +61,16 @@ MAP = means
 
 
 num_params = len(example.log_param_names)
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([example.log_params_posterior_flow.MAP_coord]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([example.log_params_posterior_flow.MAP_coord]))[0]
-#fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([means]))[0]
-#prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([means]))[0]
+
+
+# testing for global metric:
+# cov = example.posterior_chain.cov(example.log_param_names)
+# fisher = np.linalg.inv(cov)
+# prior_cov = example.prior_chain.cov(example.log_param_names)
+# prior_fisher = np.linalg.inv(prior_cov)
+
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP]))[0]
+prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([MAP]))[0]
 
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)

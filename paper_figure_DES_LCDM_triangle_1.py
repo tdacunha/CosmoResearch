@@ -60,7 +60,12 @@ for i in range(0, len(example.log_param_names)):
     mean_i = example.posterior_chain.getMeans([example.posterior_chain.index[param_i]])[0]
     means.append(mean_i)
 MAP = means
+# testing for global metric:
+# cov = example.posterior_chain.cov(example.log_param_names)
+# fisher = np.linalg.inv(cov)
+
 fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP]))[0]
+
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:
