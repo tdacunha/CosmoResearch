@@ -367,6 +367,11 @@ class DiffFlowCallback(Callback):
         # save sample MAP:
         temp = chain.samples[np.argmin(chain.loglikes), :]
         self.sample_MAP = np.array([temp[chain.index[name]] for name in param_names])
+        # try to get real best fit:
+        try:
+            self.chain_MAP = np.array([name.best_fit for name in chain.getBestFit().parsWithNames(param_names)])
+        except:
+            self.chain_MAP = None
         # Prior bijector setup:
         if prior_bijector == 'ranges':
             self.prior_bijector = prior_bijector_helper([{'lower': tf.cast(self.parameter_ranges[name][0], prec), 'upper': tf.cast(self.parameter_ranges[name][1], prec)} for name in param_names])
@@ -561,6 +566,35 @@ class DiffFlowCallback(Callback):
         """
         return self.distribution.log_prob(coord)
 
+    @tf.function()
+    def log_probability_jacobian(self, coord):
+        """
+        Computes the Jacobian of the log probability.
+        """
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(coord)
+            f = self.log_probability(coord)
+        return tape.gradient(f, coord)
+
+    @tf.function()
+    def log_probability_abs(self, abs_coord):
+        """
+        Returns learned log probability in original parameter space as a function of abstract coordinates.
+        """
+        temp_1 = self.distribution.distribution.log_prob(abs_coord)
+        temp_2 = self.distribution.bijector.forward_log_det_jacobian(abs_coord, event_ndims=1)
+        return temp_1 - temp_2
+
+    @tf.function()
+    def log_probability_abs_jacobian(self, abs_coord):
+        """
+        Computes the Jacobian of the log probability.
+        """
+        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+            tape.watch(abs_coord)
+            f = self.log_probability_abs(abs_coord)
+        return tape.gradient(f, abs_coord)
+
     def MCSamples(self, size, logLikes=True, **kwargs):
         """
         Return MCSamples object from the syntetic probability.
@@ -596,16 +630,23 @@ class DiffFlowCallback(Callback):
         """
         Function that uses scipy optimizer to find the maximum of the synthetic posterior.
         """
-        # main call to differential evolution:
-        result = minimize(lambda x: -self.distribution.log_prob(self.cast(x)).numpy(),
-                          x0=self.sample_MAP,
-                          **kwargs)
-        # cache MAP value:
-        if result.success:
-            self.MAP_coord = result.x
-            self.MAP_logP = -result.fun
+        # initialize:
+        if self.chain_MAP is not None:
+            x0_abs = self.map_to_abstract_coord(self.cast(self.chain_MAP))
         else:
+            x0_abs = self.map_to_abstract_coord(self.cast(self.sample_MAP))
+        # call to minimizer:
+        result = minimize(lambda x: -self.log_probability_abs(self.cast(x)).numpy().astype(np.float64),
+                          x0=x0_abs,
+                          jac=lambda x: -self.log_probability_abs_jacobian(self.cast(x)).numpy().astype(np.float64),
+                          **kwargs)
+        # test result:
+        if not result.success:
             print('fast map finder failed')
+        # cache MAP value:
+        self.MAP_coord = self.map_to_original_coord(self.cast(result.x)).numpy()
+        self.MAP_logP = -result.fun
+        #
         return result
 
     def sigma_to_length(self, nsigma):

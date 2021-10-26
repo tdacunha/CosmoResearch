@@ -58,17 +58,18 @@ temp = DES_generate.helper_load_chains(log_param_names, prior_chain, posterior_c
 log_params_prior_flow, log_params_posterior_flow = temp
 #
 param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns']
-# params_flow_cache = out_folder+'params_flow_cache'
-# temp = DES_generate.helper_load_chains(param_names, prior_chain, posterior_chain, params_flow_cache)
-# params_prior_flow, params_posterior_flow = temp
+params_flow_cache = out_folder+'params_flow_cache'
+temp = DES_generate.helper_load_chains(param_names, prior_chain, posterior_chain, params_flow_cache)
+params_prior_flow, params_posterior_flow = temp
 #
-# full_param_names = ['omegam', 'omegab', 'H0', 'sigma8', 'ns',
-#                     'DES_m1', 'DES_m2', 'DES_m3', 'DES_m4',
-#                     'DES_AIA', 'DES_alphaIA',
-#                     'DES_DzS1', 'DES_DzS2', 'DES_DzS3', 'DES_DzS4']
-# full_params_flow_cache = out_folder+'full_params_flow_cache'
-# temp = DES_generate.helper_load_chains(full_param_names, prior_chain, posterior_chain, full_params_flow_cache)
-# full_params_prior_flow, full_params_posterior_flow = temp
+full_param_names = ['omegam', 'omegab', 'H0', 'sigma8', 'ns',
+                    'DES_m1', 'DES_m2', 'DES_m3', 'DES_m4',
+                    'DES_AIA', 'DES_alphaIA',
+                    'DES_DzS1', 'DES_DzS2', 'DES_DzS3', 'DES_DzS4']
+full_params_flow_cache = out_folder+'full_params_flow_cache'
+temp = DES_generate.helper_load_chains(full_param_names, prior_chain, posterior_chain, full_params_flow_cache)
+full_params_prior_flow, full_params_posterior_flow = temp
+
 ###############################################################################
 # sanity triangle plot:
 
@@ -345,7 +346,8 @@ if __name__ == '__main__':
 
     num_params = len(log_param_names)
     # find MAP of data chain:
-    MAP_coords = log_params_posterior_flow.MAP_finder(disp=True).x
+    MAP_coords = log_params_posterior_flow.fast_MAP_finder()
+    MAP_coords = log_params_posterior_flow.MAP_coord
     # get local fisher:
     fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
     prior_fisher = log_params_prior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
