@@ -54,20 +54,15 @@ num_params = len(param_names)
 ###############################################################################
 # Compute PCA contributions:
 
-means_shear = []
-for i in range(0, len(param_names)):
-    param_i = param_names[i]
-    mean_i = example_shear.posterior_chain.getMeans([example_shear.posterior_chain.index[param_i]])[0]
-    means_shear.append(mean_i)
-MAP_shear = means_shear
-#MAP = example.log_params_posterior_flow.sample_MAP
-#MAP  = example.log_params_posterior_flow.MAP_coord
+# reference point:
+reference_shear = np.log([name.best_fit for name in posterior_chain_1.getBestFit().parsWithNames([name.replace('log_', '') for name in param_names])])
+reference_shear = np.array([posterior_chain_1.samples[np.argmin(posterior_chain_1.loglikes), :][posterior_chain_1.index[name]] for name in param_names])
+reference_shear = posterior_chain_1.getMeans(pars=[posterior_chain_1.index[name] for name in param_names])
+# local fisher:
+fisher = example_shear.log_params_posterior_flow.metric(example_shear.log_params_posterior_flow.cast([reference_shear]))[0]
+# global fisher:
+#fisher = np.linalg.inv(example_shear.posterior_chain.cov(example_shear.log_param_names))
 
-# compute covariance and PCA of fisher:
-# cov = example_shear.posterior_chain.cov(param_names)
-# fisher = np.linalg.inv(cov)
-
-fisher = example_shear.log_params_posterior_flow.metric(example_shear.log_params_posterior_flow.cast([MAP_shear]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:
@@ -78,20 +73,17 @@ eigv = eigv[:, idx]
 temp = np.dot(sqrt_fisher, eigv)
 contributions_1 = temp * temp / eig
 contributions_1 = np.flip(contributions_1, axis=0)
-
 eig_1 = eig.copy()
 
-means_3x2 = []
-for i in range(0, len(param_names)):
-    param_i = param_names[i]
-    mean_i = example_3x2.posterior_chain.getMeans([example_3x2.posterior_chain.index[param_i]])[0]
-    means_3x2.append(mean_i)
-MAP_3x2 = means_3x2
-# compute covariance and PCA of fisher:
+# reference point:
+reference_3x2 = np.log([name.best_fit for name in posterior_chain_2.getBestFit().parsWithNames([name.replace('log_', '') for name in param_names])])
+reference_3x2 = np.array([posterior_chain_2.samples[np.argmin(posterior_chain_2.loglikes), :][posterior_chain_2.index[name]] for name in param_names])
+reference_3x2 = posterior_chain_2.getMeans(pars=[posterior_chain_2.index[name] for name in param_names])
+# local fisher:
+fisher = example_3x2.log_params_posterior_flow.metric(example_3x2.log_params_posterior_flow.cast([reference_shear]))[0]
+# global fisher:
+#fisher = np.linalg.inv(example_3x2.posterior_chain.cov(example_3x2.log_param_names))
 
-# cov = example_3x2.posterior_chain.cov(param_names)
-# fisher = np.linalg.inv(cov)
-fisher = example_3x2.log_params_posterior_flow.metric(example_3x2.log_params_posterior_flow.cast([MAP_3x2]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:
@@ -102,7 +94,6 @@ eigv = eigv[:, idx]
 temp = np.dot(sqrt_fisher, eigv)
 contributions_2 = temp * temp / eig
 contributions_2 = np.flip(contributions_2, axis=0)
-
 eig_2 = eig.copy()
 
 ###############################################################################

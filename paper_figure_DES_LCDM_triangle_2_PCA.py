@@ -178,4 +178,4 @@ g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
 leg.set_bbox_to_anchor((0.0, 0.0, right, top))
 
 # save:
-g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle_2.pdf')
+g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle_2_PCA.pdf')
