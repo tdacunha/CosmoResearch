@@ -346,11 +346,11 @@ if __name__ == '__main__':
 
     num_params = len(log_param_names)
     # find MAP of data chain:
-    MAP_coords = log_params_posterior_flow.fast_MAP_finder()
-    MAP_coords = log_params_posterior_flow.MAP_coord
+    reference_coords = log_params_posterior_flow.sample_MAP
+    reference_coords = posterior_chain.getMeans(pars=[posterior_chain.index[name] for name in log_param_names])
     # get local fisher:
-    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
-    prior_fisher = log_params_prior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
+    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
+    prior_fisher = log_params_prior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
     eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
     sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
@@ -421,7 +421,7 @@ if __name__ == '__main__':
                 ax.axline([m1, m2], [m1 + _direction[i], m2 + _direction[j]], color=sns.hls_palette(num_params)[k], label='Mode '+str(k+1))
     g.fig.legend(*ax.get_legend_handles_labels())
     g.export(out_folder+'/8_LKL_triangle.pdf')
-# print(MAP_coords)
+# print(reference_coords)
 ###############################################################################
 # PCA of local covariance:
 
@@ -430,7 +430,7 @@ if __name__ == '__main__':
     num_params = len(log_param_names)
     # compute local fisher and PCA of fisher:
 
-    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
+    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
     eig, eigv = np.linalg.eigh(fisher)
     sqrt_fisher = scipy.linalg.sqrtm(fisher)
     # sort modes:

@@ -349,10 +349,11 @@ if __name__ == '__main__':
 
     num_params = len(log_param_names)
     # find MAP of data chain:
-    MAP_coords = log_params_posterior_flow.MAP_finder(disp=True).x
+    reference_coords = log_params_posterior_flow.sample_MAP
+    reference_coords = posterior_chain.getMeans(pars=[posterior_chain.index[name] for name in log_param_names])
     # get local fisher:
-    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
-    prior_fisher = log_params_prior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
+    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
+    prior_fisher = log_params_prior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
     eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
     sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
@@ -432,7 +433,7 @@ if __name__ == '__main__':
     num_params = len(log_param_names)
     # compute local fisher and PCA of fisher:
 
-    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
+    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
     eig, eigv = np.linalg.eigh(fisher)
     sqrt_fisher = scipy.linalg.sqrtm(fisher)
     # sort modes:

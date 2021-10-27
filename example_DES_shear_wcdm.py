@@ -57,17 +57,15 @@ log_param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns',
 log_params_flow_cache = out_folder+'log_params_flow_cache'
 temp = DES_generate.helper_load_chains(log_param_names, prior_chain, posterior_chain, log_params_flow_cache)
 log_params_prior_flow, log_params_posterior_flow = temp
-
+#
 param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'w']
 params_flow_cache = out_folder+'params_flow_cache'
 temp = DES_generate.helper_load_chains(param_names, prior_chain, posterior_chain, params_flow_cache)
 params_prior_flow, params_posterior_flow = temp
-
+#
 full_param_names = ['omegam', 'omegab', 'H0', 'sigma8', 'ns', 'w',
-                    'DES_b1', 'DES_b2', 'DES_b3', 'DES_b4', 'DES_b5',
                     'DES_m1', 'DES_m2', 'DES_m3', 'DES_m4',
                     'DES_AIA', 'DES_alphaIA',
-                    'DES_DzL1', 'DES_DzL2', 'DES_DzL3', 'DES_DzL4', 'DES_DzL5',
                     'DES_DzS1', 'DES_DzS2', 'DES_DzS3', 'DES_DzS4']
 full_params_flow_cache = out_folder+'full_params_flow_cache'
 temp = DES_generate.helper_load_chains(full_param_names, prior_chain, posterior_chain, full_params_flow_cache)
@@ -349,10 +347,11 @@ if __name__ == '__main__':
 
     num_params = len(log_param_names)
     # find MAP of data chain:
-    MAP_coords = log_params_posterior_flow.MAP_finder(disp=True).x
+    reference_coords = log_params_posterior_flow.sample_MAP
+    reference_coords = posterior_chain.getMeans(pars=[posterior_chain.index[name] for name in log_param_names])
     # get local fisher:
-    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
-    prior_fisher = log_params_prior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
+    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
+    prior_fisher = log_params_prior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
     eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
     sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
@@ -432,7 +431,7 @@ if __name__ == '__main__':
     num_params = len(log_param_names)
     # compute local fisher and PCA of fisher:
 
-    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([MAP_coords]))[0]
+    fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([reference_coords]))[0]
     eig, eigv = np.linalg.eigh(fisher)
     sqrt_fisher = scipy.linalg.sqrtm(fisher)
     # sort modes:

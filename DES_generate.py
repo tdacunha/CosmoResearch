@@ -23,6 +23,7 @@ import pickle
 import synthetic_probability
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 callbacks = [ReduceLROnPlateau()]
+from tensorflow.keras.initializers import TruncatedNormal, Zeros, GlorotNormal
 
 ###############################################################################
 # chains common settings:
@@ -47,11 +48,12 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
         os.mkdir(flow_cache)
 
     # get parameters for flows:
-    batch_size = kwargs.pop('batch_size', None)
-    epochs = kwargs.pop('epochs', 100)
-    steps_per_epoch = kwargs.pop('steps_per_epoch', None)
-    n_maf = kwargs.pop('n_maf', 1*num_params)
-    hidden_units = kwargs.pop('hidden_units', [num_params]*2) #[num_params*2]*2
+    batch_size = kwargs.get('batch_size', None)
+    epochs = kwargs.get('epochs', 100)
+    steps_per_epoch = kwargs.get('steps_per_epoch', None)
+    n_maf = kwargs.get('n_maf', 1*num_params)
+    hidden_units = kwargs.get('hidden_units', [num_params]*2)
+    kernel_initializer = kwargs.get('kernel_initializer', GlorotNormal())
 
     # prior flow:
     if os.path.isfile(flow_cache+'/prior'+'_permutations.pickle'):
@@ -87,13 +89,13 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
                                                                 feedback=1,)
     else:
         # initialize posterior flow:
-        from tensorflow.keras.initializers import TruncatedNormal, Zeros, GlorotNormal
         posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain,
                                                                 #prior_bijector=prior_flow.bijector,
+                                                                #prior_bijector=None,
                                                                 param_ranges=prior_flow.parameter_ranges,
                                                                 param_names=prior_flow.param_names,
                                                                 feedback=1,
-                                                                n_maf=n_maf, hidden_units=hidden_units, kernel_initializer=GlorotNormal()) #kernel_initializer=TruncatedNormal(stddev=1e-3))
+                                                                n_maf=n_maf, hidden_units=hidden_units, kernel_initializer=kernel_initializer) #kernel_initializer=TruncatedNormal(stddev=1e-3))
         # train posterior flow:
         posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
         # save trained model:

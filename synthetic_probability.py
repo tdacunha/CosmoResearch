@@ -356,11 +356,12 @@ class DiffFlowCallback(Callback):
                     temp_range.append(np.amax(chain.samples[:, chain.index[name]]))
                     do_extend = True
                 # if using min/max from samples, we extend the range to avoid overflows
-                if do_extend:
+                if do_extend or True:
                     center = 0.5 * (temp_range[0]+temp_range[1])
                     length = temp_range[1] - temp_range[0]
-                    eps = np.finfo(np.float32).eps
-                    temp_range = [center - length*(1.+eps), center + length*(1.+eps)]
+                    eps = 10.*np.finfo(np.float32).eps
+                    eps = 0.001
+                    temp_range = [center - 0.5*length*(1.+eps), center + 0.5*length*(1.+eps)]
                 # save:
                 self.parameter_ranges[name] = copy.deepcopy(temp_range)
 
