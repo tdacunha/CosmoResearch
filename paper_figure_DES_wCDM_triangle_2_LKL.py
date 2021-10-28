@@ -14,7 +14,6 @@ import seaborn as sns
 import matplotlib.gridspec as gridspec
 import color_utilities
 import utilities as utils
-import pickle
 
 import sys
 here = './'
@@ -22,8 +21,9 @@ temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
+import synthetic_probability
 # import example:
-import example_DES_3x2 as example
+import example_DES_3x2_wcdm as example
 
 ###############################################################################
 # initial settings:
@@ -46,50 +46,28 @@ main_fontsize = 10.0
 colors = [color_utilities.nice_colors(i) for i in range(6)]
 
 # number of modes:
-num_modes = 3
+num_modes = 2
 
 ###############################################################################
 # do local KL:
 
-num_params = len(example.log_param_names)
+num_params = len(example.param_names)
 # reference point:
-reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
-reference_point = np.array([example.posterior_chain.samples[np.argmin(example.posterior_chain.loglikes), :][example.posterior_chain.index[name]] for name in example.log_param_names])
-reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.log_param_names])
-# local fisher:
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([reference_point]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([reference_point]))[0]
-# global fisher:
-#fisher = np.linalg.inv(example.posterior_chain.cov(example.log_param_names))
-#prior_fisher = np.linalg.inv(example.prior_chain.cov(example.log_param_names))
+#reference_point = np.array([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames(example.param_names)])
+#reference_point = np.array([example.posterior_chain.samples[np.argmin(example.posterior_chain.loglikes), :][example.posterior_chain.index[name]] for name in example.param_names])
+reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.param_names])
+# solve for modes:
+y0 = example.params_posterior_flow.cast(reference_point)
+length_1 = (example.params_posterior_flow.sigma_to_length(5)).astype(np.float32)
+length_2 = (example.params_posterior_flow.sigma_to_length(5)).astype(np.float32)
 
-eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
-sqrt_fisher = scipy.linalg.sqrtm(fisher)
-# sort modes:
-idx = np.argsort(eig)[::-1]
-eig = eig[idx]
-eigv = eigv[:, idx]
+length_1 = 10
+length_2 = 10
+length_3 = 10
 
-# print out modes:
-temp = np.dot(sqrt_fisher, eigv)
-contributions = temp * temp / eig
-for i in range(num_modes):
-    idx_max = np.argmax(contributions[:, i])
-    print('* Mode', i+1)
-    print('  Sqrt eig = ', np.round(np.sqrt(eig[i]),2))
-    _directions = np.linalg.inv(eigv).T
-    _norm_eigv = _directions[:, i] / _directions[idx_max, i]
-    with np.printoptions(precision=2, suppress=True):
-        print('  Variance contributions', contributions[:, i])
-    string = ''
-    for j in range(num_params):
-        _name = example.log_param_names[j]
-        _mean = reference_point[j]
-        _mean = '{0:+}'.format(np.round(-_mean, 2))
-        _temp = '{0:+}'.format(np.round(_norm_eigv[j], 2))
-        string += _temp+'*('+_name+' '+_mean+') '
-    print('  Mode =', string, '= 0')
-    print(' ')
+_, LKL_mode_1, _ = synthetic_probability.solve_KL_ode(example.params_posterior_flow, example.params_prior_flow, y0, n=5, length=length_1, num_points=1000)
+_, LKL_mode_2, _ = synthetic_probability.solve_KL_ode(example.params_posterior_flow, example.params_prior_flow, y0, n=4, length=length_2, num_points=1000)
+_, LKL_mode_3, _ = synthetic_probability.solve_KL_ode(example.params_posterior_flow, example.params_prior_flow, y0, n=3, length=length_3, num_points=1000)
 
 ###############################################################################
 # plot:
@@ -127,17 +105,21 @@ for i in range(num_params-1):
         g.plot_2d([example.posterior_chain], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
                   no_label_no_numbers=g.settings.no_triangle_axis_labels, shaded=False,
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
+
+        #g.add_2d_contours(example.prior_chain, param1=param1, param2=param2, shaded=False,
+        #                  ax=ax, color=colors[1], filled=True, zorder=0)
+
         g._inner_ticks(ax)
         # add PCA lines:
-        m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
+        m1, m2 = reference_point[i], reference_point[i2+1]
         ax.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
-        for k in range(num_modes):
-            idx1 = example.param_names.index(param1)
-            idx2 = example.param_names.index(param2)
-            temp = np.sqrt(eig[k])
-            alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+        # plot modes:
+        idx1 = example.param_names.index(param1)
+        idx2 = example.param_names.index(param2)
+        ax.plot(LKL_mode_1[:, idx1], LKL_mode_1[:, idx2], c=colors[1], lw=1., ls='-', zorder=998, label='LKL mode 1')
+        ax.plot(LKL_mode_2[:, idx1], LKL_mode_2[:, idx2], c=colors[2], lw=1., ls='-', zorder=998, label='LKL mode 2')
+        ax.plot(LKL_mode_3[:, idx1], LKL_mode_3[:, idx2], c=colors[3], lw=1., ls='-', zorder=998, label='LKL mode 3')
 
 # ticks:
 for _row in g.subplots:
@@ -186,6 +168,5 @@ hspace = 0.
 g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
                   wspace=wspace, hspace=hspace)
 leg.set_bbox_to_anchor((0.0, 0.0, right, top))
-
 # save:
-g.fig.savefig(out_folder+'/figure_DES_wCDM_triangle_2_KL.pdf')
+g.fig.savefig(out_folder+'/figure_DES_wCDM_triangle_2_LKL.pdf')

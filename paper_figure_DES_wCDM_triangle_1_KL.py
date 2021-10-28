@@ -14,7 +14,6 @@ import seaborn as sns
 import matplotlib.gridspec as gridspec
 import color_utilities
 import utilities as utils
-import pickle
 
 import sys
 here = './'
@@ -23,7 +22,7 @@ sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
 # import example:
-import example_DES_3x2 as example
+import example_DES_shear as example
 
 ###############################################################################
 # initial settings:
@@ -46,7 +45,7 @@ main_fontsize = 10.0
 colors = [color_utilities.nice_colors(i) for i in range(6)]
 
 # number of modes:
-num_modes = 3
+num_modes = 2
 
 ###############################################################################
 # do local KL:
@@ -65,6 +64,7 @@ prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flo
 
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
+
 # sort modes:
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]
@@ -129,7 +129,7 @@ for i in range(num_params-1):
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
-        m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
+        m1, m2 = np.exp(reference_point[i]), np.exp(reference_point[i2+1])
         ax.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
         for k in range(num_modes):
@@ -154,7 +154,7 @@ g.fig.set_size_inches(x_size/2.54, y_size/2.54)
 
 # text:
 ax = g.subplots[0, 0]
-ax.text(0.01, 1.05, 'b) DES Y1 3x2', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
+ax.text(0.01, 1.05, 'a) DES Y1 shear', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
 
 # legend:
 leg_handlers, legend_labels = ax.get_legend_handles_labels()
@@ -186,6 +186,5 @@ hspace = 0.
 g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
                   wspace=wspace, hspace=hspace)
 leg.set_bbox_to_anchor((0.0, 0.0, right, top))
-
 # save:
-g.fig.savefig(out_folder+'/figure_DES_wCDM_triangle_2_KL.pdf')
+g.fig.savefig(out_folder+'/figure_DES_wCDM_triangle_1_KL.pdf')
