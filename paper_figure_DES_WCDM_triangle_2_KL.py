@@ -23,7 +23,7 @@ sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
 # import example:
-import example_DES_3x2 as example
+import example_DES_3x2_wcdm as example
 
 ###############################################################################
 # initial settings:
@@ -53,9 +53,11 @@ num_modes = 3
 
 num_params = len(example.log_param_names)
 # reference point:
-reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
-reference_point = np.array([example.posterior_chain.samples[np.argmin(example.posterior_chain.loglikes), :][example.posterior_chain.index[name]] for name in example.log_param_names])
+#reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
+#reference_point = np.array([example.posterior_chain.samples[np.argmin(example.posterior_chain.loglikes), :][example.posterior_chain.index[name]] for name in example.log_param_names])
 reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.log_param_names])
+reference_point_plot = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.param_names])
+
 # local fisher:
 fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([reference_point]))[0]
 prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([reference_point]))[0]
@@ -129,15 +131,29 @@ for i in range(num_params-1):
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
-        m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
+        if param2 != 'w':
+            #m1, m2 = reference_point[i], reference_point[i2+1]
+            m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
+
+            for k in range(num_modes):
+                idx1 = example.param_names.index(param1)
+                idx2 = example.param_names.index(param2)
+                temp = np.sqrt(eig[k])
+                alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
+                ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+        else:
+            m1, m2 = np.exp(reference_point[i]),(reference_point[i2+1])
+            print(m1,m2)
+            for k in range(num_modes):
+                idx1 = example.param_names.index(param1)
+                idx2 = example.param_names.index(param2)
+                temp = np.sqrt(eig[k])
+                alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
+                #print(m2*(alpha*eigv[idx2, k]))
+                ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+
         ax.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
-        for k in range(num_modes):
-            idx1 = example.param_names.index(param1)
-            idx2 = example.param_names.index(param2)
-            temp = np.sqrt(eig[k])
-            alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
 
 # ticks:
 for _row in g.subplots:

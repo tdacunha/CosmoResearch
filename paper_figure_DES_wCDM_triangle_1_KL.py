@@ -22,7 +22,7 @@ sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
 # import example:
-import example_DES_shear as example
+import example_DES_shear_wcdm as example
 
 ###############################################################################
 # initial settings:
