@@ -81,6 +81,7 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
         # load trained model:
         temp_MAF = synthetic_probability.SimpleMAF.load(num_params, flow_cache+'/posterior', n_maf=n_maf, hidden_units=hidden_units)
         # initialize flow:
+
         posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain,
                                                                 #prior_bijector=prior_flow.bijector,
                                                                 trainable_bijector=temp_MAF.bijector,
@@ -97,7 +98,8 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
                                                                 feedback=1,
                                                                 n_maf=n_maf, hidden_units=hidden_units, kernel_initializer=kernel_initializer) #kernel_initializer=TruncatedNormal(stddev=1e-3))
         # train posterior flow:
-        posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
+        posterior_flow.global_train(pop_size = 5, batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
+        #posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
         # save trained model:
         posterior_flow.MAF.save(flow_cache+'/posterior')
         # plot posterior:

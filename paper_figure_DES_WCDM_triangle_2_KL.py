@@ -150,7 +150,7 @@ for i in range(num_params-1):
                 temp = np.sqrt(eig[k])
                 alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
                 #print(m2*(alpha*eigv[idx2, k]))
-                ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+                ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2+(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
 
         ax.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
 

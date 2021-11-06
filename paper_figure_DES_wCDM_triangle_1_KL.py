@@ -129,16 +129,29 @@ for i in range(num_params-1):
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
-        m1, m2 = np.exp(reference_point[i]), np.exp(reference_point[i2+1])
+
+        if param2 != 'w':
+            #m1, m2 = reference_point[i], reference_point[i2+1]
+            m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
+
+            for k in range(num_modes):
+                idx1 = example.param_names.index(param1)
+                idx2 = example.param_names.index(param2)
+                temp = np.sqrt(eig[k])
+                alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
+                ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+        else:
+            m1, m2 = np.exp(reference_point[i]),(reference_point[i2+1])
+            print(m1,m2)
+            for k in range(num_modes):
+                idx1 = example.param_names.index(param1)
+                idx2 = example.param_names.index(param2)
+                temp = np.sqrt(eig[k])
+                alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
+                #print(m2*(alpha*eigv[idx2, k]))
+                ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2+(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+
         ax.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
-
-        for k in range(num_modes):
-            idx1 = example.param_names.index(param1)
-            idx2 = example.param_names.index(param2)
-            temp = np.sqrt(eig[k])
-            alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
-
 # ticks:
 for _row in g.subplots:
     for _ax in _row:
