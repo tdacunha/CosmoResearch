@@ -49,30 +49,39 @@ num_modes = 3
 
 ###############################################################################
 # do Local PCA:
-#MAP  = example.log_params_posterior_flow.MAP_coord
-means = []
-for i in range(0, len(example.log_param_names)):
-    param_i = example.log_param_names[i]
-    mean_i = example.posterior_chain.getMeans([example.posterior_chain.index[param_i]])[0]
-    means.append(mean_i)
-MAP = means
-#MAP = example.log_params_posterior_flow.sample_MAP
-
-
-# compute PCA of local fisher:
 num_params = len(example.log_param_names)
 
-# testing for global metric:
-# cov = example.posterior_chain.cov(example.log_param_names)
-# fisher = np.linalg.inv(cov)
+reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
+reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.log_param_names])
 
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP]))[0]
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([reference_point]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]
 eigv = eigv[:, idx]
+
+# print out modes:
+temp = np.dot(sqrt_fisher, eigv)
+contributions = temp * temp / eig
+for i in range(num_modes):
+    idx_max = np.argmax(contributions[:, i])
+    print('* Mode', i+1)
+    print('  Sqrt eig = ', np.round(np.sqrt(eig[i]), 2))
+    _directions = np.linalg.inv(eigv).T
+    _norm_eigv = _directions[:, i] / _directions[idx_max, i]
+    with np.printoptions(precision=2, suppress=True):
+        print('  Variance contributions', contributions[:, i])
+    string = ''
+    for j in range(num_params):
+        _name = example.log_param_names[j]
+        _mean = reference_point[j]
+        _mean = '{0:+}'.format(np.round(-_mean, 2))
+        _temp = '{0:+}'.format(np.round(_norm_eigv[j], 2))
+        string += _temp+'*('+_name+' '+_mean+') '
+    print('  Mode =', string, '= 0')
+    print(' ')
 
 ###############################################################################
 # plot:
@@ -112,22 +121,15 @@ for i in range(num_params-1):
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
-        #m1, m2 = example.posterior_chain.getBestFit().parWithName(param1).best_fit, example.posterior_chain.getBestFit().parWithName(param2).best_fit
-        #m1 = example.posterior_chain.getMeans([example.posterior_chain.index[param1]])[0]
-        #m2 = example.posterior_chain.getMeans([example.posterior_chain.index[param2]])[0]
-        #m1 = np.exp(example.log_params_posterior_flow.MAP_coord[i])
-        #m2 = np.exp(example.log_params_posterior_flow.MAP_coord[i2+1])
-        map1,map2 = np.exp(MAP[i]),np.exp(MAP[i2+1])
-        #ax.scatter([m1], [m2], c=[colors[0]], edgecolors='black', zorder=999, s=20)
-        ax.scatter(map1, map2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
+        m1, m2 = np.exp(reference_point[i]), np.exp(reference_point[i2+1])
+        ax.scatter([m1], [m2], c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
         for k in range(num_modes):
             idx1 = example.param_names.index(param1)
             idx2 = example.param_names.index(param2)
             temp = np.sqrt(eig[k])
             alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(map1*np.exp(alpha*eigv[idx1, k]), map2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
-            #ax.plot(m1 + alpha*eigv[idx1, k], m2 + alpha*eigv[idx2, k], c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
+            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
 
 # ticks:
 for _row in g.subplots:

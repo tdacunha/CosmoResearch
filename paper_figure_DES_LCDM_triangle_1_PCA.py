@@ -66,6 +66,27 @@ idx = np.argsort(eig)[::-1]
 eig = eig[idx]
 eigv = eigv[:, idx]
 
+# print out modes:
+temp = np.dot(sqrt_fisher, eigv)
+contributions = temp * temp / eig
+for i in range(num_modes):
+    idx_max = np.argmax(contributions[:, i])
+    print('* Mode', i+1)
+    print('  Sqrt eig = ', np.round(np.sqrt(eig[i]), 2))
+    _directions = np.linalg.inv(eigv).T
+    _norm_eigv = _directions[:, i] / _directions[idx_max, i]
+    with np.printoptions(precision=2, suppress=True):
+        print('  Variance contributions', contributions[:, i])
+    string = ''
+    for j in range(num_params):
+        _name = example.log_param_names[j]
+        _mean = reference_point[j]
+        _mean = '{0:+}'.format(np.round(-_mean, 2))
+        _temp = '{0:+}'.format(np.round(_norm_eigv[j], 2))
+        string += _temp+'*('+_name+' '+_mean+') '
+    print('  Mode =', string, '= 0')
+    print(' ')
+
 ###############################################################################
 # plot:
 
@@ -104,7 +125,7 @@ for i in range(num_params-1):
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
-        m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
+        m1, m2 = np.exp(reference_point[i]), np.exp(reference_point[i2+1])
         ax.scatter([m1], [m2], c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
         for k in range(num_modes):

@@ -68,8 +68,16 @@ prior_fisher = example_shear.log_params_prior_flow.metric(example_shear.log_para
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 _Neff = gaussian_tension.get_Neff(posterior_chain_1, prior_chain_1, param_names)
+# compute spectrum of Neff:
+C_p = posterior_chain_1.cov(pars=param_names)
+C_Pi = prior_chain_1.cov(pars=param_names)
+_temp = np.dot(np.linalg.inv(C_Pi), C_p)
+_eigv, _eigvec = np.linalg.eig(_temp)
+_eigv[_eigv > 1.] = 1.
+_eigv[_eigv < 0.] = 0.
 
-print('1) Neff = ', np.round(_Neff, 2))
+with np.printoptions(precision=2, suppress=True):
+    print('1) Neff = ', np.sort(1.-_eigv), '=', np.round(_Neff, 2))
 
 # sort modes:
 idx = np.argsort(eig)[::-1]
@@ -96,7 +104,16 @@ eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 _Neff = gaussian_tension.get_Neff(posterior_chain_2, prior_chain_2, param_names)
 
-print('2) Neff = ', np.round(_Neff, 2))
+# compute spectrum of Neff:
+C_p = posterior_chain_2.cov(pars=param_names)
+C_Pi = prior_chain_2.cov(pars=param_names)
+_temp = np.dot(np.linalg.inv(C_Pi), C_p)
+_eigv, _eigvec = np.linalg.eig(_temp)
+_eigv[_eigv > 1.] = 1.
+_eigv[_eigv < 0.] = 0.
+
+with np.printoptions(precision=2, suppress=True):
+    print('2) Neff = ', np.sort(1.-_eigv), '=', np.round(_Neff, 2))
 
 # sort modes:
 idx = np.argsort(eig)[::-1]

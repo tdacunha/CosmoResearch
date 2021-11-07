@@ -76,7 +76,7 @@ contributions = temp * temp / eig
 for i in range(num_modes):
     idx_max = np.argmax(contributions[:, i])
     print('* Mode', i+1)
-    print('  Sqrt eig = ', np.round(np.sqrt(eig[i]),2))
+    print('  Sqrt eig = ', np.round(np.sqrt(eig[i]), 2))
     _directions = np.linalg.inv(eigv).T
     _norm_eigv = _directions[:, i] / _directions[idx_max, i]
     with np.printoptions(precision=2, suppress=True):
