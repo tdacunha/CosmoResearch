@@ -540,7 +540,7 @@ class DiffFlowCallback(Callback):
         loss = np.array(loss)
         val_loss = np.array(val_loss)
         # select best:
-        self.model.set_weights(population[np.argmin(loss + val_loss)])
+        self.model.set_weights(population[np.argmin(val_loss)])
         #
         return population, loss, val_loss
 
