@@ -1247,15 +1247,23 @@ def solve_KL_ode(flow, prior_flow, y0, n, length=1.5, side='both', integrator_op
     #
     return times, traj, vel
 
+###############################################################################
+# Transformed flow:
+class TransformedDiffFlowCallback(DiffFlowCallback):
+    def __init__(self, flow, transformation):
+        self.num_params = flow.num_params
+        if isinstance(transformation, Iterable):
+            tmap = transformation
+        else:
+            tmap = [transformation]*self.num_params
 
-
-
-
-
-
-
-
-
-
-
-pass
+        # New bijector
+        split = tfb.Split(self.num_params, axis=-1)
+        b = tfb.Chain([tfb.Invert(split), tfb.JointMap(tmap), split])
+        
+        self.param_names = [t.name+'_'+name for t,name in zip(tmap, flow.param_names)]
+        
+        self.bijectors = [b] + flow.bijectors
+        self.bijector = tfb.Chain(self.bijectors)
+        
+        self.distribution = tfd.TransformedDistribution(distribution=flow.distribution.distribution, bijector=self.bijector)
