@@ -1249,8 +1249,12 @@ def solve_KL_ode(flow, prior_flow, y0, n, length=1.5, side='both', integrator_op
 
 ###############################################################################
 # Transformed flow:
+
+
 class TransformedDiffFlowCallback(DiffFlowCallback):
+
     def __init__(self, flow, transformation):
+
         self.num_params = flow.num_params
         if isinstance(transformation, Iterable):
             tmap = transformation
@@ -1260,10 +1264,22 @@ class TransformedDiffFlowCallback(DiffFlowCallback):
         # New bijector
         split = tfb.Split(self.num_params, axis=-1)
         b = tfb.Chain([tfb.Invert(split), tfb.JointMap(tmap), split])
-        
-        self.param_names = [t.name+'_'+name for t,name in zip(tmap, flow.param_names)]
-        
+
+        # parameter names and labels:
+        self.param_names = [t.name+'_'+name for t, name in zip(tmap, flow.param_names)]
+        self.param_labels = [t.name+' '+name for t, name in zip(tmap, flow.param_labels)]
+        # set ranges:
+        if flow.parameter_ranges is not None:
+            parameter_ranges = {}
+            for i, name in enumerate(flow.param_names):
+                parameter_ranges[self.param_names[i]] = list(tmap[i](flow.parameter_ranges[name]).numpy())
+            self.parameter_ranges = parameter_ranges
+        else:
+            self.parameter_ranges = None
+        # set name tag:
+        self.name_tag = flow.name_tag+'_transformed'
+
+        # set bijectors and distribution:
         self.bijectors = [b] + flow.bijectors
         self.bijector = tfb.Chain(self.bijectors)
-        
         self.distribution = tfd.TransformedDistribution(distribution=flow.distribution.distribution, bijector=self.bijector)
