@@ -62,16 +62,6 @@ param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns']
 params_flow_cache = out_folder+'params_flow_cache'
 temp = DES_generate.helper_load_chains(param_names, prior_chain, posterior_chain, params_flow_cache)
 params_prior_flow, params_posterior_flow = temp
-#
-full_param_names = ['omegam', 'omegab', 'H0', 'sigma8', 'ns',
-                    'DES_b1', 'DES_b2', 'DES_b3', 'DES_b4', 'DES_b5',
-                    'DES_m1', 'DES_m2', 'DES_m3', 'DES_m4',
-                    'DES_AIA', 'DES_alphaIA',
-                    'DES_DzL1', 'DES_DzL2', 'DES_DzL3', 'DES_DzL4', 'DES_DzL5',
-                    'DES_DzS1', 'DES_DzS2', 'DES_DzS3', 'DES_DzS4']
-full_params_flow_cache = out_folder+'full_params_flow_cache'
-temp = DES_generate.helper_load_chains(full_param_names, prior_chain, posterior_chain, full_params_flow_cache)
-full_params_prior_flow, full_params_posterior_flow = temp
 
 ###############################################################################
 # sanity triangle plot:
@@ -96,14 +86,6 @@ if __name__ == '__main__':
                      params_posterior_flow.MCSamples(num_samples)],
                     params=param_names, filled=False)
     g.export(out_folder+'/0_sample_prior_posterior_distribution.pdf')
-
-    g = plots.get_subplot_plotter()
-    g.triangle_plot([prior_chain,
-                     full_params_prior_flow.MCSamples(num_samples),
-                     posterior_chain,
-                     full_params_posterior_flow.MCSamples(num_samples)],
-                    params=full_param_names, filled=False)
-    g.export(out_folder+'/0_sample_prior_posterior_distribution_full.pdf')
 
 ###############################################################################
 # PCA of covariance:

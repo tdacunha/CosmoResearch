@@ -54,6 +54,7 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
     n_maf = kwargs.get('n_maf', 1*num_params)
     hidden_units = kwargs.get('hidden_units', [num_params]*2)
     kernel_initializer = kwargs.get('kernel_initializer', GlorotNormal())
+    pop_size = kwargs.get('pop_size', 10)
 
     # prior flow:
     if os.path.isfile(flow_cache+'/prior'+'_permutations.pickle'):
@@ -68,7 +69,7 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
                                                             param_names=param_names, feedback=1, n_maf=n_maf,
                                                             hidden_units=hidden_units)
         # train prior flow:
-        prior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
+        prior_flow.global_train(pop_size=pop_size, batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks, verbose=0)
         # save trained model:
         prior_flow.MAF.save(flow_cache+'/prior')
         # plot:
@@ -98,8 +99,7 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
                                                                 feedback=1,
                                                                 n_maf=n_maf, hidden_units=hidden_units, kernel_initializer=kernel_initializer) #kernel_initializer=TruncatedNormal(stddev=1e-3))
         # train posterior flow:
-        posterior_flow.global_train(pop_size = 5, batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
-        #posterior_flow.train(batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks)
+        posterior_flow.global_train(pop_size=pop_size, batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks, verbose=0)
         # save trained model:
         posterior_flow.MAF.save(flow_cache+'/posterior')
         # plot posterior:
