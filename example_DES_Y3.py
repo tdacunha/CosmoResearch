@@ -23,6 +23,8 @@ temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
+import synthetic_probability
+from tensorflow_probability import bijectors as bj
 
 ###############################################################################
 # initial settings:

@@ -1266,8 +1266,15 @@ class TransformedDiffFlowCallback(DiffFlowCallback):
         b = tfb.Chain([tfb.Invert(split), tfb.JointMap(tmap), split])
 
         # parameter names and labels:
-        self.param_names = [t.name+'_'+name for t, name in zip(tmap, flow.param_names)]
-        self.param_labels = [t.name+' '+name for t, name in zip(tmap, flow.param_labels)]
+        self.param_names = []
+        self.param_labels = []
+        for t, name, label in zip(tmap, flow.param_names, flow.param_labels):
+            if t.name != '':
+                self.param_names.append(t.name+'_'+name)
+                self.param_labels.append(t.name+' '+label)
+            else:
+                self.param_names.append(name)
+                self.param_labels.append(label)
         # set ranges:
         if flow.parameter_ranges is not None:
             parameter_ranges = {}
@@ -1278,7 +1285,16 @@ class TransformedDiffFlowCallback(DiffFlowCallback):
             self.parameter_ranges = None
         # set name tag:
         self.name_tag = flow.name_tag+'_transformed'
-
+        # set sample MAP:
+        if flow.sample_MAP is not None:
+            self.sample_MAP = np.array([trans(par).numpy() for par, trans in zip(flow.sample_MAP, tmap)])
+        else:
+            self.sample_MAP = None
+        # set chains MAP:
+        if flow.chain_MAP is not None:
+            self.chain_MAP = np.array([trans(par).numpy() for par, trans in zip(flow.chain_MAP, tmap)])
+        else:
+            self.chain_MAP = None
         # set bijectors and distribution:
         self.bijectors = [b] + flow.bijectors
         self.bijector = tfb.Chain(self.bijectors)

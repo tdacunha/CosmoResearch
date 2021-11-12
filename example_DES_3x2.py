@@ -23,6 +23,8 @@ temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
+import synthetic_probability
+from tensorflow_probability import bijectors as bj
 
 ###############################################################################
 # initial settings:
@@ -53,15 +55,15 @@ for ch in [prior_chain, posterior_chain]:
 ###############################################################################
 # train the relevant flows:
 
-log_param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns']
-log_params_flow_cache = out_folder+'log_params_flow_cache'
-temp = DES_generate.helper_load_chains(log_param_names, prior_chain, posterior_chain, log_params_flow_cache)
-log_params_prior_flow, log_params_posterior_flow = temp
-#
 param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns']
 params_flow_cache = out_folder+'params_flow_cache'
 temp = DES_generate.helper_load_chains(param_names, prior_chain, posterior_chain, params_flow_cache)
 params_prior_flow, params_posterior_flow = temp
+
+transformation = [bj.Log()]*len(param_names)
+log_params_prior_flow = synthetic_probability.TransformedDiffFlowCallback(params_prior_flow, transformation)
+log_params_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(params_posterior_flow, transformation)
+log_param_names = log_params_prior_flow.param_names
 
 ###############################################################################
 # sanity triangle plot:
