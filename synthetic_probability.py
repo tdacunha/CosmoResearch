@@ -13,11 +13,7 @@ self = Callback()
 ###############################################################################
 # initial imports and set-up:
 
-import os
-import time
-import gc
 import copy
-from numba import jit
 import numpy as np
 import getdist.chains as gchains
 gchains.print_load_details = False
@@ -795,14 +791,32 @@ class DiffFlowCallback(Callback):
     @tf.function()
     def levi_civita_connection(self, coord):
         """
-        Compute the Levi-Civita connection
+        Compute the Levi-Civita connection, gives Gamma^i_j_k
         """
         inv_metric = self.inverse_metric(coord)
         metric_derivative = self.coord_metric_derivative(coord)
         # rearrange indexes:
-        term_1 = tf.einsum("...kjl -> ...jkl", metric_derivative)
-        term_2 = tf.einsum("...lik -> ...ikl", metric_derivative)
-        term_3 = tf.einsum("...kli -> ...ikl", metric_derivative)
+        # term_1 = tf.einsum("...kjl -> ...jkl", metric_derivative)
+        # term_2 = tf.einsum("...lik -> ...ikl", metric_derivative)
+        # term_3 = tf.einsum("...kli -> ...ikl", metric_derivative)
+        # first transpose:
+        trailing_axes = [-2, -3, -1]
+        leading = tf.range(tf.rank(metric_derivative) - len(trailing_axes))
+        trailing = trailing_axes + tf.rank(metric_derivative)
+        new_order = tf.concat([leading, trailing], axis=0)
+        term_1 = tf.transpose(metric_derivative, new_order)
+        # second transpose:
+        trailing_axes = [-2, -1, -3]
+        leading = tf.range(tf.rank(metric_derivative) - len(trailing_axes))
+        trailing = trailing_axes + tf.rank(metric_derivative)
+        new_order = tf.concat([leading, trailing], axis=0)
+        term_2 = tf.transpose(metric_derivative, new_order)
+        # third transpose:
+        trailing_axes = [-1, -3, -2]
+        leading = tf.range(tf.rank(metric_derivative) - len(trailing_axes))
+        trailing = trailing_axes + tf.rank(metric_derivative)
+        new_order = tf.concat([leading, trailing], axis=0)
+        term_3 = tf.transpose(metric_derivative, new_order)
         # compute
         connection = 0.5*tf.einsum("...ij,...jkl-> ...ikl", inv_metric, term_1 + term_2 - term_3)
         #
