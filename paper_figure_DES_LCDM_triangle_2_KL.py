@@ -79,6 +79,9 @@ for i in range(num_modes):
     print('  Sqrt eig = ', np.round(np.sqrt(eig[i]), 2))
     _directions = np.linalg.inv(eigv).T
     _norm_eigv = _directions[:, i] / _directions[idx_max, i]
+    # normalize to fixed param:
+    ref_idx = example.log_param_names.index('log_sigma8')
+    _norm_eigv = _directions[:, i] / _directions[ref_idx, i]
     with np.printoptions(precision=2, suppress=True):
         print('  Variance contributions', contributions[:, i])
     string = ''

@@ -52,7 +52,7 @@ num_modes = 2
 
 num_params = len(example.log_param_names)
 # reference point:
-reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
+#reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
 reference_point = np.array([example.posterior_chain.samples[np.argmin(example.posterior_chain.loglikes), :][example.posterior_chain.index[name]] for name in example.log_param_names])
 reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.log_param_names])
 # local fisher:
@@ -79,6 +79,9 @@ for i in range(num_modes):
     print('  Sqrt eig = ', np.round(np.sqrt(eig[i]),2))
     _directions = np.linalg.inv(eigv).T
     _norm_eigv = _directions[:, i] / _directions[idx_max, i]
+    # normalize to fixed param:
+    ref_idx = example.log_param_names.index('log_sigma8')
+    _norm_eigv = _directions[:, i] / _directions[ref_idx, i]
     with np.printoptions(precision=2, suppress=True):
         print('  Variance contributions', contributions[:, i])
     string = ''
