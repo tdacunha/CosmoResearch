@@ -1152,6 +1152,27 @@ def tf_KL_decomposition(matrix_a, matrix_b):
     return _lambda, _phi
 
 
+#def _naive_KL_ode(t, y, reference, flow, prior_flow):
+#    """
+#    Solve naively the dynamical equation for KL decomposition in abstract space.
+#    """
+#    # preprocess:
+#    x = tf.convert_to_tensor([tf.cast(y, tf.float32)])
+#    # compute metrics:
+#    metric = flow.metric(x)[0]
+#    prior_metric = prior_flow.metric(x)[0]
+#    # compute KL decomposition:
+#    eig, eigv = tf_KL_decomposition(metric, prior_metric)
+#    # normalize to one to project and select direction:
+#    temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))[:, 0] / tf.linalg.norm(eigv, axis=0)
+#    idx = tf.math.argmax(tf.abs(temp))
+#    w = tf.math.sign(temp[idx]) * eigv[:, idx]
+#    # normalize affine parameter:
+#    s = tf.math.sqrt(tf.tensordot(w, tf.tensordot(metric, w, 1), 1))
+#    #
+#    return tf.convert_to_tensor([w / s])
+
+
 def _naive_KL_ode(t, y, reference, flow, prior_flow):
     """
     Solve naively the dynamical equation for KL decomposition in abstract space.
@@ -1164,7 +1185,12 @@ def _naive_KL_ode(t, y, reference, flow, prior_flow):
     # compute KL decomposition:
     eig, eigv = tf_KL_decomposition(metric, prior_metric)
     # normalize to one to project and select direction:
-    temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))[:, 0] / tf.linalg.norm(eigv, axis=0)
+    #temp = tf.linalg.matvec(tf.matmul(tf.transpose(eigv), metric), reference) - tf.tensordot(reference, tf.tensordot(metric, reference, 1), 1)
+    #idx = tf.math.argmin(tf.abs(temp))
+    #temp_2 = tf.tensordot(eigv[:, idx], reference, 1)
+    #w = tf.math.sign(temp_2) * eigv[:, idx]
+    #
+    temp = tf.matmul(tf.transpose(eigv), tf.transpose([reference]))[:, 0] / tf.linalg.norm(eigv, axis=0) / tf.linalg.norm(reference)
     idx = tf.math.argmax(tf.abs(temp))
     w = tf.math.sign(temp[idx]) * eigv[:, idx]
     # normalize affine parameter:
@@ -1199,7 +1225,8 @@ def solve_KL_ode(flow, prior_flow, y0, n, length=1.5, side='both', integrator_op
         if integrator_options is not None:
             solver.set_integrator(**integrator_options)
         solver.set_initial_value(y0, 0.)
-        reference = eigv[:, n] / tf.norm(eigv[:, n])
+        #reference = eigv[:, n] / tf.norm(eigv[:, n])
+        reference = eigv[:, n]
         yt = y0.numpy()
         yprime = eigv[:, n]
         # do the time steps:
@@ -1213,7 +1240,8 @@ def solve_KL_ode(flow, prior_flow, y0, n, length=1.5, side='both', integrator_op
             except:
                 pass
             # update reference:
-            reference = yprime[0] / tf.norm(yprime[0])
+            # reference = yprime[0] / tf.norm(yprime[0])
+            reference = yprime[0]
             # save out:
             temp_sol_1[ind] = yt.copy()
             temp_sol_dot_1[ind] = yprime.numpy().copy()
@@ -1232,7 +1260,8 @@ def solve_KL_ode(flow, prior_flow, y0, n, length=1.5, side='both', integrator_op
         if integrator_options is not None:
             solver.set_integrator(**integrator_options)
         solver.set_initial_value(y0, 0.)
-        reference = - eigv[:, n] / tf.norm(eigv[:, n])
+        # reference = - eigv[:, n] / tf.norm(eigv[:, n])
+        reference = - eigv[:, n]
         yt = y0.numpy()
         yprime = reference
         for ind, t in enumerate(solution_times[1:]):
@@ -1245,7 +1274,8 @@ def solve_KL_ode(flow, prior_flow, y0, n, length=1.5, side='both', integrator_op
             except:
                 pass
             # update reference:
-            reference = yprime[0] / tf.norm(yprime[0])
+            # reference = yprime[0] / tf.norm(yprime[0])
+            reference = yprime[0]
             # save out:
             temp_sol_2[ind] = yt.copy()
             temp_sol_dot_2[ind] = yprime.numpy().copy()
