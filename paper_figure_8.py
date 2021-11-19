@@ -163,7 +163,7 @@ class AnyObjectHandler2(HandlerBase):
 
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
                 object_1, object_2]
-legend_labels = [r'$\mathcal{P}$', 'PC of $\\tilde{\\theta}$', 'PC of $\\theta$']
+legend_labels = [r'$\mathcal{P}$', 'PCCs of $\\tilde{\\theta}$', 'PCCs of $\\theta$']
 
 leg = fig.legend(handles=leg_handlers,
                 labels=legend_labels,
