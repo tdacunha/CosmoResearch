@@ -48,19 +48,19 @@ main_fontsize = 10.0
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(3, 0, -1)]
 
-#### compute LPCA flow in the first basis:
+#### compute CPCA flow in the first basis:
 
 # compute maximum posterior and metric:
 maximum_posterior = example.posterior_flow.MAP_coord
 
 # compute the two base eigenvalues trajectories:
 y0 = example.posterior_flow.cast(maximum_posterior)
-length_1 = (example.posterior_flow.sigma_to_length(8)).astype(np.float32)
-length_2 = (example.posterior_flow.sigma_to_length(8)).astype(np.float32)
+length_1 = (example.posterior_flow.sigma_to_length(2)).astype(np.float32)
+length_2 = (example.posterior_flow.sigma_to_length(2)).astype(np.float32)
 length_1 = 20
 length_2 = 20
-ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=200)
-ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=200)
+_, LKL_mode_1, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, y0, n=0, length=length_1, num_points=1000)
+_, LKL_mode_2, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, y0, n=1, length=length_2, num_points=1000)
 
 #### get new distribution:
 
@@ -74,12 +74,12 @@ new_maximum_posterior = new_posterior_flow.MAP_coord
 
 # compute the two base eigenvalues trajectories:
 y0 = new_posterior_flow.cast(new_maximum_posterior)
-length_1 = (new_posterior_flow.sigma_to_length(8)).astype(np.float32)
-length_2 = (new_posterior_flow.sigma_to_length(8)).astype(np.float32)
+length_1 = (new_posterior_flow.sigma_to_length(2)).astype(np.float32)
+length_2 = (new_posterior_flow.sigma_to_length(2)).astype(np.float32)
 length_1 = 20
 length_2 = 20
-new_ref_times_1, new_ref_start_1 = new_posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=200)
-new_ref_times_2, new_ref_start_2 = new_posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=200)
+_, new_LKL_mode_1, _ = synthetic_probability.solve_KL_ode(new_posterior_flow, new_prior_flow, y0, n=0, length=length_1, num_points=1000)
+_, new_LKL_mode_2, _ = synthetic_probability.solve_KL_ode(new_posterior_flow, new_prior_flow, y0, n=1, length=length_2, num_points=1000)
 
 # do the plot:
 param_ranges = [[0.01, 0.6], [0.4, 1.5]]
@@ -109,14 +109,15 @@ ax1 = plt.subplot(gs[0])
 ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
 
 # MAP:
-ax1.scatter(*maximum_posterior, s=5.0, color='k', zorder=999)
+ax1.scatter(*new_maximum_posterior, s=5.0, color='k', zorder=999)
 
 # principal modes:
-ax1.plot(*np.exp(new_ref_start_1.numpy()).T, lw=1.0, ls='-', color=color_utilities.nice_colors(0))
-ax1.plot(*np.exp(new_ref_start_2.numpy()).T, lw=1.0, ls='-', color=color_utilities.nice_colors(1))
+ax1.plot(*np.exp(new_LKL_mode_1).T, lw=1.0, ls='-', color=color_utilities.nice_colors(0))
+ax1.plot(*np.exp(new_LKL_mode_2).T, lw=1.0, ls='-', color=color_utilities.nice_colors(1))
 
-ax1.plot(ref_start_1[:, 0].numpy(), ref_start_1[:, 1].numpy(), lw=1.5, ls=':', color=color_utilities.nice_colors(2))
-ax1.plot(ref_start_2[:, 0].numpy(), ref_start_2[:, 1].numpy(), lw=1.5, ls=':', color=color_utilities.nice_colors(3))
+ax1.plot(LKL_mode_1[:, 0], LKL_mode_1[:, 1], lw=1.5, ls=':', color=color_utilities.nice_colors(2))
+ax1.plot(LKL_mode_2[:, 0], LKL_mode_2[:, 1], lw=1.5, ls=':', color=color_utilities.nice_colors(3))
+
 
 # limits:
 ax1.set_xlim([0.1, 0.45])
@@ -161,7 +162,7 @@ class AnyObjectHandler2(HandlerBase):
 
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
                 object_1, object_2]
-legend_labels = [r'$\mathcal{P}$', 'PCCs of $\\tilde{\\theta}$', 'PCCs of $\\theta$']
+legend_labels = [r'$\mathcal{P}$', 'PC of $\\tilde{\\theta}$', 'PC of $\\theta$']
 
 leg = fig.legend(handles=leg_handlers,
                 labels=legend_labels,
@@ -190,5 +191,5 @@ hspace = 0.3
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 leg.set_bbox_to_anchor((left, 0.005, right-left, right))
-plt.savefig(out_folder+'/figure_8.pdf')
+plt.savefig(out_folder+'/figure_9.pdf')
 plt.close('all')

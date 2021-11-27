@@ -48,46 +48,36 @@ colors = [color_utilities.nice_colors(i) for i in range(6)]
 ###############################################################################
 # define chains and flows:
 
-posterior_flows = [example.lcdm_shear_log_params_posterior_flow,
-                   example.wcdm_shear_log_params_posterior_flow,
-                   example.mnu_shear_log_params_posterior_flow,
-                   example.lcdm_3x2_log_params_posterior_flow,
-                   example.wcdm_3x2_log_params_posterior_flow,
-                   example.mnu_3x2_log_params_posterior_flow,
-                   ]
-prior_flows = [example.lcdm_shear_log_params_prior_flow,
-               example.wcdm_shear_log_params_prior_flow,
-               example.mnu_shear_log_params_prior_flow,
-               example.lcdm_3x2_log_params_prior_flow,
-               example.wcdm_3x2_log_params_prior_flow,
-               example.mnu_3x2_log_params_prior_flow,
-               ]
-posterior_chains = [example.posterior_chain_lcdm_shear,
-                    example.posterior_chain_wcdm_shear,
-                    example.posterior_chain_mnu_shear,
-                    example.posterior_chain_lcdm_3x2,
-                    example.posterior_chain_wcdm_3x2,
-                    example.posterior_chain_mnu_3x2,
-                    ]
-prior_chains = [example.prior_chain_lcdm_shear,
-                example.prior_chain_wcdm_shear,
-                example.prior_chain_mnu_shear,
-                example.prior_chain_lcdm_3x2,
-                example.prior_chain_wcdm_3x2,
-                example.prior_chain_mnu_3x2,
+combinations = [
+                #[example.lcdm_shear_log_params_posterior_flow, example.lcdm_shear_log_params_prior_flow, example.posterior_chain_lcdm_shear, example.prior_chain_lcdm_shear],
+                #[example.lcdm_shear_log_params_full_posterior_flow, example.lcdm_shear_log_params_full_prior_flow, example.posterior_chain_lcdm_shear, example.prior_chain_lcdm_shear],
+                #[example.wcdm_shear_log_params_posterior_flow, example.wcdm_shear_log_params_prior_flow, example.posterior_chain_wcdm_shear, example.prior_chain_wcdm_shear],
+                #[example.wcdm_shear_log_params_full_posterior_flow, example.wcdm_shear_log_params_full_prior_flow, example.posterior_chain_wcdm_shear, example.prior_chain_wcdm_shear],
+                #[example.mnu_shear_log_params_posterior_flow, example.mnu_shear_log_params_prior_flow, example.posterior_chain_mnu_shear, example.prior_chain_mnu_shear],
+                #[example.mnu_shear_log_params_full_posterior_flow, example.mnu_shear_log_params_full_prior_flow, example.posterior_chain_mnu_shear, example.prior_chain_mnu_shear],
+                #[example.lcdm_3x2_log_params_posterior_flow, example.lcdm_3x2_log_params_prior_flow, example.posterior_chain_lcdm_3x2, example.prior_chain_lcdm_3x2],
+                #[example.lcdm_3x2_log_params_full_posterior_flow, example.lcdm_3x2_log_params_full_prior_flow, example.posterior_chain_lcdm_3x2, example.prior_chain_lcdm_3x2],
+                #[example.wcdm_3x2_log_params_posterior_flow, example.wcdm_3x2_log_params_prior_flow, example.posterior_chain_wcdm_3x2, example.prior_chain_wcdm_3x2],
+                #[example.wcdm_3x2_log_params_full_posterior_flow, example.wcdm_3x2_log_params_full_prior_flow, example.posterior_chain_wcdm_3x2, example.prior_chain_wcdm_3x2],
+                #[example.mnu_3x2_log_params_posterior_flow, example.mnu_3x2_log_params_prior_flow, example.posterior_chain_mnu_3x2, example.prior_chain_mnu_3x2],
+                #[example.mnu_3x2_log_params_full_posterior_flow, example.mnu_3x2_log_params_full_prior_flow, example.posterior_chain_mnu_3x2, example.prior_chain_mnu_3x2],
+                #
+                [example.lcdm_3x2_log_params_posterior_flow, example.lcdm_shear_log_params_posterior_flow, example.posterior_chain_lcdm_3x2, example.posterior_chain_lcdm_shear],
+                [example.wcdm_3x2_log_params_posterior_flow, example.wcdm_shear_log_params_posterior_flow, example.posterior_chain_wcdm_3x2, example.posterior_chain_wcdm_shear],
+                [example.mnu_3x2_log_params_posterior_flow, example.mnu_shear_log_params_posterior_flow, example.posterior_chain_mnu_3x2, example.posterior_chain_mnu_shear],
                 ]
 
-num_chains = len(posterior_chains)
+num_chains = len(combinations)
 
 ###############################################################################
 # loop over chains:
 
 for ind in range(num_chains):
     # get chains:
-    prior_chain = prior_chains[ind]
-    posterior_chain = posterior_chains[ind]
-    prior_flow = prior_flows[ind]
-    posterior_flow = posterior_flows[ind]
+    posterior_flow = combinations[ind][0]
+    prior_flow = combinations[ind][1]
+    posterior_chain = combinations[ind][2]
+    prior_chain = combinations[ind][3]
     # get param names:
     param_names = posterior_flow.param_names
     num_params = len(param_names)

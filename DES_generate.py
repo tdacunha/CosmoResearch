@@ -61,12 +61,18 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
         # load trained model:
         temp_MAF = synthetic_probability.SimpleMAF.load(num_params, flow_cache+'/prior', n_maf=n_maf, hidden_units=hidden_units)
         # initialize flow:
-        prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, prior_bijector='ranges', trainable_bijector=temp_MAF.bijector,
+        prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
+                                                            #prior_bijector='ranges',
+                                                            prior_bijector=None,
+                                                            trainable_bijector=temp_MAF.bijector,
                                                             param_names=param_names, feedback=0)
     else:
         # initialize prior flow:
-        prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, prior_bijector='ranges',
-                                                            param_names=param_names, feedback=1, n_maf=n_maf,
+        prior_flow = synthetic_probability.DiffFlowCallback(prior_chain,
+                                                            #prior_bijector='ranges',
+                                                            prior_bijector=None,
+                                                            param_names=param_names,
+                                                            feedback=1, n_maf=n_maf,
                                                             hidden_units=hidden_units)
         # train prior flow:
         prior_flow.global_train(pop_size=pop_size, batch_size=batch_size, epochs=epochs, steps_per_epoch=steps_per_epoch, callbacks=callbacks, verbose=0)
@@ -85,6 +91,8 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
 
         posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain,
                                                                 #prior_bijector=prior_flow.bijector,
+                                                                #prior_bijector='ranges',
+                                                                prior_bijector=None,
                                                                 trainable_bijector=temp_MAF.bijector,
                                                                 param_ranges=prior_flow.parameter_ranges,
                                                                 param_names=prior_flow.param_names,
@@ -93,7 +101,8 @@ def helper_load_chains(param_names, prior_chain, posterior_chain, flow_cache, **
         # initialize posterior flow:
         posterior_flow = synthetic_probability.DiffFlowCallback(posterior_chain,
                                                                 #prior_bijector=prior_flow.bijector,
-                                                                #prior_bijector=None,
+                                                                #prior_bijector='ranges',
+                                                                prior_bijector=None,
                                                                 param_ranges=prior_flow.parameter_ranges,
                                                                 param_names=prior_flow.param_names,
                                                                 feedback=1,

@@ -45,6 +45,7 @@ try:
     from tensorflow.keras.callbacks import Callback
     HAS_FLOW = True
     prec = tf.float32
+    np_prec = np.float32
 except Exception as e:
     print("Could not import tensorflow or tensorflow_probability: ", e)
     Callback = object
@@ -185,13 +186,13 @@ def prior_bijector_helper(prior_dict_list=None, name=None, loc=None, cov=None, *
 
     """
     def uniform(a, b):
-        return tfb.Chain([tfb.Shift(np.float32((a+b)/2)), tfb.Scale(np.float32(b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
+        return tfb.Chain([tfb.Shift(np_prec((a+b)/2)), tfb.Scale(np_prec(b-a)), tfb.Shift(-0.5), tfb.NormalCDF()])
 
     def normal(mu, sig):
-        return tfb.Chain([tfb.Shift(np.float32(mu)), tfb.Scale(np.float32(sig))])
+        return tfb.Chain([tfb.Shift(np_prec(mu)), tfb.Scale(np_prec(sig))])
 
     def multivariate_normal(loc, cov):
-        return tfd.MultivariateNormalTriL(loc=loc.astype(np.float32), scale_tril=tf.linalg.cholesky(cov.astype(np.float32))).bijector
+        return tfd.MultivariateNormalTriL(loc=loc.astype(np_prec), scale_tril=tf.linalg.cholesky(cov.astype(np_prec))).bijector
 
     if prior_dict_list is not None: # Mix of uniform and gaussian one-dimensional priors
 
@@ -294,7 +295,7 @@ class DiffFlowCallback(Callback):
             print("    - trainable parameters:", self.model.count_params())
 
         # Metrics
-        keys = ["loss", "val_loss", "chi2Z_ks", "chi2Z_ks_p"]
+        keys = ["loss", "val_loss", "chi2Z_ks", "chi2Z_ks_p", "evidence", "evidence_error"]
         self.log = {_k: [] for _k in keys}
 
         self.chi2Y = np.sum(self.samples_test**2, axis=1)
@@ -302,6 +303,8 @@ class DiffFlowCallback(Callback):
 
         # internal variables:
         self.is_trained = False
+        self.MAP_coord = None
+        self.MAP_logP = None
 
     def _init_chain(self, chain, param_names=None, param_ranges=None, validation_split=0.1, prior_bijector='ranges', apply_pregauss=True, trainable_bijector='MAF'):
         """
@@ -355,7 +358,7 @@ class DiffFlowCallback(Callback):
                 if do_extend or True:
                     center = 0.5 * (temp_range[0]+temp_range[1])
                     length = temp_range[1] - temp_range[0]
-                    eps = 10.*np.finfo(np.float32).eps
+                    eps = 10.*np.finfo(np_prec).eps
                     eps = 0.001
                     temp_range = [center - 0.5*length*(1.+eps), center + 0.5*length*(1.+eps)]
                 # save:
@@ -383,6 +386,11 @@ class DiffFlowCallback(Callback):
         ind = [chain.index[name] for name in param_names]
         self.num_params = len(ind)
 
+        # cache chain samples and log likes:
+        self.chain_samples = chain.samples[:, ind]
+        self.chain_loglikes = chain.loglikes
+        self.chain_weights = chain.weights
+
         # Gaussian approximation (full chain)
         if apply_pregauss:
             temp_X = self.prior_bijector.inverse(chain.samples[:, ind]).numpy()
@@ -400,17 +408,17 @@ class DiffFlowCallback(Callback):
         test_idx, training_idx = indices[:n_split], indices[n_split:]
 
         # Training:
-        self.samples = self.fixed_bijector.inverse(chain.samples[training_idx, :][:, ind]).numpy().astype(np.float32)
+        self.samples = self.fixed_bijector.inverse(chain.samples[training_idx, :][:, ind]).numpy().astype(np_prec)
         self.weights = chain.weights[training_idx]
         self.weights *= len(self.weights) / np.sum(self.weights)  # weights normalized to number of samples
         self.has_weights = np.any(self.weights != self.weights[0])
-        # self.Y = np.array(self.Y2X_bijector.inverse(self.samples.astype(np.float32)))
+        # self.Y = np.array(self.Y2X_bijector.inverse(self.samples.astype(np_prec)))
         # assert not np.any(np.isnan(self.Y))
         self.num_samples = len(self.samples)
 
         # Test
-        self.samples_test = self.fixed_bijector.inverse(chain.samples[test_idx, :][:, ind]).numpy().astype(np.float32)
-        # self.Y_test = np.array(self.Y2X_bijector.inverse(self.samples_test.astype(np.float32)))
+        self.samples_test = self.fixed_bijector.inverse(chain.samples[test_idx, :][:, ind]).numpy().astype(np_prec)
+        # self.Y_test = np.array(self.Y2X_bijector.inverse(self.samples_test.astype(np_prec)))
         self.weights_test = chain.weights[test_idx]
         self.weights_test *= len(self.weights_test) / np.sum(self.weights_test)  # weights normalized to number of samples
 
@@ -448,7 +456,7 @@ class DiffFlowCallback(Callback):
         self.bijector = tfb.Chain(self.bijectors)
 
         # Full distribution
-        base_distribution = tfd.MultivariateNormalDiag(tf.zeros(self.num_params), tf.ones(self.num_params))
+        base_distribution = tfd.MultivariateNormalDiag(tf.zeros(self.num_params, dtype=prec), tf.ones(self.num_params, dtype=prec))
         self.distribution = tfd.TransformedDistribution(distribution=base_distribution, bijector=self.bijector)  # samples from std gaussian mapped to original space
 
         # Construct model (using only trainable bijector)
@@ -652,6 +660,19 @@ class DiffFlowCallback(Callback):
         This is the inverse of from_chi2_to_sigma, should implement it as such, with the inverse of the asynth expansion.
         """
         return np.sqrt(scipy.stats.chi2.isf(1. - utils.from_sigma_to_confidence(nsigma), self.num_params))
+
+    def evidence(self):
+        """
+        Get evidence from the flow
+        """
+        # compute log likes:
+        flow_log_likes = self.log_probability(self.cast(self.chain_samples))
+        # compute residuals:
+        diffs = -self.chain_loglikes -flow_log_likes
+        # compute average and error:
+        average = np.average(diffs, weights=self.chain_weights)
+        variance = np.average((diffs-average)**2, weights=self.chain_weights)
+        return (average, np.sqrt(variance))
 
     ###############################################################################
     # Information geometry methods:
@@ -1038,7 +1059,7 @@ class DiffFlowCallback(Callback):
     # Training statistics:
 
     def _compute_shift_proba(self):
-        zero = np.array(self.bijector.inverse(np.zeros(self.num_params, dtype=np.float32)))
+        zero = np.array(self.bijector.inverse(np.zeros(self.num_params, dtype=np_prec)))
         chi2Z0 = np.sum(zero**2)
         pval = scipy.stats.chi2.cdf(chi2Z0, df=self.num_params)
         nsigma = utils.from_confidence_to_sigma(pval)
@@ -1102,6 +1123,26 @@ class DiffFlowCallback(Callback):
             labs = [l.get_label() for l in lns]
             ax2.legend(lns, labs, loc=1)
 
+    def _plot_evidence_error(self, ax, logs={}):
+        # compute evidence:
+        evidence, evidence_error = self.evidence()
+        self.log["evidence"].append(evidence)
+        self.log["evidence_error"].append(evidence_error)
+        # plot:
+        if ax is not None:
+            ln1 = ax.plot(self.log["evidence_error"], label='var $\\mathcal{E}$')
+            ax.set_title(r"Flow evidence")
+            ax.set_xlabel("Epoch #")
+            ax.set_ylabel(r"Evidence error")
+
+            ax2 = ax.twinx()
+            ln2 = ax2.plot(self.log["evidence"], ls='--', label='$\\mathcal{E}$')
+            ax2.set_ylabel(r'Evidence')
+
+            lns = ln1+ln2
+            labs = [l.get_label() for l in lns]
+            ax2.legend(lns, labs, loc=1)
+
     def on_epoch_end(self, epoch, logs={}):
         """
         This method is used by Keras to show progress during training if `feedback` is True.
@@ -1111,12 +1152,13 @@ class DiffFlowCallback(Callback):
                 if epoch % self.feedback:
                     return
             clear_output(wait=True)
-            fig, axes = plt.subplots(1, 3, figsize=(16, 3))
+            fig, axes = plt.subplots(1, 4, figsize=(16, 3))
         else:
-            axes = [None]*3
+            axes = [None]*4
         self._plot_loss(axes[0], logs=logs)
         self._plot_chi2_dist(axes[1], logs=logs)
         self._plot_chi2_ks_p(axes[2], logs=logs)
+        self._plot_evidence_error(axes[3], logs=logs)
 
         for k in self.log.keys():
             logs[k] = self.log[k][-1]
@@ -1343,3 +1385,10 @@ class TransformedDiffFlowCallback(DiffFlowCallback):
         self.bijectors = [b] + flow.bijectors
         self.bijector = tfb.Chain(self.bijectors)
         self.distribution = tfd.TransformedDistribution(distribution=flow.distribution.distribution, bijector=self.bijector)
+        # MAP:
+        if flow.MAP_coord is not None:
+            self.MAP_coord = np.array([trans(par).numpy() for par, trans in zip(flow.MAP_coord, tmap)])
+            self.MAP_logP = self.log_probability(self.cast(self.MAP_coord))
+        else:
+            self.MAP_coord = flow.MAP_coord
+            self.MAP_logP = flow.MAP_logP

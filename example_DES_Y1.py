@@ -30,7 +30,7 @@ from tensorflow_probability import bijectors as bj
 # initial settings:
 
 # output folder:
-out_folder = './results/example_DES_Y3/'
+out_folder = './results/example_DES_Y1/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
@@ -38,22 +38,22 @@ if not os.path.exists(out_folder):
 # import chains:
 
 prior_chain_lcdm_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'002_DESY1_shear_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain_lcdm_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'005_DESY3_shear_fake_check', no_cache=True, settings=DES_generate.settings)
+posterior_chain_lcdm_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'002_DESY1_shear', no_cache=True, settings=DES_generate.settings)
 
 prior_chain_wcdm_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'004_DESY1_shear_wCDM_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain_wcdm_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'006_DESY3_shear_fake_wCDM', no_cache=True, settings=DES_generate.settings)
+posterior_chain_wcdm_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'004_DESY1_shear_wCDM', no_cache=True, settings=DES_generate.settings)
 
 prior_chain_mnu_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'004_DESY1_shear_mnu_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain_mnu_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'007_DESY3_shear_fake_mnu', no_cache=True, settings=DES_generate.settings)
+posterior_chain_mnu_shear = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'004_DESY1_shear_mnu', no_cache=True, settings=DES_generate.settings)
 
 prior_chain_lcdm_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'001_DESY1_3x2_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain_lcdm_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'005_DESY3_3x2_fake_check', no_cache=True, settings=DES_generate.settings)
+posterior_chain_lcdm_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'001_DESY1_3x2', no_cache=True, settings=DES_generate.settings)
 
 prior_chain_wcdm_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'003_DESY1_3x2_wCDM_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain_wcdm_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'006_DESY3_3x2_fake_wCDM', no_cache=True, settings=DES_generate.settings)
+posterior_chain_wcdm_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'003_DESY1_3x2_wCDM', no_cache=True, settings=DES_generate.settings)
 
 prior_chain_mnu_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'003_DESY1_3x2_mnu_prior', no_cache=True, settings=DES_generate.settings)
-posterior_chain_mnu_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'007_DESY3_3x2_fake_mnu', no_cache=True, settings=DES_generate.settings)
+posterior_chain_mnu_3x2 = getdist.mcsamples.loadMCSamples(file_root=DES_generate.chains_dir+'003_DESY1_3x2_mnu', no_cache=True, settings=DES_generate.settings)
 
 chains = [prior_chain_lcdm_shear,
           posterior_chain_lcdm_shear,

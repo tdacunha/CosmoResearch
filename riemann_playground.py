@@ -56,7 +56,13 @@ def second_coord_derivative_det_metric(self, coord):
 bij = synthetic_probability.prior_bijector_helper(loc=example.posterior_mean, cov=4.*example.posterior_cov)
 flow = synthetic_probability.DiffFlowCallback(example.posterior_chain, prior_bijector=bij, apply_pregauss=False, trainable_bijector=None, param_names=example.posterior_chain.getParamNames().list(), feedback=1)
 self = synthetic_probability.TransformedDiffFlowCallback(flow, [tfp.bijectors.Exp(), tfp.bijectors.Exp()])
-coord = self.cast([self.sample_MAP])
+coord = self.cast([self.sample_MAP+0.1])
+
+P1 = np.linspace(*flow.parameter_ranges['theta_1'], 10)
+P2 = np.linspace(*flow.parameter_ranges['theta_2'], 10)
+x, y = P1, P2
+X, Y = np.meshgrid(x, y)
+coord = self.cast(np.exp(np.array([X, Y]).reshape(2, -1).T))
 
 # metric and inverse metric:
 metric = self.metric(coord)
@@ -65,11 +71,12 @@ inv_metric = self.inverse_metric(coord)
 assert np.allclose(np.linalg.inv(metric), inv_metric)  # metric and its inverse
 assert np.allclose(tf.einsum("...ij->...ji", metric), metric)  # metric is symmetric
 assert np.allclose(tf.einsum("...ij->...ji", inv_metric), inv_metric)  # inverse metric is symmetric
-# derivative of the metric
+# derivative of the metric:
 d_metric = self.coord_metric_derivative(coord)
 d_metric = tf.einsum("...ijk->...kij", d_metric)
 dinv_metric = self.coord_inverse_metric_derivative(coord)
 dinv_metric = tf.einsum("...ijk->...kij", dinv_metric)
+
 # test metric derivatives:
 assert np.allclose(d_metric, tf.einsum("...ijk -> ...ikj", d_metric))  # metric indexes are symmetric
 assert np.allclose(dinv_metric, tf.einsum("...ijk -> ...ikj", dinv_metric))  # inverse metric indexes are symmetric
@@ -95,14 +102,7 @@ assert np.allclose(d_metric, tf.einsum("...lk, ...lij -> ...ijk", metric, connec
 assert np.allclose(d_metric, tf.einsum("...ikj->...jik", low_connection) + tf.einsum("...kij->...jik", low_connection))  # metric compatibility
 assert np.allclose(connection, self.levi_civita_connection(coord))  # compatibility with built in method
 assert np.allclose(tf.einsum("...iki", connection), 0.5 * coord_derivative_det_metric(self, coord))  # identity in https://en.wikipedia.org/wiki/List_of_formulas_in_Riemannian_geometry
-
-
-
 # compute derivative of connection:
-
-
-
-
 term_1 = tf.einsum("...ra,...mnas-> ...mrns", inv_metric, dd_metric)
 term_2 = tf.einsum("...ra,...msan-> ...mrns", inv_metric, dd_metric)
 term_3 = tf.einsum("...ra,...mans-> ...mrns", inv_metric, dd_metric)
@@ -111,20 +111,7 @@ term_5 = tf.einsum("...mra,...san-> ...mrns", dinv_metric, d_metric)
 term_6 = tf.einsum("...mra,...ans-> ...mrns", dinv_metric, d_metric)
 dconnection = 0.5*(term_1 + term_2 - term_3 + term_4 + term_5 - term_6)
 
-dconnection
-tf.einsum("...rnsm->...mrns", coord_derivative_levi_civita_connection(self, coord))
-
-assert np.allclose(dconnection,  tf.einsum("...rnsm->...mrns", coord_derivative_levi_civita_connection(self, coord)))
-
-assert np.allclose(dconnection, tf.einsum("...ijlm->...ijml", dconnection))  # connection derivative is symmetric in last two indexes
-
-tf.einsum("...jiki", dconnection)
-
-second_coord_derivative_det_metric(self, coord) / 2.
-
-dummy = tf.einsum("...rnsm->...mrns", coord_derivative_levi_civita_connection(self, coord))
-dummy
-tf.einsum("...jiki", dummy)
+dconnection = coord_derivative_levi_civita_connection(self, coord)
 
 
 
@@ -135,11 +122,15 @@ connection2 = tf.einsum("...ijk,...klm-> ...ijlm", connection, connection)
 # compute riemann:
 riemann = tf.einsum("...mrns->...rsmn", dconnection) - tf.einsum("...nrms->...rsmn", dconnection) + tf.einsum("...rmns->...rsmn", connection2) - tf.einsum("...rnms->...rsmn", connection2)
 low_riemann = tf.einsum("...mi,...ijkl->...mjkl", metric, riemann)
-
-
+low_riemann
+riemann
 
 
 ricci = tf.einsum("...rsrn", riemann)
+
+ricci_scalar = tf.einsum("...ij,...ij->...", inv_metric, ricci)
+ricci_scalar
+
 
 ricci
 
@@ -151,30 +142,6 @@ low_riemann + tf.einsum("...abcd->...acdb", low_riemann) + tf.einsum("...abcd->.
 
 low_riemann - tf.einsum("...abcd->...cdab", low_riemann)
 
-
-# compute first part of connection derivative:
-dinv_metric = tf.einsum("...ijk->...kij", dinv_metric)
-dconnection = 0.5*tf.einsum("...mij,...jkl-> ...mikl", dinv_metric, term_1 + term_2 - term_3)
-# prepare indexes of second derivatives of the metric:
-term_1 = tf.einsum("...kilm -> ...mikl", dd_metric)
-term_2 = tf.einsum("...likm -> ...mikl", dd_metric)
-term_3 = tf.einsum("...klim -> ...mikl", dd_metric)
-# add second term of connection derivative:
-dconnection += 0.5*tf.einsum("...ij,...jkl-> ...ikl", inv_metric, term_1 + term_2 - term_3)
-# compute connection squared term:
-connection2 =
-# adjust indexes of connection derivatives:
-dconnection = tf.einsum("...ijkl->...kilj", dconnection)
-# assemble Riemann tensor:
-riemann = dconnection - tf.einsum("...ijkl-> ...ikjl", dconnection) \
-          + connection2 - tf.einsum("...ijkl-> ...ikjl", connection2)
-# lower indexes Riemann tensor:
-
-
-pippo = connection2 - tf.einsum("...ijkl-> ...ikjl", connection2)
-
-
-pippo + tf.einsum("...ijkl->...ikjl", pippo)
 
 
 
