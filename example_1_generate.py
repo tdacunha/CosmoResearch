@@ -86,7 +86,7 @@ prior_chain = prior_distribution.MCSamples(n_samples, label='prior')
 
 ###############################################################################
 # define the flows:
-"""
+
 # exact prior:
 prior_bij = synthetic_probability.prior_bijector_helper(loc=prior_mean.astype(synthetic_probability.np_prec), cov=prior_cov.astype(synthetic_probability.np_prec))
 prior_flow = synthetic_probability.DiffFlowCallback(prior_chain, prior_bijector=prior_bij, apply_pregauss=False, trainable_bijector=None, param_names=prior_chain.getParamNames().list(), feedback=1)
@@ -129,7 +129,7 @@ else:
             }
     # save out:
     pickle.dump(temp, open(flow_cache+'/posterior_MAP.pickle', 'wb'))
-"""
+
 ###############################################################################
 # test plot if called directly:
 if __name__ == '__main__':

@@ -125,7 +125,7 @@ ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1, color=color
 mode = 1
 norm1 = np.linalg.norm(eigv[:,1])
 #ax1.plot(m1+alpha*param_directions_best[0,mode]/eig[mode], m2+alpha*param_directions_best[1,mode]/eig[mode], lw=1.5, color='cadetblue', ls='-', marker = 'o')
-ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1, color=color_utilities.nice_colors(2), ls='-')
+ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1, color=color_utilities.nice_colors(0), ls='-')
 
 A = np.array([[1,-1],[0,1]])
 fisher_metric_tilde = np.dot(np.dot((A.T), fisher_metric), (A))
@@ -139,11 +139,11 @@ alpha = np.linspace(-1, 1, 1000)
 mode = 0
 norm0 = np.linalg.norm(eigv[:,0])
 #ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm0, maximum_posterior[1]+alpha*eigv[1, mode]/norm0, lw=1.5, color='firebrick', ls=':', label='KL flow covariance')
-ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(0), ls=':')
+ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
 mode = 1
 norm1 = np.linalg.norm(eigv[:,1])
 #ax1.plot(maximum_posterior[0]+alpha*eigv[0, mode]/norm1, maximum_posterior[1]+alpha*eigv[1, mode]/norm1, lw=1.5, color='cadetblue', ls=':')
-ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
+ax1.axline(maximum_posterior, maximum_posterior+eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(2), ls=':')
 
 # limits:
 #ax1.set_xlim([param_ranges[0][0], param_ranges[0][1]])
@@ -178,7 +178,7 @@ class AnyObjectHandler1(HandlerBase):
     def create_artists(self, legend, orig_handle,
                        x0, y0, width, height, fontsize, trans):
         l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.)
-        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), lw=1.)
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.)
         return [l1, l2]
 
 class object_2():
@@ -186,8 +186,8 @@ class object_2():
 class AnyObjectHandler2(HandlerBase):
     def create_artists(self, legend, orig_handle,
                        x0, y0, width, height, fontsize, trans):
-        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(0), lw=1.5, ls=':')
-        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(3), lw=1.5, ls=':')
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(3), lw=1.5, ls=':')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), lw=1.5, ls=':')
         return [l1, l2]
 
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),

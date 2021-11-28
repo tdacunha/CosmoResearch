@@ -137,12 +137,12 @@ ax1.set_ylabel(r'$\theta_2$', fontsize=main_fontsize);
 
 # legend:
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
-                mlines.Line2D([], [], lw=1., ls='--', color=color_utilities.nice_colors(0)),
-                mlines.Line2D([], [], lw=1., ls='--', color=color_utilities.nice_colors(1)),
+                mlines.Line2D([], [], lw=1.2, ls='-', color=color_utilities.nice_colors(1)),
+                mlines.Line2D([], [], lw=1.2, ls='-', color=color_utilities.nice_colors(0)),
                 ]
 legend_labels = [r'$\mathcal{P}$',
-                 'First LKL',
-                 'Second LKL']
+                 'Opt. CPCC 1',
+                 'Opt. CPCC 2']
 
 leg = fig.legend(handles=leg_handlers,
                 labels=legend_labels,
@@ -152,7 +152,7 @@ leg = fig.legend(handles=leg_handlers,
                 edgecolor='k',
                 ncol=len(legend_labels),
                 borderaxespad=0.0,
-                columnspacing=2.0,
+                columnspacing=1.5,#2.0
                 handlelength=1.5,
                 handletextpad=0.3,
                 loc = 'lower center', #mode='expand',

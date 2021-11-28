@@ -147,8 +147,8 @@ class object_1():
 class AnyObjectHandler1(HandlerBase):
     def create_artists(self, legend, orig_handle,
                        x0, y0, width, height, fontsize, trans):
-        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(0), lw=1.)
-        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(1), lw=1.)
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.)
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.)
         return [l1, l2]
 
 class object_2():
@@ -156,13 +156,13 @@ class object_2():
 class AnyObjectHandler2(HandlerBase):
     def create_artists(self, legend, orig_handle,
                        x0, y0, width, height, fontsize, trans):
-        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(2), lw=1.5, ls=':')
-        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(3), lw=1.5, ls=':')
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(3), lw=1.5, ls=':')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), lw=1.5, ls=':')
         return [l1, l2]
 
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
                 object_1, object_2]
-legend_labels = [r'$\mathcal{P}$', 'PC of $\\tilde{\\theta}$', 'PC of $\\theta$']
+legend_labels = [r'$\mathcal{P}$', 'CPCC of $\\tilde{\\theta}$', 'CPCC of $\\theta$']
 
 leg = fig.legend(handles=leg_handlers,
                 labels=legend_labels,

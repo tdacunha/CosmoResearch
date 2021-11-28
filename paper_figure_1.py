@@ -89,7 +89,7 @@ eig, eigv = np.linalg.eigh(fisher_metric)
 mode = 1
 ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(1), ls='-')
 mode = 0
-ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(2), ls='-')
+ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(0), ls='-')
 
 # correlation:
 weights = np.diag(1./np.sqrt(np.diag(fisher_metric)))
@@ -99,7 +99,7 @@ eigv = np.dot(weights, eigv)
 mode = 1
 ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(1), ls='-')
 mode = 0
-ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(2), ls='-')
+ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1., color=color_utilities.nice_colors(0), ls='-')
 
 
 # Transform parameter basis:
@@ -110,9 +110,9 @@ fisher_metric_tilde = np.dot(np.dot(np.linalg.inv(A.T), fisher_metric), np.linal
 eig, eigv = np.linalg.eigh(fisher_metric_tilde)
 eigv = np.dot(A.T, eigv)
 mode = 1
-ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(0), ls=':')
-mode = 0
 ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
+mode = 0
+ax1.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(2), ls=':')
 
 # correlation:
 weights = np.diag(1./np.sqrt(np.diag(fisher_metric_tilde)))
@@ -121,9 +121,9 @@ eig, eigv = np.linalg.eigh(fisher_correlation)
 eigv = np.dot(weights, eigv)
 eigv = np.dot(A.T, eigv)
 mode = 1
-ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(0), ls=':')
-mode = 0
 ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(3), ls=':')
+mode = 0
+ax2.axline(maximum_posterior, maximum_posterior+eig[mode]*eigv[:, mode], lw=1.5, color=color_utilities.nice_colors(2), ls=':')
 
 # limits:
 for ax in [ax1, ax2]:
@@ -169,7 +169,7 @@ class AnyObjectHandler1(HandlerBase):
     def create_artists(self, legend, orig_handle,
                        x0, y0, width, height, fontsize, trans):
         l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.)
-        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), lw=1.)
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.)
         return [l1, l2]
 
 class object_2():
@@ -177,8 +177,8 @@ class object_2():
 class AnyObjectHandler2(HandlerBase):
     def create_artists(self, legend, orig_handle,
                        x0, y0, width, height, fontsize, trans):
-        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(0), lw=1.5, ls=':')
-        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(3), lw=1.5, ls=':')
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(3), lw=1.5, ls=':')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), lw=1.5, ls=':')
         return [l1, l2]
 
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
