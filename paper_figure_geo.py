@@ -124,13 +124,15 @@ ax2.set_ylim([-4.0, 4.0])
 ticks1 = [0.1, 0.2, 0.3, 0.4, 0.45]
 ticks2 = [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6]
 
-
-
 ax1.set_xticks(ticks1)
 ax2.set_xticks(ticks2)
 ax1.set_xticklabels([], fontsize=0.9*main_fontsize);
 ax1.set_xticklabels(ticks1, fontsize=0.9*main_fontsize);
 ax2.set_xticklabels(ticks2, fontsize=0.9*main_fontsize);
+
+ax1.get_xticklabels()[0].set_horizontalalignment('left')
+ax1.get_xticklabels()[-1].set_horizontalalignment('right')
+
 ax2.get_xticklabels()[0].set_horizontalalignment('left')
 ax2.get_xticklabels()[-1].set_horizontalalignment('right')
 
@@ -203,9 +205,9 @@ leg.get_frame().set_linewidth('0.8')
 bottom = 0.16
 top = 0.95
 left = 0.15
-right = 0.96#0.99
+right = 0.99
 wspace = .2
-hspace = 0.4#0.2
+hspace = 0.4
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 leg.set_bbox_to_anchor((left, 0.005, right-left, right))
