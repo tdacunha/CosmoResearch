@@ -23,7 +23,7 @@ sys.path.insert(0, temp_path)
 from tensiometer import utilities, gaussian_tension
 
 # import example:
-import example_DES_Y3 as example
+import example_CMB_lensing as example
 
 ###############################################################################
 # initial settings:
@@ -49,22 +49,7 @@ colors = [color_utilities.nice_colors(i) for i in range(6)]
 # define chains and flows:
 
 combinations = [
-                [example.lcdm_shear_log_params_posterior_flow, example.lcdm_shear_log_params_prior_flow, example.posterior_chain_lcdm_shear, example.prior_chain_lcdm_shear],
-                [example.lcdm_shear_log_params_full_posterior_flow, example.lcdm_shear_log_params_full_prior_flow, example.posterior_chain_lcdm_shear, example.prior_chain_lcdm_shear],
-                [example.wcdm_shear_log_params_posterior_flow, example.wcdm_shear_log_params_prior_flow, example.posterior_chain_wcdm_shear, example.prior_chain_wcdm_shear],
-                [example.wcdm_shear_log_params_full_posterior_flow, example.wcdm_shear_log_params_full_prior_flow, example.posterior_chain_wcdm_shear, example.prior_chain_wcdm_shear],
-                [example.mnu_shear_log_params_posterior_flow, example.mnu_shear_log_params_prior_flow, example.posterior_chain_mnu_shear, example.prior_chain_mnu_shear],
-                [example.mnu_shear_log_params_full_posterior_flow, example.mnu_shear_log_params_full_prior_flow, example.posterior_chain_mnu_shear, example.prior_chain_mnu_shear],
-                [example.lcdm_3x2_log_params_posterior_flow, example.lcdm_3x2_log_params_prior_flow, example.posterior_chain_lcdm_3x2, example.prior_chain_lcdm_3x2],
-                [example.lcdm_3x2_log_params_full_posterior_flow, example.lcdm_3x2_log_params_full_prior_flow, example.posterior_chain_lcdm_3x2, example.prior_chain_lcdm_3x2],
-                [example.wcdm_3x2_log_params_posterior_flow, example.wcdm_3x2_log_params_prior_flow, example.posterior_chain_wcdm_3x2, example.prior_chain_wcdm_3x2],
-                [example.wcdm_3x2_log_params_full_posterior_flow, example.wcdm_3x2_log_params_full_prior_flow, example.posterior_chain_wcdm_3x2, example.prior_chain_wcdm_3x2],
-                [example.mnu_3x2_log_params_posterior_flow, example.mnu_3x2_log_params_prior_flow, example.posterior_chain_mnu_3x2, example.prior_chain_mnu_3x2],
-                [example.mnu_3x2_log_params_full_posterior_flow, example.mnu_3x2_log_params_full_prior_flow, example.posterior_chain_mnu_3x2, example.prior_chain_mnu_3x2],
-                #
-                [example.lcdm_3x2_log_params_posterior_flow, example.lcdm_shear_log_params_posterior_flow, example.posterior_chain_lcdm_3x2, example.posterior_chain_lcdm_shear],
-                [example.wcdm_3x2_log_params_posterior_flow, example.wcdm_shear_log_params_posterior_flow, example.posterior_chain_wcdm_3x2, example.posterior_chain_wcdm_shear],
-                [example.mnu_3x2_log_params_posterior_flow, example.mnu_shear_log_params_posterior_flow, example.posterior_chain_mnu_3x2, example.posterior_chain_mnu_shear],
+                [example.lcdm_CMB_lensing_log_params_posterior_flow, example.lcdm_CMB_lensing_log_params_prior_flow, example.posterior_chain_lcdm_CMB_lensing, example.prior_chain_lcdm_CMB_lensing],
                 ]
 
 num_chains = len(combinations)

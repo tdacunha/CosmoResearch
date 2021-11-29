@@ -23,7 +23,7 @@ sys.path.insert(0, temp_path)
 from tensiometer import utilities, gaussian_tension
 
 # import example:
-import example_DES_Y3 as example
+import example_DES_Y1 as example
 
 ###############################################################################
 # initial settings:
