@@ -120,18 +120,18 @@ ax1.scatter(*mean, s=20.0, marker='x', color='k', zorder=999)
 ax2.scatter(*example.posterior_flow.map_to_abstract_coord(example.posterior_flow.cast(mean)), s=20.0, marker='x', color='k', zorder=999)
 
 # plot the principal PCA:
-ax1.plot(*ref_start_1.numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(1))
-ax2.plot(*example.posterior_flow.map_to_abstract_coord(ref_start_1).numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(1))
+ax1.plot(*ref_start_1.numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(0))
+ax2.plot(*example.posterior_flow.map_to_abstract_coord(ref_start_1).numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(0))
 
-ax1.plot(*ref_start_2.numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(2))
-ax2.plot(*example.posterior_flow.map_to_abstract_coord(ref_start_2).numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(2))
+ax1.plot(*ref_start_2.numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(1))
+ax2.plot(*example.posterior_flow.map_to_abstract_coord(ref_start_2).numpy().T, lw=1.5, ls='-', color=color_utilities.nice_colors(1))
 
 for mode in modes_0:
+    ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(0))
+    ax2.plot(*example.posterior_flow.map_to_abstract_coord(mode).numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(0))
+for mode in modes_1:
     ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(1))
     ax2.plot(*example.posterior_flow.map_to_abstract_coord(mode).numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(1))
-for mode in modes_1:
-    ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(2))
-    ax2.plot(*example.posterior_flow.map_to_abstract_coord(mode).numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(2))
 
 # prior:
 ax1.axvspan(2., 2.2, alpha=0.2, ec=None, color='k')
@@ -192,7 +192,7 @@ class AnyObjectHandler1(HandlerBase):
     def create_artists(self, legend, orig_handle,
                        x0, y0, width, height, fontsize, trans):
         l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), ls='--', lw=1.)
-        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), ls='--', lw=1.)
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), ls='--', lw=1.)
         return [l1, l2]
 
 class object_2():
@@ -201,7 +201,7 @@ class AnyObjectHandler2(HandlerBase):
     def create_artists(self, legend, orig_handle,
                        x0, y0, width, height, fontsize, trans):
         l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.5, ls='-')
-        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(2), lw=1.5, ls='-')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.5, ls='-')
         return [l1, l2]
 class object_3():
     pass
@@ -231,18 +231,18 @@ class AnyObjectHandler5(HandlerBase):
 
 
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
-                #object_1,
-                #object_2,
-                mlines.Line2D([], [], lw=1., ls='-', color=color_utilities.nice_colors(1)),
-                mlines.Line2D([], [], lw=1., ls='-', color=color_utilities.nice_colors(2)),
+                object_1,
+                object_2,
+                #mlines.Line2D([], [], lw=1., ls='-', color=color_utilities.nice_colors(1)),
+                #mlines.Line2D([], [], lw=1., ls='-', color=color_utilities.nice_colors(2)),
                 object_3,
                 #object_4,
                 object_5]
 legend_labels = [r'$\mathcal{P}$',
-                  #'PFs of $\\theta$',
-                  #'PPF of $\\theta$',
-                  'mode 1',
-                  'mode 2',
+                  'PCC of $\\theta$',
+                  'Opt. PCC of $\\theta$',
+                  #'mode 1',
+                  #'mode 2',
                   'Prior',
                   #'MAP',
                   'MAP/mean']
