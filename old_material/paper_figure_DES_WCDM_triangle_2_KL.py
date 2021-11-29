@@ -48,41 +48,53 @@ colors = [color_utilities.nice_colors(i) for i in range(6)]
 # number of modes:
 num_modes = 3
 
-
 ###############################################################################
 # do local KL:
 
-means = []
-for i in range(0, len(example.log_param_names)):
-    param_i = example.log_param_names[i]
-    mean_i = example.posterior_chain.getMeans([example.posterior_chain.index[param_i]])[0]
-    means.append(mean_i)
-MAP = means
-print(MAP)
-#MAP = example.log_params_posterior_flow.sample_MAP
-#MAP  = example.log_params_posterior_flow.MAP_coord
-
-# compute KL of local fisher:
-
-
 num_params = len(example.log_param_names)
+# reference point:
+#reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
+#reference_point = np.array([example.posterior_chain.samples[np.argmin(example.posterior_chain.loglikes), :][example.posterior_chain.index[name]] for name in example.log_param_names])
+reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.log_param_names])
+reference_point_plot = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.param_names])
 
-# testing for global metric:
-# cov = example.posterior_chain.cov(example.log_param_names)
-# fisher = np.linalg.inv(cov)
-# prior_cov = example.prior_chain.cov(example.log_param_names)
-# prior_fisher = np.linalg.inv(prior_cov)
+# local fisher:
+fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([reference_point]))[0]
+prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([reference_point]))[0]
+# global fisher:
+#fisher = np.linalg.inv(example.posterior_chain.cov(example.log_param_names))
+#prior_fisher = np.linalg.inv(example.prior_chain.cov(example.log_param_names))
 
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([MAP]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([MAP]))[0]
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
-
 # sort modes:
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]
 eigv = eigv[:, idx]
 
+# print out modes:
+temp = np.dot(sqrt_fisher, eigv)
+contributions = temp * temp / eig
+for i in range(num_modes):
+    idx_max = np.argmax(contributions[:, i])
+    print('* Mode', i+1)
+    print('  Sqrt eig = ', np.round(np.sqrt(eig[i]),2))
+    _directions = np.linalg.inv(eigv).T
+    _norm_eigv = _directions[:, i] / _directions[idx_max, i]
+    # normalize to fixed param:
+    ref_idx = example.log_param_names.index('log_sigma8')
+    _norm_eigv = _directions[:, i] / _directions[ref_idx, i]
+    with np.printoptions(precision=2, suppress=True):
+        print('  Variance contributions', contributions[:, i])
+    string = ''
+    for j in range(num_params):
+        _name = example.log_param_names[j]
+        _mean = reference_point[j]
+        _mean = '{0:+}'.format(np.round(-_mean, 2))
+        _temp = '{0:+}'.format(np.round(_norm_eigv[j], 2))
+        string += _temp+'*('+_name+' '+_mean+') '
+    print('  Mode =', string, '= 0')
+    print(' ')
 
 ###############################################################################
 # plot:
@@ -122,21 +134,29 @@ for i in range(num_params-1):
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
-        #m1, m2 = example.posterior_chain.getBestFit().parWithName(param1).best_fit, example.posterior_chain.getBestFit().parWithName(param2).best_fit
-        #m1 = example.posterior_chain.getMeans([example.posterior_chain.index[param1]])[0]
-        #m2 = example.posterior_chain.getMeans([example.posterior_chain.index[param2]])[0]
-        #map1 = np.exp(example.log_params_posterior_flow.MAP_coord[i])
-        #map2 = np.exp(example.log_params_posterior_flow.MAP_coord[i2+1])
-        map1,map2 = np.exp(MAP[i]),np.exp(MAP[i2+1])
-        #ax.scatter([m1], [m2], c=[colors[0]], edgecolors='black', zorder=999, s=20)
-        ax.scatter(map1, map2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
+        if param2 != 'w':
+            #m1, m2 = reference_point[i], reference_point[i2+1]
+            m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
 
-        for k in range(num_modes):
-            idx1 = example.param_names.index(param1)
-            idx2 = example.param_names.index(param2)
-            temp = np.sqrt(eig[k])
-            alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(map1*np.exp(alpha*eigv[idx1, k]), map2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+            for k in range(num_modes):
+                idx1 = example.param_names.index(param1)
+                idx2 = example.param_names.index(param2)
+                temp = np.sqrt(eig[k])
+                alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
+                ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+        else:
+            m1, m2 = np.exp(reference_point[i]),(reference_point[i2+1])
+            print(m1,m2)
+            for k in range(num_modes):
+                idx1 = example.param_names.index(param1)
+                idx2 = example.param_names.index(param2)
+                temp = np.sqrt(eig[k])
+                alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
+                #print(m2*(alpha*eigv[idx2, k]))
+                ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2+(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+
+        ax.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
+
 
 # ticks:
 for _row in g.subplots:
@@ -153,7 +173,7 @@ g.fig.set_size_inches(x_size/2.54, y_size/2.54)
 
 # text:
 ax = g.subplots[0, 0]
-ax.text(0.01, 1.05, 'a) DES Y1 3x2 WCDM', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
+ax.text(0.01, 1.05, 'b) DES Y1 3x2', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
 
 # legend:
 leg_handlers, legend_labels = ax.get_legend_handles_labels()
@@ -187,4 +207,4 @@ g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
 leg.set_bbox_to_anchor((0.0, 0.0, right, top))
 
 # save:
-g.fig.savefig(out_folder+'/figure_DES_WCDM_triangle_2_KL.pdf')
+g.fig.savefig(out_folder+'/figure_DES_wCDM_triangle_2_KL.pdf')

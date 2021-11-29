@@ -119,48 +119,6 @@ lcdm_shear_log_params_full_prior_flow = synthetic_probability.TransformedDiffFlo
 lcdm_shear_log_params_full_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(lcdm_shear_params_full_posterior_flow, transformation)
 
 ###############################################################################
-# train shear wCDM:
-
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'w']
-params_flow_cache = out_folder+'wcdm_shear_params_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain_wcdm_shear, posterior_chain_wcdm_shear, params_flow_cache)
-wcdm_shear_params_prior_flow, wcdm_shear_params_posterior_flow = temp
-
-transformation = [bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(),  identity_bj()]
-wcdm_shear_log_params_prior_flow = synthetic_probability.TransformedDiffFlowCallback(wcdm_shear_params_prior_flow, transformation)
-wcdm_shear_log_params_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(wcdm_shear_params_posterior_flow, transformation)
-
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'w', 'DES_AIA', 'DES_alphaIA']
-params_flow_cache = out_folder+'wcdm_shear_params_full_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain_wcdm_shear, posterior_chain_wcdm_shear, params_flow_cache)
-wcdm_shear_params_full_prior_flow, wcdm_shear_params_full_posterior_flow = temp
-
-transformation = [bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), identity_bj(), identity_bj(), identity_bj()]
-wcdm_shear_log_params_full_prior_flow = synthetic_probability.TransformedDiffFlowCallback(wcdm_shear_params_full_prior_flow, transformation)
-wcdm_shear_log_params_full_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(wcdm_shear_params_full_posterior_flow, transformation)
-
-###############################################################################
-# train shear mnu:
-
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'mnu']
-params_flow_cache = out_folder+'mnu_shear_params_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain_mnu_shear, posterior_chain_mnu_shear, params_flow_cache)
-mnu_shear_params_prior_flow, mnu_shear_params_posterior_flow = temp
-
-transformation = [bj.Log()]*len(param_names)
-mnu_shear_log_params_prior_flow = synthetic_probability.TransformedDiffFlowCallback(mnu_shear_params_prior_flow, transformation)
-mnu_shear_log_params_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(mnu_shear_params_posterior_flow, transformation)
-
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'mnu', 'DES_AIA', 'DES_alphaIA']
-params_flow_cache = out_folder+'mnu_shear_params_full_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain_mnu_shear, posterior_chain_mnu_shear, params_flow_cache)
-mnu_shear_params_full_prior_flow, mnu_shear_params_full_posterior_flow = temp
-
-transformation = [bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), identity_bj(), identity_bj()]
-mnu_shear_log_params_full_prior_flow = synthetic_probability.TransformedDiffFlowCallback(mnu_shear_params_full_prior_flow, transformation)
-mnu_shear_log_params_full_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(mnu_shear_params_full_posterior_flow, transformation)
-
-###############################################################################
 # train 3x2 LCDM:
 
 param_names = ['omegam', 'sigma8']
@@ -189,45 +147,3 @@ lcdm_3x2_params_full_prior_flow, lcdm_3x2_params_full_posterior_flow = temp
 transformation = [bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), identity_bj(), identity_bj()]
 lcdm_3x2_log_params_full_prior_flow = synthetic_probability.TransformedDiffFlowCallback(lcdm_3x2_params_full_prior_flow, transformation)
 lcdm_3x2_log_params_full_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(lcdm_3x2_params_full_posterior_flow, transformation)
-
-###############################################################################
-# train 3x2 wCDM:
-
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'w']
-params_flow_cache = out_folder+'wcdm_3x2_params_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain_wcdm_3x2, posterior_chain_wcdm_3x2, params_flow_cache)
-wcdm_3x2_params_prior_flow, wcdm_3x2_params_posterior_flow = temp
-
-transformation = [bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), identity_bj()]
-wcdm_3x2_log_params_prior_flow = synthetic_probability.TransformedDiffFlowCallback(wcdm_3x2_params_prior_flow, transformation)
-wcdm_3x2_log_params_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(wcdm_3x2_params_posterior_flow, transformation)
-
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'w', 'DES_b1', 'DES_b2', 'DES_b3', 'DES_b4', 'DES_b5', 'DES_AIA', 'DES_alphaIA']
-params_flow_cache = out_folder+'wcdm_3x2_params_full_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain_wcdm_3x2, posterior_chain_wcdm_3x2, params_flow_cache)
-wcdm_3x2_params_full_prior_flow, wcdm_3x2_params_full_posterior_flow = temp
-
-transformation = [bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), identity_bj(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), identity_bj(), identity_bj()]
-wcdm_3x2_log_params_full_prior_flow = synthetic_probability.TransformedDiffFlowCallback(wcdm_3x2_params_full_prior_flow, transformation)
-wcdm_3x2_log_params_full_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(wcdm_3x2_params_full_posterior_flow, transformation)
-
-###############################################################################
-# train 3x2 mnu:
-
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'mnu']
-params_flow_cache = out_folder+'mnu_3x2_params_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain_mnu_3x2, posterior_chain_mnu_3x2, params_flow_cache)
-mnu_3x2_params_prior_flow, mnu_3x2_params_posterior_flow = temp
-
-transformation = [bj.Log()]*len(param_names)
-mnu_3x2_log_params_prior_flow = synthetic_probability.TransformedDiffFlowCallback(mnu_3x2_params_prior_flow, transformation)
-mnu_3x2_log_params_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(mnu_3x2_params_posterior_flow, transformation)
-
-param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns', 'mnu', 'DES_b1', 'DES_b2', 'DES_b3', 'DES_b4', 'DES_b5', 'DES_AIA', 'DES_alphaIA']
-params_flow_cache = out_folder+'mnu_3x2_params_full_flow_cache'
-temp = DES_generate.helper_load_chains(param_names, prior_chain_mnu_3x2, posterior_chain_mnu_3x2, params_flow_cache)
-mnu_3x2_params_full_prior_flow, mnu_3x2_params_full_posterior_flow = temp
-
-transformation = [bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), bj.Log(), identity_bj(), identity_bj()]
-mnu_3x2_log_params_full_prior_flow = synthetic_probability.TransformedDiffFlowCallback(mnu_3x2_params_full_prior_flow, transformation)
-mnu_3x2_log_params_full_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(mnu_3x2_params_full_posterior_flow, transformation)
