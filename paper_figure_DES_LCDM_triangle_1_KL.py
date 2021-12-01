@@ -129,7 +129,7 @@ for i in range(num_params-1):
         # add plot 2D:
         g.plot_2d([example.posterior_chain_lcdm_shear], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
                   no_label_no_numbers=g.settings.no_triangle_axis_labels, shaded=False,
-                  add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=['lightslategrey'], filled=True)
+                  add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=[colors[3]], filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
         m1, m2 = np.exp(reference_point[i]), np.exp(reference_point[i2+1])

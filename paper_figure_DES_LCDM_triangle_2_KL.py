@@ -44,7 +44,7 @@ main_fontsize = 10.0
 
 # color palette:
 colors = [color_utilities.nice_colors(i) for i in range(6)]
-
+line_colors = [1,0,2]
 # number of modes:
 num_modes = 3
 
@@ -129,18 +129,18 @@ for i in range(num_params-1):
         # add plot 2D:
         g.plot_2d([example.posterior_chain_lcdm_3x2], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
                   no_label_no_numbers=g.settings.no_triangle_axis_labels, shaded=False,
-                  add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
+                  add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=[colors[3]], filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
         m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
-        ax.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
+        ax.scatter(m1, m2, c=[colors[3]], edgecolors='white', zorder=999, s=20)
 
         for k in range(num_modes):
             idx1 = example.lcdm_3x2_params_param_names.index(param1)
             idx2 = example.lcdm_3x2_params_param_names.index(param2)
             temp = np.sqrt(eig[k])
             alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='CPC mode '+str(k+1))
+            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[line_colors[k]], lw=1., ls='-', zorder=998, label='CPC mode '+str(k+1))
 
 # ticks:
 for _row in g.subplots:

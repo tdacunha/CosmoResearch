@@ -100,7 +100,7 @@ lcdm_shear_2params_param_names = param_names
 transformation = [bj.Log()]*len(param_names)
 lcdm_shear_log_2params_prior_flow = synthetic_probability.TransformedDiffFlowCallback(lcdm_shear_2params_prior_flow, transformation)
 lcdm_shear_log_2params_posterior_flow = synthetic_probability.TransformedDiffFlowCallback(lcdm_shear_2params_posterior_flow, transformation)
-
+lcdm_shear_2params_log_param_names = ['log_omegam', 'log_sigma8']
 
 param_names = ['omegam', 'sigma8', 'omegab', 'H0', 'ns']
 params_flow_cache = out_folder+'lcdm_shear_params_flow_cache'
@@ -132,6 +132,7 @@ param_names = ['omegam', 'sigma8']
 params_flow_cache = out_folder+'lcdm_3x2_2params_flow_cache'
 temp = DES_generate.helper_load_chains(param_names, prior_chain_lcdm_3x2, posterior_chain_lcdm_3x2, params_flow_cache)
 lcdm_3x2_2params_prior_flow, lcdm_3x2_2params_posterior_flow = temp
+lcdm_3x2_2params_log_param_names = ['log_omegam', 'log_sigma8']
 lcdm_3x2_2params_param_names = param_names
 
 
