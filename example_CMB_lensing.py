@@ -30,7 +30,7 @@ from tensorflow_probability import bijectors as bj
 # initial settings:
 
 # output folder:
-out_folder = './results/example_CMB_lensing/'
+out_folder = './results/example_CMB_lensing_bound/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
