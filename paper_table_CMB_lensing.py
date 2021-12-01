@@ -30,7 +30,7 @@ import example_CMB_lensing as example
 
 # settings:
 contribution_threshold = 0.15
-mean_subtract = True
+mean_subtract = False
 do_exp = True
 use_global = False
 
