@@ -28,6 +28,12 @@ import example_CMB_lensing as example
 ###############################################################################
 # initial settings:
 
+# settings:
+contribution_threshold = 0.15
+mean_subtract = False
+do_exp = True
+use_global = False
+
 # output folder:
 out_folder = './results/paper_plots/'
 if not os.path.exists(out_folder):
@@ -69,7 +75,7 @@ for ind in range(num_chains):
     # print feedback:
     print()
     print('******************************************************************')
-    print('*** Doing: ', posterior_flow.name_tag)
+    print('*** Doing: ', posterior_flow.name_tag, 'with prior', prior_flow.name_tag)
     print('    with params: ', param_names)
     # get reference point:
     reference_point = posterior_chain.getMeans(pars=[posterior_chain.index[name] for name in param_names])
@@ -84,6 +90,9 @@ for ind in range(num_chains):
     _eigv[_eigv > 1.] = 1.
     _eigv[_eigv < 0.] = 0.
     _Neff = num_params - np.sum(_eigv)
+    if use_global:
+        fisher = np.linalg.inv(C_p)
+        prior_fisher = np.linalg.inv(C_Pi)
     with np.printoptions(precision=2, suppress=True):
         print('    Neff = ', np.sort(1.-_eigv)[::-1], '=', np.round(_Neff, 2))
     # Neff from KL:
@@ -104,6 +113,8 @@ for ind in range(num_chains):
     # print out modes:
     temp = np.dot(sqrt_fisher, eigv)
     contributions = temp * temp / eig
+    # temp = np.dot(scipy.linalg.sqrtm(np.linalg.inv(fisher)), np.linalg.inv(eigv).T)
+    # contributions = eig * temp * temp
     for i in range(num_modes):
         idx_max = np.argmax(contributions[:, i])
         print('    * Mode', i+1)
@@ -115,6 +126,7 @@ for ind in range(num_chains):
         _norm_eigv = _directions[:, i] / _directions[ref_idx, i]
         with np.printoptions(precision=2, suppress=True):
             print('      Variance contributions', contributions[:, i])
+        # print out mode:
         string = ''
         for j in range(num_params):
             _name = param_names[j]
@@ -122,5 +134,49 @@ for ind in range(num_chains):
             _mean = '{0:+}'.format(np.round(-_mean, 2))
             _temp = '{0:+.2f}'.format(np.round(_norm_eigv[j], 2))
             string += _temp+'*('+_name+' '+_mean+') '
-        print('      Mode =', string, '= 0')
+        print('      Mode =', string, '= 0 +-', '%.2g' % np.sqrt(1./eig[i]/_directions[ref_idx, i]**2))
+        # print out filtered mode:
+        _contribution_filter = contributions[:, i] > contribution_threshold
+        print('      Parameter filter =', _contribution_filter)
+        string = ''
+        for j in range(num_params):
+            if not _contribution_filter[j]:
+                continue
+            _name = param_names[j]
+            _mean = reference_point[j]
+            _temp_log = 'log' in _name
+            if _temp_log:
+                _mean = '-log {0:}'.format(np.round(np.exp(_mean), 2))
+            else:
+                _mean = '{0:+}'.format(np.round(-_mean, 2))
+            _temp = '{0:+.2f}'.format(np.round(_norm_eigv[j], 2))
+            string += _temp+'*('+_name+' '+_mean+') '
+        _temp_norm_eigv = _norm_eigv
+        _temp_norm_eigv[np.logical_not(_contribution_filter)] = 0.0
+        _proj_var = np.dot(np.dot(_temp_norm_eigv, np.linalg.inv(fisher)), _temp_norm_eigv)
+        print('      Filtered Mode =', string, '= 0 +-', '%.2g' % np.sqrt(_proj_var))
+        # compute constraints on filtered mode:
+        _filt_names = [name for name, filt in zip(param_names, _contribution_filter) if filt]
+        _filt_coeff = _norm_eigv[_contribution_filter]
+        _temp_samps = posterior_chain.samples[:, [posterior_chain.index[name] for name in _filt_names]]
+        if mean_subtract:
+            _temp_samps = _temp_samps - reference_point[_contribution_filter]
+        _p_mode = np.dot(_temp_samps, _filt_coeff)
+        _log_param = np.any(['log' in name for name in _filt_names])
+        _log_param = _log_param and do_exp
+        if _log_param:
+            _p_mode = np.exp(_p_mode)
+        temp_posterior_chain = posterior_chain.copy()
+        temp_posterior_chain.addDerived(_p_mode, name='p'+str(i+1), label='p_'+str(i+1))
+        temp_posterior_chain.updateBaseStatistics()
+        _temp_res = temp_posterior_chain.getLatex('p'+str(i+1))
+        if _log_param:
+            _temp_res = 'exp '+_temp_res
+        print('      ', _temp_res, '+-', '%.2g' % temp_posterior_chain.std(temp_posterior_chain.index['p'+str(i+1)]))
         print(' ')
+
+
+
+
+
+pass
