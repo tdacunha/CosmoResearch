@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+example.lcdm_3x2_params_param_names# -*- coding: utf-8 -*-
 
 ###############################################################################
 # initial imports:
@@ -22,7 +22,7 @@ sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
 # import example:
-import example_DES_3x2 as example
+import example_DES_Y1 as example
 
 ###############################################################################
 # initial settings:
@@ -49,12 +49,12 @@ num_modes = 3
 
 ###############################################################################
 # do Local PCA:
-num_params = len(example.log_param_names)
+num_params = len(example.lcdm_3x2_params_log_param_names)
 
-reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
-reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.log_param_names])
+reference_point = np.log([name.best_fit for name in example.lcdm_3x2_posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.lcdm_3x2_params_log_param_names])])
+reference_point = example.lcdm_3x2_posterior_chain.getMeans(pars=[example.lcdm_3x2_posterior_chain.index[name] for name in example.lcdm_3x2_params_log_param_names])
 
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([reference_point]))[0]
+fisher = example.lcdm_3x2_log_params_posterior_flow.metric(example.lcdm_3x2_log_params_posterior_flow.cast([reference_point]))[0]
 eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 # sort modes:
@@ -75,7 +75,7 @@ for i in range(num_modes):
         print('  Variance contributions', contributions[:, i])
     string = ''
     for j in range(num_params):
-        _name = example.log_param_names[j]
+        _name = example.lcdm_3x2_params_log_param_names[j]
         _mean = reference_point[j]
         _mean = '{0:+}'.format(np.round(-_mean, 2))
         _temp = '{0:+}'.format(np.round(_norm_eigv[j], 2))
@@ -109,14 +109,14 @@ g.make_figure(nx=num_params-1, ny=num_params-1, sharex=g.settings.no_triangle_ax
 bottom = num_params - 2
 for i in range(num_params-1):
     for i2 in range(bottom, i-1, -1):
-        param1, param2 = example.param_names[i], example.param_names[i2+1]
+        param1, param2 = example.lcdm_3x2_params_param_names[i], example.lcdm_3x2_params_param_names[i2+1]
         # create sub plot:
         g._subplot(i, i2, pars=(param1, param2),
                    sharex=g.subplots[bottom, i] if i2 != bottom else None,
                    sharey=g.subplots[i2, 0] if i > 0 else None)
         ax = g.subplots[i2, i]
         # add plot 2D:
-        g.plot_2d([example.posterior_chain], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
+        g.plot_2d([example.lcdm_3x2_posterior_chain], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
                   no_label_no_numbers=g.settings.no_triangle_axis_labels, shaded=False,
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
@@ -125,8 +125,8 @@ for i in range(num_params-1):
         ax.scatter([m1], [m2], c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
         for k in range(num_modes):
-            idx1 = example.param_names.index(param1)
-            idx2 = example.param_names.index(param2)
+            idx1 = example.lcdm_3x2_params_param_names.index(param1)
+            idx2 = example.lcdm_3x2_params_param_names.index(param2)
             temp = np.sqrt(eig[k])
             alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
             ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))

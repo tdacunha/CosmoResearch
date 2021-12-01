@@ -23,7 +23,7 @@ sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
 # import example:
-import example_DES_3x2 as example
+import example_DES_Y1 as example
 
 ###############################################################################
 # initial settings:
@@ -51,17 +51,17 @@ num_modes = 3
 ###############################################################################
 # do local KL:
 
-num_params = len(example.log_param_names)
+num_params = len(example.lcdm_3x2_params_log_param_names)
 # reference point:
-reference_point = np.log([name.best_fit for name in example.posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in example.log_param_names])])
-reference_point = np.array([example.posterior_chain.samples[np.argmin(example.posterior_chain.loglikes), :][example.posterior_chain.index[name]] for name in example.log_param_names])
-reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in example.log_param_names])
+reference_point = np.log([name.best_fit for name in example.posterior_chain_lcdm_3x2.getBestFit().parsWithNames([name.replace('log_', '') for name in example.lcdm_3x2_params_log_param_names])])
+reference_point = np.array([example.posterior_chain_lcdm_3x2.samples[np.argmin(example.posterior_chain_lcdm_3x2.loglikes), :][example.posterior_chain_lcdm_3x2.index[name]] for name in example.lcdm_3x2_params_log_param_names])
+reference_point = example.posterior_chain_lcdm_3x2.getMeans(pars=[example.posterior_chain_lcdm_3x2.index[name] for name in example.lcdm_3x2_params_log_param_names])
 # local fisher:
-fisher = example.log_params_posterior_flow.metric(example.log_params_posterior_flow.cast([reference_point]))[0]
-prior_fisher = example.log_params_prior_flow.metric(example.log_params_prior_flow.cast([reference_point]))[0]
+fisher = example.lcdm_3x2_log_params_posterior_flow.metric(example.lcdm_3x2_log_params_posterior_flow.cast([reference_point]))[0]
+prior_fisher = example.lcdm_3x2_log_params_prior_flow.metric(example.lcdm_3x2_log_params_prior_flow.cast([reference_point]))[0]
 # global fisher:
-#fisher = np.linalg.inv(example.posterior_chain.cov(example.log_param_names))
-#prior_fisher = np.linalg.inv(example.prior_chain.cov(example.log_param_names))
+#fisher = np.linalg.inv(example.posterior_chain_lcdm_3x2.cov(example.lcdm_3x2_params_log_param_names))
+#prior_fisher = np.linalg.inv(example.prior_chain_lcdm_3x2.cov(example.lcdm_3x2_params_log_param_names))
 
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
@@ -80,13 +80,13 @@ for i in range(num_modes):
     _directions = np.linalg.inv(eigv).T
     _norm_eigv = _directions[:, i] / _directions[idx_max, i]
     # normalize to fixed param:
-    ref_idx = example.log_param_names.index('log_sigma8')
+    ref_idx = example.lcdm_3x2_params_log_param_names.index('log_sigma8')
     _norm_eigv = _directions[:, i] / _directions[ref_idx, i]
     with np.printoptions(precision=2, suppress=True):
         print('  Variance contributions', contributions[:, i])
     string = ''
     for j in range(num_params):
-        _name = example.log_param_names[j]
+        _name = example.lcdm_3x2_params_log_param_names[j]
         _mean = reference_point[j]
         _mean = '{0:+}'.format(np.round(-_mean, 2))
         _temp = '{0:+}'.format(np.round(_norm_eigv[j], 2))
@@ -120,14 +120,14 @@ g.make_figure(nx=num_params-1, ny=num_params-1, sharex=g.settings.no_triangle_ax
 bottom = num_params - 2
 for i in range(num_params-1):
     for i2 in range(bottom, i-1, -1):
-        param1, param2 = example.param_names[i], example.param_names[i2+1]
+        param1, param2 = example.lcdm_3x2_params_param_names[i], example.lcdm_3x2_params_param_names[i2+1]
         # create sub plot:
         g._subplot(i, i2, pars=(param1, param2),
                    sharex=g.subplots[bottom, i] if i2 != bottom else None,
                    sharey=g.subplots[i2, 0] if i > 0 else None)
         ax = g.subplots[i2, i]
         # add plot 2D:
-        g.plot_2d([example.posterior_chain], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
+        g.plot_2d([example.posterior_chain_lcdm_3x2], param_pair=(param1, param2), do_xlabel=i2 == num_params - 2, do_ylabel=i == 0,
                   no_label_no_numbers=g.settings.no_triangle_axis_labels, shaded=False,
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=colors, filled=True)
         g._inner_ticks(ax)
@@ -136,11 +136,11 @@ for i in range(num_params-1):
         ax.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
 
         for k in range(num_modes):
-            idx1 = example.param_names.index(param1)
-            idx2 = example.param_names.index(param2)
+            idx1 = example.lcdm_3x2_params_param_names.index(param1)
+            idx2 = example.lcdm_3x2_params_param_names.index(param2)
             temp = np.sqrt(eig[k])
             alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='KL mode '+str(k+1))
+            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[k+1], lw=1., ls='-', zorder=998, label='CPC mode '+str(k+1))
 
 # ticks:
 for _row in g.subplots:
