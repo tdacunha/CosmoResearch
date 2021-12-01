@@ -24,14 +24,14 @@ sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
 # import example:
-import example_DES_3x2 as example
+import example_DES_Y1 as example
 import synthetic_probability
 
 ###############################################################################
 # initial settings:
 
 # output folder:
-out_folder = './results/presentation_plots/'
+out_folder = './results/paper_plots/'
 if not os.path.exists(out_folder):
     os.mkdir(out_folder)
 
@@ -73,38 +73,38 @@ def get_levels(P, x, y, conf=[0.95, 0.68]):
 
 ###############################################################################
 # get 2D flows:
-
-
-log_param_names = ['log_omegam', 'log_sigma8']
-log_params_flow_cache = out_folder+'log_params_flow_cache_shear'
-temp = DES_generate.helper_load_chains(log_param_names, example.prior_chain, example.posterior_chain, log_params_flow_cache, feedback=0)
-log_params_prior_flow, log_params_posterior_flow = temp
-
-param_names = ['omegam', 'sigma8']
-params_flow_cache = out_folder+'params_flow_cache_shear'
-temp = DES_generate.helper_load_chains(param_names, example.prior_chain, example.posterior_chain, params_flow_cache)
-params_prior_flow, params_posterior_flow = temp
-
-###############################################################################
+#
+#
+# log_param_names = ['log_omegam', 'log_sigma8']
+# log_params_flow_cache = out_folder+'log_params_flow_cache_3x2'
+# temp = DES_generate.helper_load_chains(log_param_names, example.prior_chain, example.posterior_chain, log_params_flow_cache, feedback=0)
+# log_params_prior_flow, log_params_posterior_flow = temp
+#
+# param_names = ['omegam', 'sigma8']
+# params_flow_cache = out_folder+'params_flow_cache_3x2'
+# temp = DES_generate.helper_load_chains(param_names, example.prior_chain, example.posterior_chain, params_flow_cache)
+# params_prior_flow, params_posterior_flow = temp
 # do Local PCA:
-num_params = len(log_param_names)
+num_params = len(example.lcdm_3x2_2params_param_names)
 
-reference_point = example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in log_param_names])
+reference_point = example.posterior_chain_lcdm_3x2.getMeans(pars=[example.posterior_chain_lcdm_3x2.index[name] for name in example.lcdm_3x2_2params_log_param_names])
 
 # local fisher:
-fisher = log_params_posterior_flow.metric(log_params_posterior_flow.cast([reference_point]))[0]
-prior_fisher = log_params_prior_flow.metric(log_params_prior_flow.cast([reference_point]))[0]
+fisher = example.lcdm_3x2_log_2params_posterior_flow.metric(example.lcdm_3x2_log_2params_posterior_flow.cast([reference_point]))[0]
+prior_fisher = example.lcdm_3x2_log_2params_prior_flow.metric(example.lcdm_3x2_log_2params_prior_flow.cast([reference_point]))[0]
 
 eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
 
 # solve for modes:
-y0 = params_posterior_flow.cast(example.posterior_chain.getMeans(pars=[example.posterior_chain.index[name] for name in log_param_names]))
+m1, m2 = np.exp(example.posterior_chain_lcdm_3x2.getMeans([example.posterior_chain_lcdm_3x2.index[name] for name in example.lcdm_3x2_2params_log_param_names]))
+y0 = example.lcdm_3x2_2params_posterior_flow.cast([m1,m2])#example.posterior_chain_lcdm_3x2.getMeans(pars=[example.posterior_chain_lcdm_3x2.index[name] for name in example.lcdm_3x2_2params_param_names]))
+
 length_1 = 10
 length_2 = 15
 
-_, LKL_mode_1, _ = synthetic_probability.solve_KL_ode(log_params_posterior_flow, log_params_prior_flow, y0, n=1, length=length_1, num_points=1000)
-_, LKL_mode_2, _ = synthetic_probability.solve_KL_ode(log_params_posterior_flow, log_params_prior_flow, y0, n=0, length=length_2, num_points=1000)
+_, LKL_mode_1, _ = synthetic_probability.solve_KL_ode(example.lcdm_3x2_2params_posterior_flow, example.lcdm_3x2_2params_prior_flow, y0, n=1, length=length_1, num_points=1000)
+_, LKL_mode_2, _ = synthetic_probability.solve_KL_ode(example.lcdm_3x2_2params_posterior_flow, example.lcdm_3x2_2params_prior_flow, y0, n=0, length=length_2, num_points=1000)
 
 # sort modes:
 idx = np.argsort(eig)[::-1]
@@ -123,7 +123,7 @@ main_fontsize = 10.0
 levels = [utilities.from_sigma_to_confidence(i) for i in range(2, 0, -1)]
 
 # obtain posterior on grid from samples:
-density_1 = example.posterior_chain.get2DDensity(param_names[0], param_names[1], normalized=True)
+density_1 = example.posterior_chain_lcdm_3x2.get2DDensity(example.lcdm_3x2_2params_param_names[0], example.lcdm_3x2_2params_param_names[1], normalized=True)
 _X1, _Y1 = np.meshgrid(density_1.x, density_1.y)
 density_1.P = density_1.P / simps(simps(density_1.P, density_1.y), density_1.x)
 
@@ -133,29 +133,29 @@ fig.set_size_inches(x_size/2.54, y_size/2.54)
 gs = gridspec.GridSpec(1, 1)
 ax1 = plt.subplot(gs[0])
 
-ax1.contour(_X1, _Y1, density_1.P, get_levels(density_1.P, density_1.x, density_1.y, levels), linewidths=1., linestyles='-', colors=[colors[0] for i in levels])
+ax1.contour(_X1, _Y1, density_1.P, get_levels(density_1.P, density_1.x, density_1.y, levels), linewidths=1., linestyles='-', colors=[colors[3] for i in levels])
 
-m1, m2 = np.exp(example.posterior_chain.getMeans([example.posterior_chain.index[name] for name in log_param_names]))
-ax1.scatter(m1, m2, c=[colors[0]], edgecolors='white', zorder=999, s=20)
+m1, m2 = np.exp(example.posterior_chain_lcdm_3x2.getMeans([example.posterior_chain_lcdm_3x2.index[name] for name in example.lcdm_3x2_2params_log_param_names]))
+ax1.scatter(m1, m2, c=[colors[3]], edgecolors='white', zorder=999, s=20)
 
 #ax1.plot(density_1.x, m2*(density_1.x/m1)**(-0.5), ls='--', lw=1., color='k')
 
 # first mode:
 temp = np.sqrt(eig[0])
 alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-ax1.plot(m1*np.exp(alpha*eigv[0, 0]), m2*np.exp(alpha*eigv[1, 0]), c='k', lw=1., ls='--')
+ax1.plot(m1*np.exp(alpha*eigv[0, 0]), m2*np.exp(alpha*eigv[1, 0]), c=colors[1], lw=1., ls='--')
 
 # second mode:
 temp = np.sqrt(eig[1])
 alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-ax1.plot(m1*np.exp(alpha*eigv[0, 1]), m2*np.exp(alpha*eigv[1, 1]), c='k', lw=1., ls='--')
+ax1.plot(m1*np.exp(alpha*eigv[0, 1]), m2*np.exp(alpha*eigv[1, 1]), c=colors[0], lw=1., ls='--')
 
 # non-linear modes:
-ax1.plot(*np.exp(LKL_mode_1).T, c=colors[1], lw=1., ls='-')
-ax1.plot(*np.exp(LKL_mode_2).T, c=colors[2], lw=1., ls='-')
+ax1.plot(*(LKL_mode_1).T, c=colors[1], lw=1., ls='-')
+ax1.plot(*(LKL_mode_2).T, c=colors[0], lw=1., ls='-')
 
 levs = np.append(get_levels(density_1.P, density_1.x, density_1.y, levels), [np.amax(density_1.P)])
-cols = [colors[0] for i in levs]
+cols = [colors[3] for i in levs]
 cols[0] = tuple(list(cols[0])+[0.1])
 cols[1] = tuple(list(cols[1])+[0.8])
 ax1.contourf(_X1, _Y1, density_1.P, levs, colors=cols)
@@ -178,53 +178,92 @@ ax1.get_yticklabels()[0].set_verticalalignment('bottom')
 ax1.get_yticklabels()[-1].set_verticalalignment('top')
 
 # axes labels:
-ax1.set_xlabel(r'Matter fractional density $\Omega_m$', fontsize=main_fontsize);
-ax1.set_ylabel(r'Amplitude of fluctuations $\sigma_8$', fontsize=main_fontsize);
+ax1.set_xlabel(r'$\Omega_m$', fontsize=main_fontsize);
+ax1.set_ylabel(r'$\sigma_8$', fontsize=main_fontsize);
 
 # legend:
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 
-leg_handlers = [
-                mpatches.Patch(color=list(colors[0])+[0.8], ec=colors[0]),
-                mlines.Line2D([], [], lw=1., ls='--', color='k'),
-                mlines.Line2D([], [], lw=1., ls='-', color=colors[1]),
-                mlines.Line2D([], [], lw=1., ls='-', color=colors[2]),
-                ]
+from matplotlib.legend_handler import HandlerBase
+class object_1():
+    pass
+class AnyObjectHandler1(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.2, ls = '--')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.2, ls = '--')
+        return [l1, l2]
+
+class object_2():
+    pass
+class AnyObjectHandler2(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.2, ls='-')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.2, ls='-')
+        return [l1, l2]
+
+leg_handlers = [mpatches.Patch(color=list(colors[3])+[0.8], ec=colors[3]),
+                object_1, object_2]
+
+# leg_handlers = [
+#                 mpatches.Patch(color=list(colors[3])+[0.8], ec=colors[3]),
+#                 mlines.Line2D([], [], lw=1., ls='--', color=colors[1]),
+#                 mlines.Line2D([], [], lw=1., ls='--', color=colors[0]),
+#                 mlines.Line2D([], [], lw=1., ls='-', color=colors[1]),
+#                 mlines.Line2D([], [], lw=1., ls='-', color=colors[0]),
+#                 ]
 legend_labels = [
                  'DES Y1 3x2',
-                 'linear modes',
-                 'mode 1',
-                 'mode 2',
+                 'Lin. CPCC',
+                 'Non-lin. CPCC',
                  ]
 
 # legend for the second plot:
+
 leg = fig.legend(handles=leg_handlers,
-                   labels=legend_labels,
-                   fontsize=0.8*main_fontsize,
-                   frameon=True,
-                   fancybox=False,
-                   edgecolor='k',
-                   ncol=1,
-                   borderaxespad=0.0,
-                   columnspacing=2.0,
-                   handlelength=1.4,
-                   loc='upper right',
-                   bbox_to_anchor=(0.0, 0.0, 0.9, 0.9),
-                   )
+                labels=legend_labels,
+                handler_map={object_1: AnyObjectHandler1(), object_2: AnyObjectHandler2()},
+                fontsize=0.9*main_fontsize,
+                frameon=True,
+                fancybox=False,
+                edgecolor='k',
+                ncol=len(legend_labels),
+                borderaxespad=0.0,
+                columnspacing=0.7,
+                handlelength=1.5,
+                handletextpad=0.3,
+                loc = 'lower center',
+                bbox_to_anchor=(0.0, 0.02, 1.2, 0.9),
+                )
+# leg = fig.legend(handles=leg_handlers,
+#                    labels=legend_labels,
+#                    fontsize=0.8*main_fontsize,
+#                    frameon=True,
+#                    fancybox=False,
+#                    edgecolor='k',
+#                    ncol=1,
+#                    borderaxespad=0.0,
+#                    columnspacing=2.0,
+#                    handlelength=1.4,
+#                    loc='upper right',
+#                    bbox_to_anchor=(0.0, 0.0, 0.9, 0.9),
+#                    )
 leg.get_frame().set_linewidth('0.8')
 leg.get_title().set_fontsize(main_fontsize)
 
 # update dimensions:
-bottom = 0.16
+bottom = 0.26
 top = 0.99
 left = 0.14
-right = 0.99
+right = .87#.99
 wspace = 0.
 hspace = 0.3
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
-leg.set_bbox_to_anchor((0.0, 0.0, right-0.01, top-0.01))
+#leg.set_bbox_to_anchor((0.0, 0.0, right-0.01, top-0.01))
+leg.set_bbox_to_anchor((left, 0.005, right-left, right))
 
-plt.savefig(out_folder+'/figure_6.pdf')
+plt.savefig(out_folder+'/figure_DES_LCDM_single_2.pdf')
 plt.close('all')

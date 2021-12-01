@@ -133,7 +133,7 @@ for i in range(num_params-1):
             idx2 = example.lcdm_shear_params_param_names.index(param2)
             temp = np.sqrt(eig[k])
             alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[line_colors[k]], lw=1., ls='-', zorder=998, label='PC mode '+str(k+1))
+            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[line_colors[k]], lw=1., ls='-', zorder=998, label='Linear PCC mode '+str(k+1))
 
 # ticks:
 for _row in g.subplots:
@@ -150,7 +150,7 @@ g.fig.set_size_inches(x_size/2.54, y_size/2.54)
 
 # text:
 ax = g.subplots[0, 0]
-ax.text(0.01, 1.05, 'a) DES Y1 shear', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
+ax.text(0.01, 1.05, 'a) DES Y1 shear: PCC linear analysis', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
 
 # legend:
 leg_handlers, legend_labels = ax.get_legend_handles_labels()

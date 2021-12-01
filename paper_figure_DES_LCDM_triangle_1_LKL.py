@@ -65,8 +65,8 @@ length_2 = (example.lcdm_shear_params_posterior_flow.sigma_to_length(5)).astype(
 length_1 = 20
 length_2 = 20
 
-_, LKL_mode_1, _ = synthetic_probability.solve_KL_ode(example.lcdm_shear_params_posterior_flow, example.lcdm_shear_params_prior_flow, y0, n=4, length=length_1, num_points=500)#1000
-_, LKL_mode_2, _ = synthetic_probability.solve_KL_ode(example.lcdm_shear_params_posterior_flow, example.lcdm_shear_params_prior_flow, y0, n=3, length=length_2, num_points=500)#1000
+_, LKL_mode_1, _ = synthetic_probability.solve_KL_ode(example.lcdm_shear_params_posterior_flow, example.lcdm_shear_params_prior_flow, y0, n=4, length=length_1, num_points=250)#1000
+_, LKL_mode_2, _ = synthetic_probability.solve_KL_ode(example.lcdm_shear_params_posterior_flow, example.lcdm_shear_params_prior_flow, y0, n=3, length=length_2, num_points=250)#1000
 
 ###############################################################################
 # plot:
@@ -112,8 +112,8 @@ for i in range(num_params-1):
         # plot modes:
         idx1 = example.lcdm_shear_params_param_names.index(param1)
         idx2 = example.lcdm_shear_params_param_names.index(param2)
-        ax.plot(LKL_mode_1[:, idx1], LKL_mode_1[:, idx2], c=colors[line_colors[0]], lw=1., ls='-', zorder=998, label='CPCC mode 1')
-        ax.plot(LKL_mode_2[:, idx1], LKL_mode_2[:, idx2], c=colors[line_colors[1]], lw=1., ls='-', zorder=998, label='CPCC mode 2')
+        ax.plot(LKL_mode_1[:, idx1], LKL_mode_1[:, idx2], c=colors[line_colors[0]], lw=1., ls='-', zorder=998, label='Non-linear CPCC mode 1')
+        ax.plot(LKL_mode_2[:, idx1], LKL_mode_2[:, idx2], c=colors[line_colors[1]], lw=1., ls='-', zorder=998, label='Non-linear CPCC mode 2')
 
 # ticks:
 for _row in g.subplots:
@@ -130,7 +130,7 @@ g.fig.set_size_inches(x_size/2.54, y_size/2.54)
 
 # text:
 ax = g.subplots[0, 0]
-ax.text(0.01, 1.05, 'a) DES Y1 shear', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
+ax.text(0.01, 1.05, 'b) DES Y1 shear: non-linear analysis', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
 
 # legend:
 leg_handlers, legend_labels = ax.get_legend_handles_labels()
