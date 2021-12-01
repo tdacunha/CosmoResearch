@@ -64,6 +64,7 @@ combinations = [
                 #
                 [example.lcdm_3x2_log_2params_posterior_flow, example.lcdm_shear_log_2params_posterior_flow, example.posterior_chain_lcdm_3x2, example.posterior_chain_lcdm_shear],
                 [example.lcdm_3x2_log_params_posterior_flow, example.lcdm_shear_log_params_posterior_flow, example.posterior_chain_lcdm_3x2, example.posterior_chain_lcdm_shear],
+                [example.lcdm_3x2_log_params_shear_posterior_flow, example.lcdm_shear_log_params_full_posterior_flow, example.posterior_chain_lcdm_3x2, example.posterior_chain_lcdm_shear],
                 ]
 
 num_chains = len(combinations)
