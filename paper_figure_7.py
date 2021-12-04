@@ -24,7 +24,6 @@ here = './'
 temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 from tensiometer import utilities
-import synthetic_probability
 
 ###############################################################################
 # initial settings:
@@ -68,29 +67,28 @@ P = P / simps(simps(P, y), x)
 # compute maximum posterior and metric:
 maximum_posterior = example.posterior_flow.MAP_coord
 
-
 # compute the two base eigenvalues trajectories:
 y0 = example.posterior_flow.cast(maximum_posterior)
 length_1 = (example.posterior_flow.sigma_to_length(8)).astype(np.float32)
 length_2 = (example.posterior_flow.sigma_to_length(8)).astype(np.float32)
-ref_times_1, ref_start_1, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, y0, n=0, length=length_1, num_points=100)
-ref_times_2, ref_start_2, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, y0, n=1, length=length_2, num_points=100)
+ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=100)
+ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=100)
 
-_, temp_start_1, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, y0, n=0, length=length_1, num_points=101, side='+')
-_, temp_start_2, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, y0, n=0, length=length_1, num_points=101, side='-')
+_, temp_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=101, side='+')
+_, temp_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=101, side='-')
 start_1 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
 
-_, temp_start_1, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, y0, n=1, length=length_2, num_points=101, side='+')
-_, temp_start_2, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, y0, n=1, length=length_2, num_points=101, side='-')
+_, temp_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=101, side='+')
+_, temp_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=101, side='-')
 start_2 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
 
 # compute eigenvalue network:
 modes_0, modes_1 = [], []
 for start in start_2:
-    _, mode, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, example.posterior_flow.cast(start), n=0, length=length_1, num_points=100)
+    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=0, length=length_1, num_points=100)
     modes_0.append(mode)
 for start in start_1:
-    _, mode, _ = synthetic_probability.solve_KL_ode(example.posterior_flow, example.prior_flow, example.posterior_flow.cast(start), n=1, length=length_2, num_points=100)
+    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=1, length=length_2, num_points=100)
     modes_1.append(mode)
 
 # start the plot:
@@ -105,14 +103,14 @@ ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=
 ax1.scatter(*maximum_posterior, s=5.0, color='k', zorder=999)
 
 # principal modes:
-ax1.plot(*ref_start_1.T, lw=1.2, ls='-', color=color_utilities.nice_colors(0))
-ax1.plot(*ref_start_2.T, lw=1.2, ls='-', color=color_utilities.nice_colors(1))
+ax1.plot(*ref_start_1.numpy().T, lw=1.2, ls='-', color=color_utilities.nice_colors(0))
+ax1.plot(*ref_start_2.numpy().T, lw=1.2, ls='-', color=color_utilities.nice_colors(1))
 
 # modes:
 for mode in modes_0:
-    ax1.plot(*mode.T, lw=0.8, ls='--', color=color_utilities.nice_colors(0))
+    ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(0))
 for mode in modes_1:
-    ax1.plot(*mode.T, lw=0.8, ls='--', color=color_utilities.nice_colors(1))
+    ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(1))
 
 # limits:
 ax1.set_xlim([0.1, 0.45])
@@ -141,8 +139,8 @@ leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
                 mlines.Line2D([], [], lw=1.2, ls='-', color=color_utilities.nice_colors(0)),
                 ]
 legend_labels = [r'$\mathcal{P}$',
-                 'Opt. CPCC 1',
-                 'Opt. CPCC 2']
+                 'Opt. PCC 1',
+                 'Opt. PCC 2']
 
 leg = fig.legend(handles=leg_handlers,
                 labels=legend_labels,
@@ -152,7 +150,7 @@ leg = fig.legend(handles=leg_handlers,
                 edgecolor='k',
                 ncol=len(legend_labels),
                 borderaxespad=0.0,
-                columnspacing=1.5,#2.0
+                columnspacing=2.0,
                 handlelength=1.5,
                 handletextpad=0.3,
                 loc = 'lower center', #mode='expand',

@@ -21,7 +21,7 @@ sys.path.insert(0, temp_path)
 from tensiometer import utilities, gaussian_tension
 
 # import example:
-import example_CMB_lensing as example
+import example_DES_Y1 as example
 
 ###############################################################################
 # initial settings:
@@ -38,11 +38,11 @@ plt.rc('text', usetex=True)
 ###############################################################################
 # import chains:
 
-prior_chain = example.prior_chain_lcdm_CMB_lensing
-posterior_chain = example.posterior_chain_lcdm_CMB_lensing
+prior_chain = example.prior_chain_lcdm_shear
+posterior_chain = example.posterior_chain_lcdm_shear
 
-prior_flow = example.lcdm_CMB_lensing_log_params_prior_flow
-posterior_flow = example.lcdm_CMB_lensing_log_params_posterior_flow
+prior_flow = example.lcdm_shear_log_params_prior_flow
+posterior_flow = example.lcdm_shear_log_params_posterior_flow
 
 ###############################################################################
 # decide parameters to use:
@@ -127,5 +127,5 @@ hspace = 0.08
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 
-plt.savefig(out_folder+'/figure_CMB_lensing_contribution.pdf')
+plt.savefig(out_folder+'/figure_13p1.pdf')
 plt.close('all')

@@ -64,9 +64,8 @@ prior_fisher = prior_flow.metric(prior_flow.cast([reference_shear]))[0]
 #fisher = np.linalg.inv(example_shear.posterior_chain.cov(example_shear.log_param_names))
 #prior_fisher = np.linalg.inv(example_shear.prior_chain.cov(example_shear.log_param_names))
 
-eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
+eig, eigv = np.linalg.eigh(fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
-
 # sort modes:
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]
@@ -114,7 +113,7 @@ _temp[_temp < 0.] = 0.
 ax1.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(_temp), 2))], fontsize=0.9*main_fontsize)
 
 # axes labels:
-ax1.set_xlabel('CPC mode $(\\sqrt{\\lambda-1})$', fontsize=main_fontsize);
+ax1.set_xlabel('PCA mode $(\\sqrt{\\lambda})$', fontsize=main_fontsize);
 ax1.set_ylabel('Parameter', fontsize=main_fontsize);
 
 # update dimensions:
@@ -127,5 +126,5 @@ hspace = 0.08
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 
-plt.savefig(out_folder+'/figure_DES_shear_contribution.pdf')
+plt.savefig(out_folder+'/figure_16.pdf')
 plt.close('all')

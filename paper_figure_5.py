@@ -18,7 +18,6 @@ from matplotlib.patches import Rectangle
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import tensorflow as tf
-from scipy import optimize, stats
 
 # add path for correct version of tensiometer:
 here = './'
@@ -87,10 +86,10 @@ start_2 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
 modes_0, modes_1 = [], []
 for start in start_2:
     _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=0, length=length_1, num_points=100)
-    modes_0.append(example.posterior_flow.map_to_abstract_coord(mode))
+    modes_0.append(mode)
 for start in start_1:
     _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=1, length=length_2, num_points=100)
-    modes_1.append(example.posterior_flow.map_to_abstract_coord(mode))
+    modes_1.append(mode)
 
 # start the plot:
 fig = plt.gcf()
@@ -98,13 +97,10 @@ fig.set_size_inches(x_size/2.54, y_size/2.54)
 gs = gridspec.GridSpec(1, 1)
 ax1 = plt.subplot(gs[0])
 
-theta = np.linspace(0.0, 2.*np.pi, 200)
-for i in range(4):
-    _length = np.sqrt(stats.chi2.isf(1.-utilities.from_sigma_to_confidence(i), 2))
-    ax1.plot(_length*np.sin(theta), _length*np.cos(theta), ls='-', zorder=999., lw=1., color='k')
+ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
 
 # MAP:
-ax1.scatter(*example.posterior_flow.map_to_abstract_coord(example.posterior_flow.cast(maximum_posterior)), s=5.0, color='k', zorder=999)
+ax1.scatter(*maximum_posterior, s=5.0, color='k', zorder=999)
 
 # modes:
 for mode in modes_0:
@@ -113,25 +109,25 @@ for mode in modes_1:
     ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(1))
 
 # limits:
-ax1.set_xlim([-5.0, 5.0])
-ax1.set_ylim([-5.0, 5.0])
+ax1.set_xlim([0.1, 0.45])
+ax1.set_ylim([0.6, 1.2])
 
 # ticks:
-ticks = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]
+ticks = [0.1, 0.2, 0.3, 0.4, 0.45]
 ax1.set_xticks(ticks)
 ax1.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
 ax1.get_xticklabels()[0].set_horizontalalignment('left')
 ax1.get_xticklabels()[-1].set_horizontalalignment('right')
 
-ticks = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]
+ticks = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
 ax1.set_yticks(ticks)
 ax1.set_yticklabels(ticks, fontsize=0.9*main_fontsize);
 ax1.get_yticklabels()[0].set_verticalalignment('bottom')
 ax1.get_yticklabels()[-1].set_verticalalignment('top')
 
 # axes labels:
-ax1.set_xlabel(r'$Z_1$', fontsize=main_fontsize);
-ax1.set_ylabel(r'$Z_2$', fontsize=main_fontsize);
+ax1.set_xlabel(r'$\theta_1$', fontsize=main_fontsize);
+ax1.set_ylabel(r'$\theta_2$', fontsize=main_fontsize);
 
 # legend:
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
@@ -153,7 +149,7 @@ leg = fig.legend(handles=leg_handlers,
                 columnspacing=2.0,
                 handlelength=1.5,
                 handletextpad=0.3,
-                loc = 'lower center',
+                loc = 'lower center', #mode='expand',
                 bbox_to_anchor=(0.0, 0.02, 1.2, 0.9),
                 )
 leg.get_frame().set_linewidth('0.8')

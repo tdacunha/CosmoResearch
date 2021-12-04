@@ -253,5 +253,5 @@ wspace = 0.15
 hspace = 0.15
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
-plt.savefig(out_folder+'/figure_example_3_PCA.pdf')
+plt.savefig(out_folder+'/figure_11p1.pdf')
 plt.close('all')

@@ -38,24 +38,22 @@ plt.rc('text', usetex=True)
 ###############################################################################
 # import chains:
 
-prior_chain = example.prior_chain_lcdm_shear
-posterior_chain = example.posterior_chain_lcdm_shear
+prior_chain = example.posterior_chain_lcdm_shear
+posterior_chain = example.posterior_chain_lcdm_3x2
 
-prior_flow = example.lcdm_shear_log_params_prior_flow
-posterior_flow = example.lcdm_shear_log_params_posterior_flow
+prior_flow = example.lcdm_shear_log_params_full_posterior_flow
+posterior_flow = example.lcdm_3x2_log_params_shear_posterior_flow
 
 ###############################################################################
 # decide parameters to use:
 
-param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns']
+param_names = posterior_flow.param_names
 num_params = len(param_names)
 
 ###############################################################################
 # Compute KL contributions:
 
 # reference point:
-reference_shear = np.log([name.best_fit for name in posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in param_names])])
-reference_shear = np.array([posterior_chain.samples[np.argmin(posterior_chain.loglikes), :][posterior_chain.index[name]] for name in param_names])
 reference_shear = posterior_chain.getMeans(pars=[posterior_chain.index[name] for name in param_names])
 # local fisher:
 fisher = posterior_flow.metric(posterior_flow.cast([reference_shear]))[0]
@@ -64,8 +62,9 @@ prior_fisher = prior_flow.metric(prior_flow.cast([reference_shear]))[0]
 #fisher = np.linalg.inv(example_shear.posterior_chain.cov(example_shear.log_param_names))
 #prior_fisher = np.linalg.inv(example_shear.prior_chain.cov(example_shear.log_param_names))
 
-eig, eigv = np.linalg.eigh(fisher)
+eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
 sqrt_fisher = scipy.linalg.sqrtm(fisher)
+
 # sort modes:
 idx = np.argsort(eig)[::-1]
 eig = eig[idx]
@@ -106,14 +105,21 @@ for i in range(num_params):
 for ax in [ax1]:
     ax.set_xticks(range(num_params))
     ax.set_yticks(range(num_params))
-ax1.set_yticklabels([r'$'+name.label+'$' for name in posterior_chain.getParamNames().parsWithNames(param_names[::-1])], fontsize=0.9*main_fontsize)
+_labels = ['$\\alpha_{\\rm IA}$',
+           '$A_{\\rm IA}$',
+           '$\\log n_s$',
+           '$\\log H_0$',
+           '$\\log \\Omega_b$',
+           '$\\log \\sigma_8$',
+           '$\\log \\Omega_m$']
+ax1.set_yticklabels(_labels, fontsize=0.9*main_fontsize)
 
 _temp = eig_1 - 1.
 _temp[_temp < 0.] = 0.
 ax1.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(_temp), 2))], fontsize=0.9*main_fontsize)
 
 # axes labels:
-ax1.set_xlabel('PCA mode $(\\sqrt{\\lambda})$', fontsize=main_fontsize);
+ax1.set_xlabel('CPC mode $(\\sqrt{\\lambda-1})$', fontsize=main_fontsize);
 ax1.set_ylabel('Parameter', fontsize=main_fontsize);
 
 # update dimensions:
@@ -126,5 +132,5 @@ hspace = 0.08
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 
-plt.savefig(out_folder+'/figure_DES_shear_PCA_contribution.pdf')
+plt.savefig(out_folder+'/figure_18.pdf')
 plt.close('all')

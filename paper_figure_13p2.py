@@ -127,5 +127,5 @@ hspace = 0.08
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 
-plt.savefig(out_folder+'/figure_DES_3x2_contribution.pdf')
+plt.savefig(out_folder+'/figure_13p2.pdf')
 plt.close('all')

@@ -67,29 +67,21 @@ P = P / simps(simps(P, y), x)
 # compute maximum posterior and metric:
 maximum_posterior = example.posterior_flow.MAP_coord
 
-# compute the two base eigenvalues trajectories:
-y0 = example.posterior_flow.cast(maximum_posterior)
-length_1 = (example.posterior_flow.sigma_to_length(8)).astype(np.float32)
-length_2 = (example.posterior_flow.sigma_to_length(8)).astype(np.float32)
-ref_times_1, ref_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=100)
-ref_times_2, ref_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=100)
-
-_, temp_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=101, side='+')
-_, temp_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=0, length=length_1, num_points=101, side='-')
-start_1 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
-
-_, temp_start_1 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=101, side='+')
-_, temp_start_2 = example.posterior_flow.solve_eigenvalue_ode_par(y0, n=1, length=length_2, num_points=101, side='-')
-start_2 = np.concatenate((temp_start_2[::101//5][:-1], temp_start_1[::101//5]))
-
-# compute eigenvalue network:
-modes_0, modes_1 = [], []
-for start in start_2:
-    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=0, length=length_1, num_points=100)
-    modes_0.append(mode)
-for start in start_1:
-    _, mode = example.posterior_flow.solve_eigenvalue_ode_par(start, n=1, length=length_2, num_points=100)
-    modes_1.append(mode)
+# compute local fisher:
+coarse_P1 = np.linspace(param_ranges[0][0], param_ranges[0][1], 20)
+coarse_P2 = np.linspace(param_ranges[1][0], param_ranges[1][1], 20)
+coarse_x, coarse_y = coarse_P1, coarse_P2
+coarse_X, coarse_Y = np.meshgrid(coarse_x, coarse_y)
+# restructure meshgrid of points to give an array of coordinates
+coords = np.array([coarse_X, coarse_Y], dtype=np.float32).reshape(2, -1).T
+# compute the metric at all coordinates
+local_metrics = example.posterior_flow.metric(coords)
+# compute the PCA eigenvalues and eigenvectors of each local metric
+PCA_eig, PCA_eigv = np.linalg.eigh(local_metrics)
+# sort PCA so first mode is index 0
+idx = np.argsort(PCA_eig, axis=1)[0]
+PCA_eig = PCA_eig[:, idx]
+PCA_eigv = PCA_eigv[:, :, idx]
 
 # start the plot:
 fig = plt.gcf()
@@ -99,14 +91,15 @@ ax1 = plt.subplot(gs[0])
 
 ax1.contour(X, Y, P, analyze_2d_example.get_levels(P, x, y, levels), linewidths=1., zorder=-1., linestyles='-', colors=[color_utilities.nice_colors(6) for i in levels])
 
-# MAP:
-ax1.scatter(*maximum_posterior, s=5.0, color='k', zorder=999)
-
-# modes:
-for mode in modes_0:
-    ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(0))
-for mode in modes_1:
-    ax1.plot(*mode.numpy().T, lw=0.8, ls='--', color=color_utilities.nice_colors(1))
+# plot arrows:
+mode = 0
+ax1.quiver(coords[:, 0], coords[:, 1], PCA_eigv[:, 0, mode], PCA_eigv[:, 1, mode],
+           color=color_utilities.nice_colors(0), linewidths=1., angles='xy', label='First mode',
+           headlength=0., headaxislength=0, headwidth=1, pivot='mid', width=0.005, scale=20.0)
+mode = 1
+ax1.quiver(coords[:, 0], coords[:, 1], PCA_eigv[:, 0, mode], PCA_eigv[:, 1, mode],
+           color=color_utilities.nice_colors(1), linewidths=1., angles='xy', label='Second mode',
+           headlength=0., headaxislength=0, headwidth=1, pivot='mid', width=0.005, scale=20.0)
 
 # limits:
 ax1.set_xlim([0.1, 0.45])
@@ -131,12 +124,12 @@ ax1.set_ylabel(r'$\theta_2$', fontsize=main_fontsize);
 
 # legend:
 leg_handlers = [mlines.Line2D([], [], lw=1., ls='-', color='k'),
-                mlines.Line2D([], [], lw=1., ls='--', color=color_utilities.nice_colors(1)),
-                mlines.Line2D([], [], lw=1., ls='--', color=color_utilities.nice_colors(0)),
+                mlines.Line2D([], [], lw=1., ls='-', color=color_utilities.nice_colors(1)),
+                mlines.Line2D([], [], lw=1., ls='-', color=color_utilities.nice_colors(0)),
                 ]
 legend_labels = [r'$\mathcal{P}$',
-                 'PCC 1',
-                 'PCC 2']
+                 'Local PC 1',
+                 'Local PC 2']
 
 leg = fig.legend(handles=leg_handlers,
                 labels=legend_labels,
@@ -149,7 +142,7 @@ leg = fig.legend(handles=leg_handlers,
                 columnspacing=2.0,
                 handlelength=1.5,
                 handletextpad=0.3,
-                loc = 'lower center', #mode='expand',
+                loc = 'lower center',
                 bbox_to_anchor=(0.0, 0.02, 1.2, 0.9),
                 )
 leg.get_frame().set_linewidth('0.8')

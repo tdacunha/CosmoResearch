@@ -21,7 +21,7 @@ sys.path.insert(0, temp_path)
 from tensiometer import utilities, gaussian_tension
 
 # import example:
-import example_DES_Y1 as example
+import example_CMB_lensing as example
 
 ###############################################################################
 # initial settings:
@@ -38,22 +38,24 @@ plt.rc('text', usetex=True)
 ###############################################################################
 # import chains:
 
-prior_chain = example.posterior_chain_lcdm_shear
-posterior_chain = example.posterior_chain_lcdm_3x2
+prior_chain = example.prior_chain_lcdm_CMB_lensing
+posterior_chain = example.posterior_chain_lcdm_CMB_lensing
 
-prior_flow = example.lcdm_shear_log_params_full_posterior_flow
-posterior_flow = example.lcdm_3x2_log_params_shear_posterior_flow
+prior_flow = example.lcdm_CMB_lensing_log_params_prior_flow
+posterior_flow = example.lcdm_CMB_lensing_log_params_posterior_flow
 
 ###############################################################################
 # decide parameters to use:
 
-param_names = posterior_flow.param_names
+param_names = ['log_omegam', 'log_sigma8', 'log_omegab', 'log_H0', 'log_ns']
 num_params = len(param_names)
 
 ###############################################################################
 # Compute KL contributions:
 
 # reference point:
+reference_shear = np.log([name.best_fit for name in posterior_chain.getBestFit().parsWithNames([name.replace('log_', '') for name in param_names])])
+reference_shear = np.array([posterior_chain.samples[np.argmin(posterior_chain.loglikes), :][posterior_chain.index[name]] for name in param_names])
 reference_shear = posterior_chain.getMeans(pars=[posterior_chain.index[name] for name in param_names])
 # local fisher:
 fisher = posterior_flow.metric(posterior_flow.cast([reference_shear]))[0]
@@ -105,14 +107,7 @@ for i in range(num_params):
 for ax in [ax1]:
     ax.set_xticks(range(num_params))
     ax.set_yticks(range(num_params))
-_labels = ['$\\alpha_{\\rm IA}$',
-           '$A_{\\rm IA}$',
-           '$\\log n_s$',
-           '$\\log H_0$',
-           '$\\log \\Omega_b$',
-           '$\\log \\sigma_8$',
-           '$\\log \\Omega_m$']
-ax1.set_yticklabels(_labels, fontsize=0.9*main_fontsize)
+ax1.set_yticklabels([r'$'+name.label+'$' for name in posterior_chain.getParamNames().parsWithNames(param_names[::-1])], fontsize=0.9*main_fontsize)
 
 _temp = eig_1 - 1.
 _temp[_temp < 0.] = 0.
@@ -132,5 +127,5 @@ hspace = 0.08
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
 
-plt.savefig(out_folder+'/figure_DES_shear_to_3x2_contribution.pdf')
+plt.savefig(out_folder+'/figure_20.pdf')
 plt.close('all')

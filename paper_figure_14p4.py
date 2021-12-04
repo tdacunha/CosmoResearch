@@ -14,7 +14,6 @@ import seaborn as sns
 import matplotlib.gridspec as gridspec
 import color_utilities
 import utilities as utils
-import pickle
 
 import sys
 here = './'
@@ -22,6 +21,7 @@ temp_path = os.path.realpath(os.path.join(os.getcwd(), here+'tensiometer'))
 sys.path.insert(0, temp_path)
 # import the tensiometer tools that we need:
 from tensiometer import utilities
+import synthetic_probability
 # import example:
 import example_DES_Y1 as example
 
@@ -44,55 +44,30 @@ main_fontsize = 10.0
 
 # color palette:
 colors = [color_utilities.nice_colors(i) for i in range(6)]
-line_colors = [1,0,2]
+
 # number of modes:
-num_modes = 3
+num_modes = 2
 
 ###############################################################################
 # do local KL:
 
-num_params = len(example.lcdm_3x2_params_log_param_names)
+num_params = len(example.lcdm_3x2_params_param_names)
 # reference point:
-reference_point = np.log([name.best_fit for name in example.posterior_chain_lcdm_3x2.getBestFit().parsWithNames([name.replace('log_', '') for name in example.lcdm_3x2_params_log_param_names])])
-reference_point = np.array([example.posterior_chain_lcdm_3x2.samples[np.argmin(example.posterior_chain_lcdm_3x2.loglikes), :][example.posterior_chain_lcdm_3x2.index[name]] for name in example.lcdm_3x2_params_log_param_names])
-reference_point = example.posterior_chain_lcdm_3x2.getMeans(pars=[example.posterior_chain_lcdm_3x2.index[name] for name in example.lcdm_3x2_params_log_param_names])
-# local fisher:
-fisher = example.lcdm_3x2_log_params_posterior_flow.metric(example.lcdm_3x2_log_params_posterior_flow.cast([reference_point]))[0]
-prior_fisher = example.lcdm_3x2_log_params_prior_flow.metric(example.lcdm_3x2_log_params_prior_flow.cast([reference_point]))[0]
-# global fisher:
-#fisher = np.linalg.inv(example.posterior_chain_lcdm_3x2.cov(example.lcdm_3x2_params_log_param_names))
-#prior_fisher = np.linalg.inv(example.prior_chain_lcdm_3x2.cov(example.lcdm_3x2_params_log_param_names))
+reference_point = np.array([name.best_fit for name in example.posterior_chain_lcdm_3x2.getBestFit().parsWithNames(example.lcdm_3x2_params_param_names)])
+reference_point = np.array([example.posterior_chain_lcdm_3x2.samples[np.argmin(example.posterior_chain_lcdm_3x2.loglikes), :][example.posterior_chain_lcdm_3x2.index[name]] for name in example.lcdm_3x2_params_param_names])
+reference_point = example.posterior_chain_lcdm_3x2.getMeans(pars=[example.posterior_chain_lcdm_3x2.index[name] for name in example.lcdm_3x2_params_param_names])
+# solve for modes:
+y0 = example.lcdm_3x2_params_posterior_flow.cast(reference_point)
+length_1 = (example.lcdm_3x2_params_posterior_flow.sigma_to_length(5)).astype(np.float32)
+length_2 = (example.lcdm_3x2_params_posterior_flow.sigma_to_length(5)).astype(np.float32)
 
-eig, eigv = utilities.KL_decomposition(fisher, prior_fisher)
-sqrt_fisher = scipy.linalg.sqrtm(fisher)
-# sort modes:
-idx = np.argsort(eig)[::-1]
-eig = eig[idx]
-eigv = eigv[:, idx]
+length_1 = 20
+length_2 = 20
+length_3 = 20
 
-# print out modes:
-temp = np.dot(sqrt_fisher, eigv)
-contributions = temp * temp / eig
-for i in range(num_modes):
-    idx_max = np.argmax(contributions[:, i])
-    print('* Mode', i+1)
-    print('  Sqrt eig = ', np.round(np.sqrt(eig[i]), 2))
-    _directions = np.linalg.inv(eigv).T
-    _norm_eigv = _directions[:, i] / _directions[idx_max, i]
-    # normalize to fixed param:
-    ref_idx = example.lcdm_3x2_params_log_param_names.index('log_sigma8')
-    _norm_eigv = _directions[:, i] / _directions[ref_idx, i]
-    with np.printoptions(precision=2, suppress=True):
-        print('  Variance contributions', contributions[:, i])
-    string = ''
-    for j in range(num_params):
-        _name = example.lcdm_3x2_params_log_param_names[j]
-        _mean = reference_point[j]
-        _mean = '{0:+}'.format(np.round(-_mean, 2))
-        _temp = '{0:+}'.format(np.round(_norm_eigv[j], 2))
-        string += _temp+'*('+_name+' '+_mean+') '
-    print('  Mode =', string, '= 0')
-    print(' ')
+_, LKL_mode_1, _ = synthetic_probability.solve_KL_ode(example.lcdm_3x2_params_posterior_flow, example.lcdm_3x2_params_prior_flow, y0, n=4, length=length_1, num_points=200)
+_, LKL_mode_2, _ = synthetic_probability.solve_KL_ode(example.lcdm_3x2_params_posterior_flow, example.lcdm_3x2_params_prior_flow, y0, n=3, length=length_2, num_points=200)
+_, LKL_mode_3, _ = synthetic_probability.solve_KL_ode(example.lcdm_3x2_params_posterior_flow, example.lcdm_3x2_params_prior_flow, y0, n=2, length=length_3, num_points=200)
 
 ###############################################################################
 # plot:
@@ -132,15 +107,15 @@ for i in range(num_params-1):
                   add_legend_proxy=i == 0 and i2 == 1, ax=ax, colors=[colors[3]], filled=True)
         g._inner_ticks(ax)
         # add PCA lines:
-        m1, m2 = np.exp(reference_point[i]),np.exp(reference_point[i2+1])
+        m1, m2 = reference_point[i], reference_point[i2+1]
         ax.scatter(m1, m2, c=[colors[3]], edgecolors='white', zorder=999, s=20)
 
-        for k in range(num_modes):
-            idx1 = example.lcdm_3x2_params_param_names.index(param1)
-            idx2 = example.lcdm_3x2_params_param_names.index(param2)
-            temp = np.sqrt(eig[k])
-            alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
-            ax.plot(m1*np.exp(alpha*eigv[idx1, k]), m2*np.exp(alpha*eigv[idx2, k]), c=colors[line_colors[k]], lw=1., ls='-', zorder=998, label='Linear CPCC mode '+str(k+1))
+        # plot modes:
+        idx1 = example.lcdm_3x2_params_param_names.index(param1)
+        idx2 = example.lcdm_3x2_params_param_names.index(param2)
+        ax.plot(LKL_mode_1[:, idx1], LKL_mode_1[:, idx2], c=colors[1], lw=1., ls='-', zorder=998, label='Non-linear CPCC mode 1')
+        ax.plot(LKL_mode_2[:, idx1], LKL_mode_2[:, idx2], c=colors[0], lw=1., ls='-', zorder=998, label='Non-linear CPCC mode 2')
+        ax.plot(LKL_mode_3[:, idx1], LKL_mode_3[:, idx2], c=colors[2], lw=1., ls='-', zorder=998, label='Non-linear CPCC mode 3')
 
 # ticks:
 for _row in g.subplots:
@@ -157,7 +132,7 @@ g.fig.set_size_inches(x_size/2.54, y_size/2.54)
 
 # text:
 ax = g.subplots[0, 0]
-ax.text(0.01, 1.05, 'b) DES Y1 3x2: linear analysis', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
+ax.text(0.01, 1.05, 'b) DES Y1 3x2: non-linear analysis', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
 
 # legend:
 leg_handlers, legend_labels = ax.get_legend_handles_labels()
@@ -189,6 +164,5 @@ hspace = 0.
 g.gridspec.update(bottom=bottom, top=top, left=left, right=right,
                   wspace=wspace, hspace=hspace)
 leg.set_bbox_to_anchor((0.0, 0.0, right, top))
-
 # save:
-g.fig.savefig(out_folder+'/figure_DES_LCDM_triangle_2_KL.pdf')
+g.fig.savefig(out_folder+'/figure_14p4.pdf')
