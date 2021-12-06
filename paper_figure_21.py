@@ -199,7 +199,7 @@ mode_1_y = np.exp(LKL_mode_1[:, param_names.index('log_sigma8')])
 ax1.plot(mode_1_x, mode_1_y, c=colors[1], lw=1., ls='-')
 mode_2_x = np.exp(LKL_mode_2[:, param_names.index('log_omegam')])**0.8*(np.exp(LKL_mode_2[:, param_names.index('log_H0')]) / 100.)
 mode_2_y = np.exp(LKL_mode_2[:, param_names.index('log_sigma8')])
-ax1.plot(mode_2_x, mode_2_y, c=colors[2], lw=1., ls='-')
+ax1.plot(mode_2_x, mode_2_y, c=colors[0], lw=1., ls='-')
 
 # linear modes:
 mode = 0
@@ -216,7 +216,7 @@ alpha = 200.*np.linspace(-1./temp, 1./temp, 1000)
 _omegam = np.exp(reference_point[param_names.index('log_omegam')] + alpha*eigv[param_names.index('log_omegam'), mode])
 _sigma8 = np.exp(reference_point[param_names.index('log_sigma8')] + alpha*eigv[param_names.index('log_sigma8'), mode])
 _h = np.exp(reference_point[param_names.index('log_H0')] + alpha*eigv[param_names.index('log_H0'), mode]) / 100.
-ax1.plot(_omegam**0.8*_h, _sigma8, c=colors[2], lw=1., ls='--')
+ax1.plot(_omegam**0.8*_h, _sigma8, c=colors[0], lw=1., ls='--')
 
 # limits:
 ax1.set_xlim([0.1, 0.4])
@@ -238,6 +238,9 @@ ax1.get_yticklabels()[-1].set_verticalalignment('top')
 # axes labels:
 ax1.set_xlabel(r'$\Omega_m^{0.8} h$', fontsize=main_fontsize);
 ax1.set_ylabel(r'$\sigma_8$', fontsize=main_fontsize);
+
+# title:
+ax1.text(0.01, 1.03, 'CMB lensing', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax1.transAxes)
 
 # legend:
 import matplotlib.patches as mpatches
@@ -294,7 +297,7 @@ leg.get_title().set_fontsize(main_fontsize)
 
 # update dimensions:
 bottom = 0.30
-top = 0.99
+top = 0.92
 left = 0.14
 right = .99
 wspace = 0.

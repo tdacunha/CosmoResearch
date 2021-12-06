@@ -89,7 +89,7 @@ for start in start_1:
 
 # plot size in cm. Has to match to draft to make sure font sizes are consistent
 x_size = 18.0
-y_size = 8
+y_size = 7
 main_fontsize = 10.0
 
 # start the plot:
@@ -140,7 +140,7 @@ ax2.set_ylim([-3.0, 3.0])
 ticks = [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5]
 ax1.set_xticks(ticks)
 ax1.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
-ticks = [-3, -2, -1, 0, 1, 2, 3]
+ticks = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
 ax2.set_xticks(ticks)
 ax2.set_xticklabels(ticks, fontsize=0.9*main_fontsize);
 for ax in [ax1, ax2]:

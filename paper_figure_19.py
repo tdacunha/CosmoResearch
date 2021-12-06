@@ -159,11 +159,13 @@ g.settings.lw_contour = 1.
 g.make_figure(nx=num_params_to_use-1, ny=num_params_to_use-1, sharex=g.settings.no_triangle_axis_labels,
               sharey=g.settings.no_triangle_axis_labels)
 
+# change label:
+example.posterior_chain_lcdm_shear.getParamNames().parWithName('DES_AIA').label = 'A_{\\rm IA}'
+
 # create subplots:
 bottom = num_params_to_use - 2
 for i in range(num_params_to_use-1):
     for i2 in range(bottom, i-1, -1):
-        print(i, i2)
         param1, param2 = params_to_use[i], params_to_use[i2+1]
         # create sub plot:
         g._subplot(i, i2, pars=(param1, param2),
@@ -192,10 +194,6 @@ for i in range(num_params_to_use-1):
                     transformation[idx2].inverse(m2+alpha*eigv[idx2, k]).numpy(),
                     c=colors[line_colors[k]], lw=1., ls='--', zorder=998, label='lin CPCC mode '+str(k+1))
 
-        # non linear modes:
-        # ax.plot(LKL_mode_1[:, idx1], LKL_mode_1[:, idx2], c=colors[line_colors[0]], lw=1., ls='--', zorder=998, label='CPC mode 1')
-        # ax.plot(LKL_mode_2[:, idx1], LKL_mode_2[:, idx2], c=colors[line_colors[1]], lw=1., ls='--', zorder=998, label='CPC mode 2')
-
         ax.plot(LKL_mode_1[:, idx1], LKL_mode_1[:, idx2], c=colors[line_colors[0]], lw=1., ls='-', zorder=998, label='non-lin CPCC mode 1')
         ax.plot(LKL_mode_2[:, idx1], LKL_mode_2[:, idx2], c=colors[line_colors[1]], lw=1., ls='-', zorder=998, label='non-lin CPCC mode 2')
 
@@ -217,11 +215,43 @@ ax = g.subplots[0, 0]
 ax.text(0.01, 1.05, 'DES Y1 3x2 improvement over shear', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax.transAxes)
 
 # legend:
-leg_handlers, legend_labels = ax.get_legend_handles_labels()
+import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
+
+from matplotlib.legend_handler import HandlerBase
+class object_1():
+    pass
+class AnyObjectHandler1(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.2, ls = '--')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.2, ls = '--')
+        return [l1, l2]
+
+class object_2():
+    pass
+class AnyObjectHandler2(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height], color=color_utilities.nice_colors(1), lw=1.2, ls='-')
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.2, ls='-')
+        return [l1, l2]
+
+leg_handlers = [mpatches.Patch(color=list(colors[2])+[0.8], ec=colors[2]),
+                mpatches.Patch(color=list(colors[3])+[0.8], ec=colors[3]),
+                object_1, object_2]
+
+legend_labels = [
+                 'DES shear',
+                 'DES 3x2',
+                 'Lin. CPCC',
+                 'Non-lin. CPCC',
+                 ]
 
 # legend for the second plot:
 leg = g.fig.legend(handles=leg_handlers,
                    labels=legend_labels,
+                   handler_map={object_1: AnyObjectHandler1(), object_2: AnyObjectHandler2()},
                    fontsize=0.9*main_fontsize,
                    frameon=True,
                    fancybox=False,
@@ -238,7 +268,7 @@ leg.get_title().set_fontsize(main_fontsize)
 
 # update dimensions:
 bottom = 0.10
-top = 0.93
+top = 0.94
 left = 0.15
 right = 0.99
 wspace = 0.

@@ -117,7 +117,7 @@ plt.rc('text', usetex=True)
 
 # plot size in cm. Has to match to draft to make sure font sizes are consistent
 x_size = 8.54
-y_size = 6.5
+y_size = 7.5
 main_fontsize = 10.0
 
 levels = [utilities.from_sigma_to_confidence(i) for i in range(2, 0, -1)]
@@ -126,6 +126,11 @@ levels = [utilities.from_sigma_to_confidence(i) for i in range(2, 0, -1)]
 density_1 = example.posterior_chain_lcdm_3x2.get2DDensity(example.lcdm_3x2_2params_param_names[0], example.lcdm_3x2_2params_param_names[1], normalized=True)
 _X1, _Y1 = np.meshgrid(density_1.x, density_1.y)
 density_1.P = density_1.P / simps(simps(density_1.P, density_1.y), density_1.x)
+
+# obtain prior on grid from samples:
+density_2 = example.prior_chain_lcdm_shear.get2DDensity(example.lcdm_shear_2params_param_names[0], example.lcdm_shear_2params_param_names[1], normalized=True, smooth_scale_2D=0.5)
+_X2, _Y2 = np.meshgrid(density_2.x, density_2.y)
+density_2.P = density_2.P / simps(simps(density_2.P, density_2.y), density_2.x)
 
 # start the plot:
 fig = plt.gcf()
@@ -138,7 +143,18 @@ ax1.contour(_X1, _Y1, density_1.P, get_levels(density_1.P, density_1.x, density_
 m1, m2 = np.exp(example.posterior_chain_lcdm_3x2.getMeans([example.posterior_chain_lcdm_3x2.index[name] for name in example.lcdm_3x2_2params_log_param_names]))
 ax1.scatter(m1, m2, c=[colors[3]], edgecolors='white', zorder=999, s=20)
 
-#ax1.plot(density_1.x, m2*(density_1.x/m1)**(-0.5), ls='--', lw=1., color='k')
+levs = np.append(get_levels(density_1.P, density_1.x, density_1.y, levels), [np.amax(density_1.P)])
+cols = [colors[3] for i in levs]
+cols[0] = tuple(list(cols[0])+[0.1])
+cols[1] = tuple(list(cols[1])+[0.8])
+ax1.contourf(_X1, _Y1, density_1.P, levs, colors=cols)
+
+ax1.contour(_X2, _Y2, density_2.P, get_levels(density_2.P, density_2.x, density_2.y, levels), linewidths=1., linestyles='-', colors=['k' for i in levels])
+levs = np.append(get_levels(density_2.P, density_2.x, density_2.y, levels), [np.amax(density_2.P)])
+cols = [(0, 0, 0) for i in levs]
+cols[0] = tuple(list(cols[0])+[0.05])
+cols[1] = tuple(list(cols[1])+[0.1])
+ax1.contourf(_X2, _Y2, density_2.P, levs, colors=cols)
 
 # first mode:
 temp = np.sqrt(eig[0])
@@ -153,12 +169,6 @@ ax1.plot(m1*np.exp(alpha*eigv[0, 1]), m2*np.exp(alpha*eigv[1, 1]), c=colors[0], 
 # non-linear modes:
 ax1.plot(*(LKL_mode_1).T, c=colors[1], lw=1., ls='-')
 ax1.plot(*(LKL_mode_2).T, c=colors[0], lw=1., ls='-')
-
-levs = np.append(get_levels(density_1.P, density_1.x, density_1.y, levels), [np.amax(density_1.P)])
-cols = [colors[3] for i in levs]
-cols[0] = tuple(list(cols[0])+[0.1])
-cols[1] = tuple(list(cols[1])+[0.8])
-ax1.contourf(_X1, _Y1, density_1.P, levs, colors=cols)
 
 # limits:
 ax1.set_xlim([0.15, 0.4])
@@ -180,6 +190,9 @@ ax1.get_yticklabels()[-1].set_verticalalignment('top')
 # axes labels:
 ax1.set_xlabel(r'$\Omega_m$', fontsize=main_fontsize);
 ax1.set_ylabel(r'$\sigma_8$', fontsize=main_fontsize);
+
+# title:
+ax1.text(0.01, 1.03, 'b) DES Y1 3x2', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax1.transAxes)
 
 # legend:
 import matplotlib.patches as mpatches
@@ -204,24 +217,18 @@ class AnyObjectHandler2(HandlerBase):
         l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height], color=color_utilities.nice_colors(0), lw=1.2, ls='-')
         return [l1, l2]
 
-leg_handlers = [mpatches.Patch(color=list(colors[3])+[0.8], ec=colors[3]),
+leg_handlers = [mpatches.Patch(color=list((0, 0, 0))+[0.1], ec='k'),
+                mpatches.Patch(color=list(colors[3])+[0.8], ec=colors[3]),
                 object_1, object_2]
 
-# leg_handlers = [
-#                 mpatches.Patch(color=list(colors[3])+[0.8], ec=colors[3]),
-#                 mlines.Line2D([], [], lw=1., ls='--', color=colors[1]),
-#                 mlines.Line2D([], [], lw=1., ls='--', color=colors[0]),
-#                 mlines.Line2D([], [], lw=1., ls='-', color=colors[1]),
-#                 mlines.Line2D([], [], lw=1., ls='-', color=colors[0]),
-#                 ]
 legend_labels = [
+                 'Prior',
                  'DES Y1 3x2',
                  'Lin. CPCC',
                  'Non-lin. CPCC',
                  ]
 
 # legend for the second plot:
-
 leg = fig.legend(handles=leg_handlers,
                 labels=legend_labels,
                 handler_map={object_1: AnyObjectHandler1(), object_2: AnyObjectHandler2()},
@@ -229,7 +236,7 @@ leg = fig.legend(handles=leg_handlers,
                 frameon=True,
                 fancybox=False,
                 edgecolor='k',
-                ncol=len(legend_labels),
+                ncol=2,
                 borderaxespad=0.0,
                 columnspacing=0.7,
                 handlelength=1.5,
@@ -237,32 +244,18 @@ leg = fig.legend(handles=leg_handlers,
                 loc = 'lower center',
                 bbox_to_anchor=(0.0, 0.02, 1.2, 0.9),
                 )
-# leg = fig.legend(handles=leg_handlers,
-#                    labels=legend_labels,
-#                    fontsize=0.8*main_fontsize,
-#                    frameon=True,
-#                    fancybox=False,
-#                    edgecolor='k',
-#                    ncol=1,
-#                    borderaxespad=0.0,
-#                    columnspacing=2.0,
-#                    handlelength=1.4,
-#                    loc='upper right',
-#                    bbox_to_anchor=(0.0, 0.0, 0.9, 0.9),
-#                    )
 leg.get_frame().set_linewidth('0.8')
 leg.get_title().set_fontsize(main_fontsize)
 
 # update dimensions:
-bottom = 0.26
-top = 0.99
+bottom = 0.28
+top = 0.92
 left = 0.14
-right = .87#.99
+right = 0.99
 wspace = 0.
 hspace = 0.3
 gs.update(bottom=bottom, top=top, left=left, right=right,
           wspace=wspace, hspace=hspace)
-#leg.set_bbox_to_anchor((0.0, 0.0, right-0.01, top-0.01))
 leg.set_bbox_to_anchor((left, 0.005, right-left, right))
 
 plt.savefig(out_folder+'/figure_15p2.pdf')

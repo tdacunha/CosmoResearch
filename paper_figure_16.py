@@ -116,9 +116,12 @@ ax1.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params
 ax1.set_xlabel('PCA mode $(\\sqrt{\\lambda})$', fontsize=main_fontsize);
 ax1.set_ylabel('Parameter', fontsize=main_fontsize);
 
+# title:
+ax1.text(0.01, 1.03, 'DES Y1 shear PCA', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax1.transAxes)
+
 # update dimensions:
 bottom = 0.19
-top = 0.99
+top = 0.92
 left = 0.20
 right = 0.99
 wspace = 0.03

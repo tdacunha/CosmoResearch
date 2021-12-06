@@ -113,13 +113,16 @@ _temp = eig_1 - 1.
 _temp[_temp < 0.] = 0.
 ax1.set_xticklabels([str(t+1)+'\n ('+str(l)+')' for t, l in zip(range(num_params), np.round(np.sqrt(_temp), 2))], fontsize=0.9*main_fontsize)
 
+# title:
+ax1.text(0.01, 1.03, 'a) DES Y1 shear', verticalalignment='bottom', horizontalalignment='left', fontsize=main_fontsize, transform=ax1.transAxes)
+
 # axes labels:
 ax1.set_xlabel('CPC mode $(\\sqrt{\\lambda-1})$', fontsize=main_fontsize);
 ax1.set_ylabel('Parameter', fontsize=main_fontsize);
 
 # update dimensions:
 bottom = 0.19
-top = 0.99
+top = 0.92
 left = 0.20
 right = 0.99
 wspace = 0.03
